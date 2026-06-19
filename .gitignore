@@ -1,0 +1,8 @@
+.env.local
+node_modules/
+.next/
+wa-bridge/auth_info_baileys/
+wa-bridge/node_modules/
+public/reportes/
+*.pdf
+*.log
