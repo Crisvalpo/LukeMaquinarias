@@ -39,7 +39,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id } = req.body;
+    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id, foto_url } = req.body;
     if (!rut || !nombre_completo || !whatsapp || !rol) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
@@ -48,7 +48,16 @@ export default async function handler(req, res) {
 
     const { data, error } = await supabase
       .from("personal")
-      .insert({ rut, nombre_completo, whatsapp, rol, turno_tipo: turno_tipo || "14x14", jornada_tipo: jornada_tipo || "Dia", proyecto_actual_id: cleanProyectoId })
+      .insert({
+        rut,
+        nombre_completo,
+        whatsapp,
+        rol,
+        turno_tipo: turno_tipo || "14x14",
+        jornada_tipo: jornada_tipo || "Dia",
+        proyecto_actual_id: cleanProyectoId,
+        foto_url: foto_url || null
+      })
       .select()
       .single();
 

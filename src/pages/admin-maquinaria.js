@@ -176,6 +176,60 @@ function EquipoCard({ equipo, onPautaClick }) {
         </div>
       )}
 
+      {/* Operador asociado */}
+      {equipo.reporte_hoy && equipo.reporte_hoy.operador && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          marginTop: "4px",
+          marginBottom: "12px",
+          padding: "8px 10px",
+          background: "rgba(15, 23, 42, 0.4)",
+          borderRadius: "8px",
+          border: "1px solid rgba(28, 46, 82, 0.4)",
+          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)"
+        }}>
+          {equipo.reporte_hoy.operador.foto_url ? (
+            <img
+              src={equipo.reporte_hoy.operador.foto_url}
+              alt={equipo.reporte_hoy.operador.nombre_completo}
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: `1.5px solid ${cfg.border}`
+              }}
+            />
+          ) : (
+            <div style={{
+              width: "28px",
+              height: "28px",
+              borderRadius: "50%",
+              background: "rgba(37, 99, 235, 0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "10px",
+              fontWeight: 800,
+              color: "#60a5fa",
+              border: `1.5px solid ${cfg.border}`
+            }}>
+              {equipo.reporte_hoy.operador.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <span style={{ color: "white", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {equipo.reporte_hoy.operador.nombre_completo}
+            </span>
+            <span style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 600 }}>
+              Operador Asignado
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Botón editar pauta */}
       <button
         onClick={() => onPautaClick(equipo)}
@@ -623,6 +677,7 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     tipo: equipo?.tipo || "",
     categoria: equipo?.categoria || "MAQUINARIA PESADA",
     anio_fabricacion: equipo?.anio_fabricacion !== null && equipo?.anio_fabricacion !== undefined ? equipo.anio_fabricacion.toString() : "",
+    flujo_tipo: equipo?.flujo_tipo || "ESTANDAR",
   });
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -650,6 +705,7 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         tipo: formData.tipo.trim() || null,
         categoria: formData.categoria,
         anio_fabricacion: formData.anio_fabricacion.trim() !== "" ? parseInt(formData.anio_fabricacion) : null,
+        flujo_tipo: formData.flujo_tipo,
       };
 
       const r = await fetch("/api/equipos", {
@@ -745,6 +801,13 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
           <FormRow label="Proveedor">
             <input style={inputStyle} value={formData.proveedor}
               onChange={e => setFormData(p => ({ ...p, proveedor: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Flujo de Operación">
+            <select style={selectStyle} value={formData.flujo_tipo}
+              onChange={e => setFormData(p => ({ ...p, flujo_tipo: e.target.value }))}>
+              <option value="ESTANDAR">Estándar (Con Especialidades y Rigger)</option>
+              <option value="TORRE_ILUMINACION">Torre de Iluminación (Sin Rigger ni Especialidad)</option>
+            </select>
           </FormRow>
           <FormRow label="Proyecto / Obra Asociada">
             <select style={selectStyle} value={formData.proyecto_actual_id}
@@ -1001,13 +1064,13 @@ export default function AdminMaquinaria() {
   }, [tab]);
 
   // ---- Formularios ----
-  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" });
+  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", flujo_tipo: "ESTANDAR" });
   const [formProyecto, setFormProyecto] = useState({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" });
-  const [formPersonal, setFormPersonal] = useState({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" });
+  const [formPersonal, setFormPersonal] = useState({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" });
   const [editingProyectoId, setEditingProyectoId] = useState(null);
   const [formEditProyecto, setFormEditProyecto] = useState({ nombre_proyecto: "", codigo_cc: "", ubicacion: "", activa: true });
   const [editingPersonalId, setEditingPersonalId] = useState(null);
-  const [formEditPersonal, setFormEditPersonal] = useState({ nombre_completo: "", rut: "", whatsapp: "", rol: "Operador", proyecto_actual_id: "", turno_tipo: "14x14", jornada_tipo: "Dia" });
+  const [formEditPersonal, setFormEditPersonal] = useState({ nombre_completo: "", rut: "", whatsapp: "", rol: "Operador", proyecto_actual_id: "", turno_tipo: "14x14", jornada_tipo: "Dia", foto_url: "" });
   const [botPhone, setBotPhone] = useState("");
   const [qrEquipo, setQrEquipo] = useState(null);
 
@@ -1896,9 +1959,17 @@ export default function AdminMaquinaria() {
                       {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
+                  <FormRow label="Flujo de Operación">
+                    <select style={selectStyle}
+                      value={formEquipo.flujo_tipo || "ESTANDAR"}
+                      onChange={e => setFormEquipo(p => ({ ...p, flujo_tipo: e.target.value }))}>
+                      <option value="ESTANDAR">Estándar (Con Especialidades y Rigger)</option>
+                      <option value="TORRE_ILUMINACION">Torre de Iluminación (Sin Rigger ni Especialidad)</option>
+                    </select>
+                  </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", flujo_tipo: "ESTANDAR" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
                   disabled={saving}
                   style={{
                     background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
@@ -2220,9 +2291,14 @@ export default function AdminMaquinaria() {
                       {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
+                  <FormRow label="Foto de Perfil URL">
+                    <input style={inputStyle} placeholder="https://..."
+                      value={formPersonal.foto_url}
+                      onChange={e => setFormPersonal(p => ({ ...p, foto_url: e.target.value }))} />
+                  </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
+                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
                   disabled={saving}
                   style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
                 >
@@ -2241,7 +2317,7 @@ export default function AdminMaquinaria() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #1c2e52", background: "#0f172a22" }}>
-                      {["Nombre", "RUT", "WhatsApp", "Rol", "Proyecto", "Turno / Jornada", "Acciones"].map(h => (
+                      {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Proyecto", "Turno / Jornada", "Acciones"].map(h => (
                         <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                       ))}
                     </tr>
@@ -2254,6 +2330,14 @@ export default function AdminMaquinaria() {
                         <tr key={p.id} style={{ borderBottom: "1px solid #1c2e52", background: idx % 2 === 0 ? "transparent" : "#0f172a22" }}>
                           {isEditing ? (
                             <>
+                              <td style={{ padding: "8px 16px" }}>
+                                <input
+                                  style={{ ...inputStyle, padding: "6px 10px" }}
+                                  placeholder="Foto URL"
+                                  value={formEditPersonal.foto_url}
+                                  onChange={e => setFormEditPersonal(prev => ({ ...prev, foto_url: e.target.value }))}
+                                />
+                              </td>
                               <td style={{ padding: "8px 16px" }}>
                                 <input
                                   style={{ ...inputStyle, padding: "6px 10px" }}
@@ -2346,6 +2430,37 @@ export default function AdminMaquinaria() {
                             </>
                           ) : (
                             <>
+                              <td style={{ padding: "12px 16px" }}>
+                                {p.foto_url ? (
+                                  <img
+                                    src={p.foto_url}
+                                    alt={p.nombre_completo}
+                                    style={{
+                                      width: "28px",
+                                      height: "28px",
+                                      borderRadius: "50%",
+                                      objectFit: "cover",
+                                      border: "1px solid #1c2e52"
+                                    }}
+                                  />
+                                ) : (
+                                  <div style={{
+                                    width: "28px",
+                                    height: "28px",
+                                    borderRadius: "50%",
+                                    background: "rgba(37, 99, 235, 0.15)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    color: "#60a5fa",
+                                    border: "1px solid #1c2e52"
+                                  }}>
+                                    {p.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                                  </div>
+                                )}
+                              </td>
                               <td style={{ padding: "12px 16px", color: "white", fontWeight: 600, fontSize: "13px" }}>
                                 {p.nombre_completo}
                               </td>
@@ -2377,7 +2492,8 @@ export default function AdminMaquinaria() {
                                       rol: p.rol,
                                       proyecto_actual_id: p.proyecto_actual_id,
                                       turno_tipo: p.turno_tipo || "14x14",
-                                      jornada_tipo: p.jornada_tipo || "Dia"
+                                      jornada_tipo: p.jornada_tipo || "Dia",
+                                      foto_url: p.foto_url || ""
                                     });
                                   }}
                                   style={{

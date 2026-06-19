@@ -886,6 +886,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // Obtener especialidades para el prompt
       const { data: especialidades } = await supabase.from("especialidades").select("*");
 
+      // Obtener el flujo_tipo del equipo asociado al reporte activo
+      const { data: reporteCheckin } = await supabase
+        .from("reportes_diarios")
+        .select("*, equipos(*)")
+        .eq("id", sesion.reporte_activo_id)
+        .maybeSingle();
+      const flujoTipo = reporteCheckin?.equipos?.flujo_tipo || "ESTANDAR";
+
       // === MEMORIA CONVERSACIONAL ===
       const transcripcionAudio = `Audio de check-in: horómetro inicial declarado por el operador.`;
 
@@ -912,12 +920,12 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         resultado = await procesarMensajeConContexto(
           historialConAudio,
           especialidades || [],
-          { estado_sesion: "CHECKIN" }
+          { estado_sesion: "CHECKIN", flujo_tipo: flujoTipo }
         );
       } else {
         resultado = await procesarAudioOperador(
           audio.data, audio.mimeType, especialidades || [],
-          { estado_sesion: "CHECKIN" }
+          { estado_sesion: "CHECKIN", flujo_tipo: flujoTipo }
         );
       }
 
@@ -1039,11 +1047,13 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       const { data: especialidades } = await supabase.from("especialidades").select("*");
-      const { data: reporteActual } = await supabase
+       const { data: reporteActual } = await supabase
         .from("reportes_diarios")
-        .select("horometro_inicio, equipos(pauta_preventiva_activa)")
+        .select("horometro_inicio, equipos(pauta_preventiva_activa, flujo_tipo)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
+
+      const flujoTipo = reporteActual?.equipos?.flujo_tipo || "ESTANDAR";
 
       // === MEMORIA CONVERSACIONAL (Caso C: Hitos Intermedios) ===
       const contenidoUsuario = audio ? "Audio de terreno del operador" : (message || "");
@@ -1075,7 +1085,8 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             {
               estado_sesion: "INTERMEDIO",
               horometro_inicio: reporteActual?.horometro_inicio,
-              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa
+              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
+              flujo_tipo: flujoTipo
             }
           );
         } else {
@@ -1084,6 +1095,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             {
               estado_sesion: "INTERMEDIO",
               horometro_inicio: reporteActual?.horometro_inicio,
+              flujo_tipo: flujoTipo
             }
           );
         }
