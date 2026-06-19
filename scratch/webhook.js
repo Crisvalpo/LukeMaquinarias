@@ -65,7 +65,7 @@ const server = http.createServer((req, res) => {
       scriptPath = '/home/cristian/deploy/deploy-delivery.sh';
     } else if (repoName === 'ruletavirtual') {
       scriptPath = '/home/cristian/deploy/deploy-ruleta.sh';
-    } else if (repoName === 'LukeEquipos') {
+    } else if (repoName === 'LukeEquipos' || repoName === 'LukeMaquinarias') {
       scriptPath = '/home/cristian/deploy/deploy-equipos.sh';
     }
 

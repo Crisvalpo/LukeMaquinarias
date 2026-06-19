@@ -21,6 +21,9 @@ const pino = require("pino");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
+const { exec } = require("child_process");
 require("dotenv").config({ path: path.join(__dirname, "../.env.local") });
 
 
@@ -230,12 +233,12 @@ app.get("/status", (req, res) => {
   res.json({ success: true, status: connectionState, service: "luke-montaje-wa-bridge" });
 });
 
-// Enviar mensaje de texto
+// Enviar mensaje de texto o audio
 app.post("/send", async (req, res) => {
-  const { to, text } = req.body;
+  const { to, text, audioBase64 } = req.body;
 
-  if (!to || !text) {
-    return res.status(400).json({ success: false, message: "Falta 'to' o 'text'" });
+  if (!to) {
+    return res.status(400).json({ success: false, message: "Falta destinatario (to)" });
   }
 
   if (connectionState !== "connected" || !sock) {
@@ -247,10 +250,53 @@ app.post("/send", async (req, res) => {
       ? to
       : `${to.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
 
-    const sentMsg = await sock.sendMessage(formattedNum, { text });
+    let sentMsg;
+
+    if (audioBase64) {
+      const pcmBuffer = Buffer.from(audioBase64, "base64");
+      const tempId = crypto.randomBytes(16).toString("hex");
+      const tempPcmPath = path.join(__dirname, `temp_${tempId}.pcm`);
+      const tempOggPath = path.join(__dirname, `temp_${tempId}.ogg`);
+
+      try {
+        fs.writeFileSync(tempPcmPath, pcmBuffer);
+
+        // Convertir PCM crudo de Gemini (24kHz Mono 16-bit LE) a Opus OGG para WhatsApp
+        await new Promise((resolve, reject) => {
+          exec(`ffmpeg -y -f s16le -ar 24000 -ac 1 -i "${tempPcmPath}" -c:a libopus -b:a 64k "${tempOggPath}"`, (err, stdout, stderr) => {
+            if (err) {
+              console.error("[wa-bridge-montaje] Error de ffmpeg:", stderr);
+              return reject(err);
+            }
+            resolve();
+          });
+        });
+
+        const oggBuffer = fs.readFileSync(tempOggPath);
+
+        sentMsg = await sock.sendMessage(formattedNum, {
+          audio: oggBuffer,
+          mimetype: "audio/ogg; codecs=opus",
+          ptt: true,
+        });
+      } finally {
+        try {
+          if (fs.existsSync(tempPcmPath)) fs.unlinkSync(tempPcmPath);
+          if (fs.existsSync(tempOggPath)) fs.unlinkSync(tempOggPath);
+        } catch (cleanupErr) {
+          console.error("[wa-bridge-montaje] Error al limpiar archivos temporales:", cleanupErr.message);
+        }
+      }
+    } else {
+      if (!text) {
+        return res.status(400).json({ success: false, message: "Falta texto para enviar" });
+      }
+      sentMsg = await sock.sendMessage(formattedNum, { text });
+    }
+
     res.json({ success: true, data: sentMsg });
   } catch (err) {
-    console.error("[wa-bridge-montaje] Error enviando mensaje:", err.message);
+    console.error("[wa-bridge-montaje] Error sending message:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });

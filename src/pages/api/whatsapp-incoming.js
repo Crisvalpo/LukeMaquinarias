@@ -102,6 +102,72 @@ export default async function handler(req, res) {
   const { phone, jid, message, audio, image, localImagePath, senderPn } = req.body;
   const phoneClean = (senderPn || phone || "").replace(/\+/g, "").trim();
 
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const tieneAudioEntrante = !!(audio && audio.data);
+
+  // Redefinir enviarMensaje localmente para usar Gemini TTS si la entrada fue por voz
+  async function enviarMensaje(targetJid, targetPhone, texto) {
+    const dest = targetJid || `${targetPhone}@s.whatsapp.net`;
+    let audioBase64ParaEnviar = null;
+
+    // Solo sintetizar si el usuario original envió audio y no hay URLs en la respuesta
+    const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.me");
+    if (tieneAudioEntrante && texto && !contieneLink && geminiKey) {
+      try {
+        const ttsModelName = "gemini-2.5-flash-preview-tts";
+        console.log(`[whatsapp-incoming] 🎙️ Sintetizando voz con Gemini TTS: "${texto.substring(0, 50)}..."`);
+        const ttsRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${ttsModelName}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: texto }] }],
+              generationConfig: {
+                responseModalities: ["AUDIO"],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: { voiceName: "Charon" }
+                  }
+                }
+              }
+            })
+          }
+        );
+
+        if (ttsRes.ok) {
+          const ttsData = await ttsRes.json();
+          const ttsParts = ttsData.candidates?.[0]?.content?.parts || [];
+          for (const part of ttsParts) {
+            if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith("audio/")) {
+              audioBase64ParaEnviar = part.inlineData.data;
+              break;
+            }
+          }
+        } else {
+          const ttsErrBody = await ttsRes.text();
+          console.error(`[whatsapp-incoming] Error TTS (${ttsRes.status}):`, ttsErrBody.substring(0, 200));
+        }
+      } catch (ttsErr) {
+        console.error("[whatsapp-incoming] Error en síntesis de voz:", ttsErr.message);
+      }
+    }
+
+    try {
+      await fetch(`${BRIDGE_URL}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: dest,
+          text: audioBase64ParaEnviar ? "" : texto,
+          audioBase64: audioBase64ParaEnviar || null,
+        }),
+      });
+    } catch (err) {
+      console.error("[whatsapp-incoming] Error enviando mensaje a través del bridge:", err.message);
+    }
+  }
+
   if (!phoneClean) {
     return res.status(400).json({ success: false, message: "Falta phone" });
   }
