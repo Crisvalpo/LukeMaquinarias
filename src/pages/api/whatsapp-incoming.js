@@ -125,7 +125,12 @@ export default async function handler(req, res) {
   }
 
   const { phone, jid, message, audio, image, localImagePath, senderPn } = req.body;
-  const phoneClean = (senderPn || phone || "").replace(/\+/g, "").trim();
+  
+  let searchPhone = senderPn || phone || "";
+  if (typeof searchPhone === "string") {
+    searchPhone = searchPhone.split("@")[0].split(":")[0];
+  }
+  const phoneClean = searchPhone.replace(/\+/g, "").trim();
 
   const geminiKey = process.env.GEMINI_API_KEY;
   const tieneAudioEntrante = !!(audio && audio.data);
