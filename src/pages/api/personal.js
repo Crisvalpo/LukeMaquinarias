@@ -4,13 +4,38 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    const { data, error } = await supabase
-      .from("personal")
-      .select("*, proyectos(nombre_proyecto, codigo_cc)")
-      .order("nombre_completo");
+    const { search, page, limit } = req.query;
 
-    if (error) return res.status(500).json({ success: false, error: error.message });
-    return res.status(200).json({ success: true, data });
+    let query = supabase
+      .from("personal")
+      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" });
+
+    // Filtrar por búsqueda si se provee
+    if (search && search.trim() !== "") {
+      const searchTerms = `%${search.trim()}%`;
+      query = query.or(`nombre_completo.ilike.${searchTerms},rut.ilike.${searchTerms},whatsapp.ilike.${searchTerms},rol.ilike.${searchTerms}`);
+    }
+
+    if (page || limit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 15;
+      const from = (pageNum - 1) * limitNum;
+      const to = pageNum * limitNum - 1;
+
+      const { data, error, count } = await query
+        .order("nombre_completo")
+        .range(from, to);
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, data, count, page: pageNum, limit: limitNum });
+    } else {
+      // Retornar lista completa (compatibilidad)
+      const { data, error, count } = await query
+        .order("nombre_completo");
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, data, count });
+    }
   }
 
   if (req.method === "POST") {

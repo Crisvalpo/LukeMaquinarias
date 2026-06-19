@@ -4,14 +4,38 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    // Listar equipos con estado actual y proyecto
-    const { data, error } = await supabase
-      .from("equipos")
-      .select("*, proyectos(nombre_proyecto, codigo_cc)")
-      .order("codigo_interno");
+    const { search, page, limit } = req.query;
 
-    if (error) return res.status(500).json({ success: false, error: error.message });
-    return res.status(200).json({ success: true, data });
+    let query = supabase
+      .from("equipos")
+      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" });
+
+    // Filtrar por búsqueda si se provee
+    if (search && search.trim() !== "") {
+      const searchTerms = `%${search.trim()}%`;
+      query = query.or(`codigo_interno.ilike.${searchTerms},descripcion_equipo.ilike.${searchTerms},marca.ilike.${searchTerms},modelo.ilike.${searchTerms},patente.ilike.${searchTerms},categoria.ilike.${searchTerms},tipo.ilike.${searchTerms}`);
+    }
+
+    if (page || limit) {
+      const pageNum = parseInt(page) || 1;
+      const limitNum = parseInt(limit) || 15;
+      const from = (pageNum - 1) * limitNum;
+      const to = pageNum * limitNum - 1;
+
+      const { data, error, count } = await query
+        .order("codigo_interno")
+        .range(from, to);
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, data, count, page: pageNum, limit: limitNum });
+    } else {
+      // Retornar lista completa (compatibilidad)
+      const { data, error, count } = await query
+        .order("codigo_interno");
+
+      if (error) return res.status(500).json({ success: false, error: error.message });
+      return res.status(200).json({ success: true, data, count });
+    }
   }
 
   if (req.method === "POST") {

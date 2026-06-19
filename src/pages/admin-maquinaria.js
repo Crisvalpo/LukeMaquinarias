@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   HardHat, Wrench, Building2, Users, LayoutGrid, FileText,
   Plus, RefreshCw, ChevronRight, AlertTriangle, Clock,
-  CheckCircle, Coffee, XCircle, Pencil, Save, X, ThumbsUp, ThumbsDown, MessageSquare, MapPin, Map, QrCode
+  CheckCircle, Coffee, XCircle, Pencil, Save, X, ThumbsUp, ThumbsDown, MessageSquare, MapPin, Map, QrCode, Search
 } from "lucide-react";
 
 // ================================================================
@@ -39,6 +39,55 @@ function useApi(endpoint, deps = []) {
 
   useEffect(() => { fetch_(false); }, deps);
   return { data, loading, refresh: (silent = false) => fetch_(silent) };
+}
+
+function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
+  const [data, setData] = useState([]);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  const fetch_ = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.set("page", page.toString());
+      url.searchParams.set("limit", initialLimit.toString());
+      if (search.trim() !== "") {
+        url.searchParams.set("search", search.trim());
+      }
+      const r = await fetch(url.toString());
+      const json = await r.json();
+      setData(json.data || []);
+      setCount(json.count || 0);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [endpoint, page, search, initialLimit]);
+
+  useEffect(() => {
+    fetch_(false);
+  }, [page, search, ...deps]);
+
+  // Resetear página a 1 cuando cambie la búsqueda
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  return {
+    data,
+    count,
+    loading,
+    page,
+    setPage,
+    search,
+    setSearch,
+    refresh: (silent = false) => fetch_(silent),
+    limit: initialLimit
+  };
 }
 
 // ================================================================
@@ -410,20 +459,362 @@ function QrEquipoModal({ equipo, botPhone, onClose }) {
 }
 
 // ================================================================
+// COMPONENTES AUXILIARES: BUSCADOR Y PAGINADOR
+// ================================================================
+function Buscador({ value, onChange, placeholder }) {
+  return (
+    <div style={{
+      position: "relative",
+      marginBottom: "16px",
+      display: "flex",
+      alignItems: "center"
+    }}>
+      <div style={{
+        position: "absolute",
+        left: "12px",
+        color: "#64748b",
+        display: "flex",
+        alignItems: "center",
+        pointerEvents: "none"
+      }}>
+        <Search size={16} />
+      </div>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        style={{
+          width: "100%",
+          background: "#0f172a",
+          border: "1px solid #1c2e52",
+          borderRadius: "8px",
+          color: "white",
+          padding: "10px 12px 10px 38px",
+          fontSize: "13px",
+          outline: "none",
+          boxSizing: "border-box",
+          fontFamily: "inherit",
+          transition: "all 0.2s",
+        }}
+        onFocus={e => {
+          e.target.style.borderColor = "#ff303e";
+          e.target.style.boxShadow = "0 0 0 2px rgba(255, 48, 62, 0.2)";
+        }}
+        onBlur={e => {
+          e.target.style.borderColor = "#1c2e52";
+          e.target.style.boxShadow = "none";
+        }}
+      />
+      {value && (
+        <button
+          onClick={() => onChange({ target: { value: "" } })}
+          style={{
+            position: "absolute",
+            right: "12px",
+            background: "none",
+            border: "none",
+            color: "#64748b",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            padding: 0
+          }}
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Paginador({ api, label }) {
+  const totalPages = Math.ceil(api.count / api.limit);
+  const fromRecord = api.count === 0 ? 0 : (api.page - 1) * api.limit + 1;
+  const toRecord = Math.min(api.page * api.limit, api.count);
+
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "16px",
+      background: "#121e36",
+      borderTop: "1px solid #1c2e52",
+      borderBottomLeftRadius: "12px",
+      borderBottomRightRadius: "12px",
+      fontSize: "13px",
+      color: "#94a3b8"
+    }}>
+      <div>
+        Mostrando <span style={{ color: "white", fontWeight: 600 }}>{fromRecord}-{toRecord}</span> de <span style={{ color: "white", fontWeight: 600 }}>{api.count}</span> {label}
+      </div>
+      {totalPages > 1 && (
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            onClick={() => api.setPage(p => Math.max(p - 1, 1))}
+            disabled={api.page === 1}
+            style={{
+              background: api.page === 1 ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
+              border: "1px solid #2563eb",
+              color: api.page === 1 ? "#4b5563" : "#60a5fa",
+              borderRadius: "6px",
+              padding: "6px 12px",
+              cursor: api.page === 1 ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              fontSize: "12px",
+              opacity: api.page === 1 ? 0.5 : 1,
+              transition: "all 0.2s"
+            }}
+          >
+            Anterior
+          </button>
+          <span style={{ color: "white", fontWeight: 600, padding: "0 8px" }}>
+            Pág. {api.page} de {totalPages}
+          </span>
+          <button
+            onClick={() => api.setPage(p => Math.min(p + 1, totalPages))}
+            disabled={api.page >= totalPages}
+            style={{
+              background: api.page >= totalPages ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
+              border: "1px solid #2563eb",
+              color: api.page >= totalPages ? "#4b5563" : "#60a5fa",
+              borderRadius: "6px",
+              padding: "6px 12px",
+              cursor: api.page >= totalPages ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              fontSize: "12px",
+              opacity: api.page >= totalPages ? 0.5 : 1,
+              transition: "all 0.2s"
+            }}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================================================================
+// MODAL DE EDICIÓN COMPLETA DE EQUIPO
+// ================================================================
+function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    codigo_interno: equipo?.codigo_interno || "",
+    descripcion_equipo: equipo?.descripcion_equipo || "",
+    proveedor: equipo?.proveedor || "EIMISA",
+    proyecto_actual_id: equipo?.proyecto_actual_id || "",
+    estado_actual: equipo?.estado_actual || "Disponible",
+    pauta_preventiva_activa: equipo?.pauta_preventiva_activa || "",
+    patente: equipo?.patente || "",
+    marca: equipo?.marca || "",
+    modelo: equipo?.modelo || "",
+    numero_serial: equipo?.numero_serial || "",
+    tipo: equipo?.tipo || "",
+    categoria: equipo?.categoria || "MAQUINARIA PESADA",
+    anio_fabricacion: equipo?.anio_fabricacion !== null && equipo?.anio_fabricacion !== undefined ? equipo.anio_fabricacion.toString() : "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSave = async () => {
+    if (!formData.codigo_interno.trim() || !formData.descripcion_equipo.trim()) {
+      setErrorMsg("Código Interno y Descripción son requeridos");
+      return;
+    }
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      const body = {
+        id: equipo.id,
+        codigo_interno: formData.codigo_interno.trim(),
+        descripcion_equipo: formData.descripcion_equipo.trim(),
+        proveedor: formData.proveedor.trim(),
+        proyecto_actual_id: formData.proyecto_actual_id === "" ? null : formData.proyecto_actual_id,
+        estado_actual: formData.estado_actual,
+        pauta_preventiva_activa: formData.pauta_preventiva_activa.trim() || null,
+        patente: formData.patente.trim() || null,
+        marca: formData.marca.trim() || null,
+        modelo: formData.modelo.trim() || null,
+        numero_serial: formData.numero_serial.trim() || null,
+        tipo: formData.tipo.trim() || null,
+        categoria: formData.categoria,
+        anio_fabricacion: formData.anio_fabricacion.trim() !== "" ? parseInt(formData.anio_fabricacion) : null,
+      };
+
+      const r = await fetch("/api/equipos", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await r.json();
+      if (json.success) {
+        onSave();
+      } else {
+        setErrorMsg(json.error || json.message || "Error al guardar");
+      }
+    } catch (e) {
+      setErrorMsg(e.message || "Error de conexión");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const CATEGORIAS_MAESTRAS = ["GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      zIndex: 1000, padding: "20px",
+    }}>
+      <div style={{
+        background: "#121e36", border: "1px solid #1c2e52",
+        borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "700px",
+        maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+          <div>
+            <div style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Editar Maquinaria / Equipo</div>
+            <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>
+              Modifique los metadatos técnicos y operacionales del equipo.
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+            <X size={20} />
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#c21a25", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "16px", fontWeight: 600 }}>
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "18px" }}>
+          <FormRow label="Código Interno *">
+            <input style={inputStyle} value={formData.codigo_interno}
+              onChange={e => setFormData(p => ({ ...p, codigo_interno: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Descripción *">
+            <input style={inputStyle} value={formData.descripcion_equipo}
+              onChange={e => setFormData(p => ({ ...p, descripcion_equipo: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Patente">
+            <input style={inputStyle} placeholder="Ej: AB-CD-12" value={formData.patente}
+              onChange={e => setFormData(p => ({ ...p, patente: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Marca">
+            <input style={inputStyle} placeholder="Ej: Caterpillar" value={formData.marca}
+              onChange={e => setFormData(p => ({ ...p, marca: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Modelo">
+            <input style={inputStyle} placeholder="Ej: 320D L" value={formData.modelo}
+              onChange={e => setFormData(p => ({ ...p, modelo: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Número de Serie / Chasis">
+            <input style={inputStyle} placeholder="Ej: CAT0320DL..." value={formData.numero_serial}
+              onChange={e => setFormData(p => ({ ...p, numero_serial: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Tipo de Equipo">
+            <input style={inputStyle} placeholder="Ej: Excavadora Oruga" value={formData.tipo}
+              onChange={e => setFormData(p => ({ ...p, tipo: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Categoría Maestra">
+            <select style={selectStyle} value={formData.categoria}
+              onChange={e => setFormData(p => ({ ...p, categoria: e.target.value }))}>
+              {CATEGORIAS_MAESTRAS.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </FormRow>
+          <FormRow label="Año Fabricación">
+            <input style={inputStyle} type="number" placeholder="Ej: 2018" value={formData.anio_fabricacion}
+              onChange={e => setFormData(p => ({ ...p, anio_fabricacion: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Proveedor">
+            <input style={inputStyle} value={formData.proveedor}
+              onChange={e => setFormData(p => ({ ...p, proveedor: e.target.value }))} />
+          </FormRow>
+          <FormRow label="Proyecto / Obra Asociada">
+            <select style={selectStyle} value={formData.proyecto_actual_id}
+              onChange={e => setFormData(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
+              <option value="">Sin asignar / En Taller</option>
+              {proyectos.map(p => (
+                <option key={p.id} value={p.id}>{p.codigo_cc} — {p.nombre_proyecto}</option>
+              ))}
+            </select>
+          </FormRow>
+          <FormRow label="Estado Operacional Actual">
+            <select style={selectStyle} value={formData.estado_actual}
+              onChange={e => setFormData(p => ({ ...p, estado_actual: e.target.value }))}>
+              <option value="Equipo Operativo">Operativo</option>
+              <option value="Disponible">Disponible (Sin operador)</option>
+              <option value="En Colacion">En Colación</option>
+              <option value="Detenido por Falla">Detenido por Falla (Taller)</option>
+            </select>
+          </FormRow>
+        </div>
+
+        <div style={{ marginBottom: "18px" }}>
+          <FormRow label="Pauta Preventiva Activa">
+            <textarea
+              value={formData.pauta_preventiva_activa}
+              onChange={e => setFormData(p => ({ ...p, pauta_preventiva_activa: e.target.value }))}
+              placeholder="Instrucciones especiales para el operador al iniciar jornada..."
+              style={{
+                width: "100%", minHeight: "80px", background: "#0f172a",
+                border: "1px solid #1c2e52", borderRadius: "8px",
+                color: "white", padding: "12px", fontSize: "13px",
+                resize: "vertical", outline: "none", fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </FormRow>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{
+            background: "transparent", border: "1px solid #1c2e52",
+            color: "#94a3b8", borderRadius: "8px", padding: "10px 20px",
+            cursor: "pointer", fontSize: "13px", fontWeight: 600,
+          }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave} disabled={saving} style={{
+            background: "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)", border: "none",
+            color: "white", borderRadius: "8px", padding: "10px 24px",
+            cursor: "pointer", fontSize: "13px", fontWeight: 700,
+            display: "flex", alignItems: "center", gap: "6px",
+          }}>
+            <Save size={14} /> {saving ? "Guardando..." : "Guardar Cambios"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================================================================
 // PÁGINA PRINCIPAL
 // ================================================================
 export default function AdminMaquinaria() {
   const [tab, setTab] = useState("monitor");
   const [pautaEquipo, setPautaEquipo] = useState(null);
+  const [editEquipo, setEditEquipo] = useState(null);
   const [filtroCategoria, setFiltroCategoria] = useState("TODAS");
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
   const [agruparPorProyecto, setAgruparPorProyecto] = useState(false);
   const pollRef = useRef(null);
 
   // Datos
-  const equipos = useApi("/api/equipos", [tab]);
-  const proyectos = useApi("/api/proyectos", [tab]);
-  const personal = useApi("/api/personal", [tab]);
+  const equiposCompleto = useApi("/api/equipos", [tab]);
+  const equiposPaginado = usePaginatedApi("/api/equipos", 15, [tab]);
+  const proyectosCompleto = useApi("/api/proyectos", [tab]);
+  const proyectosPaginado = usePaginatedApi("/api/proyectos", 15, [tab]);
+  const personalCompleto = useApi("/api/personal", [tab]);
+  const personalPaginado = usePaginatedApi("/api/personal", 15, [tab]);
   const reportes = useApi("/api/reportes", [tab]);
   const registros = useApi("/api/registros", [tab]);
 
@@ -434,7 +825,7 @@ export default function AdminMaquinaria() {
 
   // Inicializar mapa de geolocalización cuando se cambia a la pestaña 'mapa'
   useEffect(() => {
-    if (tab !== "mapa" || typeof window === "undefined" || equipos.loading) return;
+    if (tab !== "mapa" || typeof window === "undefined" || equiposCompleto.loading) return;
 
     // Cargar CSS de Leaflet de forma dinámica
     if (!document.getElementById("leaflet-css")) {
@@ -486,7 +877,7 @@ export default function AdminMaquinaria() {
       const L = (await import("leaflet")).default;
       markersLayer.current.clearLayers();
 
-      const equiposConCoordenadas = equipos.data.filter(e => e.latitud_actual && e.longitud_actual);
+      const equiposConCoordenadas = equiposCompleto.data.filter(e => e.latitud_actual && e.longitud_actual);
 
       equiposConCoordenadas.forEach(e => {
         // Mapeo de colores de estado
@@ -565,8 +956,13 @@ export default function AdminMaquinaria() {
 
     return () => {
       isMounted = false;
+      if (mapInstance.current) {
+        mapInstance.current.remove();
+        mapInstance.current = null;
+        markersLayer.current = null;
+      }
     };
-  }, [tab, equipos.data, equipos.loading]);
+  }, [tab, equiposCompleto.data, equiposCompleto.loading]);
 
   // Estados de edición para la pestaña de registros
   const [editRegistros, setEditRegistros] = useState({});
@@ -591,7 +987,7 @@ export default function AdminMaquinaria() {
   // Auto-polling del monitor cada 10s
   useEffect(() => {
     if (tab !== "monitor") return;
-    pollRef.current = setInterval(() => equipos.refresh(true), 10000);
+    pollRef.current = setInterval(() => equiposCompleto.refresh(true), 10000);
     return () => clearInterval(pollRef.current);
   }, [tab]);
 
@@ -660,7 +1056,8 @@ export default function AdminMaquinaria() {
       if (json.success) {
         showMsg("✅ Proyecto actualizado con éxito");
         setEditingProyectoId(null);
-        proyectos.refresh();
+        proyectosPaginado.refresh();
+        proyectosCompleto.refresh();
       } else {
         showMsg(`❌ Error: ${json.error || json.message}`, false);
       }
@@ -687,7 +1084,8 @@ export default function AdminMaquinaria() {
       if (json.success) {
         showMsg("✅ Personal actualizado con éxito");
         setEditingPersonalId(null);
-        personal.refresh();
+        personalPaginado.refresh();
+        personalCompleto.refresh();
       } else {
         showMsg(`❌ Error: ${json.error || json.message}`, false);
       }
@@ -722,7 +1120,8 @@ export default function AdminMaquinaria() {
       if (json.success) {
         showMsg("✅ Solicitud aprobada con éxito");
         registros.refresh();
-        personal.refresh();
+        personalPaginado.refresh();
+        personalCompleto.refresh();
       } else {
         showMsg(`❌ Error: ${json.error || json.message}`, false);
       }
@@ -778,14 +1177,14 @@ export default function AdminMaquinaria() {
   const CATEGORIAS_MAESTRAS = ["TODAS", "GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
 
   // Filtrado de equipos por categoría y estado
-  const equiposFiltrados = equipos.data.filter(eq => {
+  const equiposFiltrados = equiposCompleto.data.filter(eq => {
     const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
     const cumpleEst = filtroEstado === "TODOS" || eq.estado_actual === filtroEstado;
     return cumpleCat && cumpleEst;
   });
 
   // Equipos filtrados solo por categoría para mostrar contadores coherentes por categoría
-  const equiposPorCategoria = equipos.data.filter(eq => filtroCategoria === "TODAS" || eq.categoria === filtroCategoria);
+  const equiposPorCategoria = equiposCompleto.data.filter(eq => filtroCategoria === "TODAS" || eq.categoria === filtroCategoria);
 
   const statsCounts = {
     "Equipo Operativo": equiposPorCategoria.filter(e => e.estado_actual === "Equipo Operativo").length,
@@ -944,7 +1343,7 @@ export default function AdminMaquinaria() {
             <PautaModal
               equipo={pautaEquipo}
               onClose={() => setPautaEquipo(null)}
-              onSave={() => { setPautaEquipo(null); equipos.refresh(true); }}
+              onSave={() => { setPautaEquipo(null); equiposPaginado.refresh(true); equiposCompleto.refresh(true); }}
             />
           )}
 
@@ -1024,7 +1423,7 @@ export default function AdminMaquinaria() {
                   </p>
                 </div>
                 <button
-                  onClick={() => equipos.refresh(true)}
+                  onClick={() => equiposCompleto.refresh(true)}
                   style={{
                     background: "#121e36", border: "1px solid #1c2e52",
                     borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
@@ -1047,7 +1446,7 @@ export default function AdminMaquinaria() {
                     Equipos en Faena
                   </h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {equipos.data.map(e => {
+                    {equiposCompleto.data.map(e => {
                       const tieneGPS = e.latitud_actual && e.longitud_actual;
                       const cfg = ESTADO_CONFIG[e.estado_actual] || ESTADO_CONFIG["Disponible"];
                       return (
@@ -1101,11 +1500,11 @@ export default function AdminMaquinaria() {
                 <div>
                   <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Consola de Monitoreo</h1>
                   <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px" }}>
-                    {equiposFiltrados.length} equipos filtrados (de {equipos.data.length} totales) · Actualización automática cada 10s
+                    {equiposFiltrados.length} equipos filtrados (de {equiposCompleto.data.length} totales) · Actualización automática cada 10s
                   </p>
                 </div>
                 <button
-                  onClick={() => equipos.refresh(true)}
+                  onClick={() => equiposCompleto.refresh(true)}
                   style={{
                     background: "#121e36", border: "1px solid #1c2e52",
                     borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
@@ -1300,7 +1699,7 @@ export default function AdminMaquinaria() {
               </div>
 
               {/* Grid o Secciones de equipos */}
-              {equipos.loading ? (
+              {equiposCompleto.loading ? (
                 <div style={{ color: "#64748b", textAlign: "center", padding: "60px" }}>Cargando equipos…</div>
               ) : agruparPorProyecto ? (
                 // Vista Agrupada por Proyecto
@@ -1461,12 +1860,12 @@ export default function AdminMaquinaria() {
                       value={formEquipo.proyecto_actual_id}
                       onChange={e => setFormEquipo(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
                       <option value="">Sin asignar</option>
-                      {proyectos.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
+                      {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" }), equipos.refresh)}
+                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
                   disabled={saving}
                   style={{
                     background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
@@ -1479,21 +1878,28 @@ export default function AdminMaquinaria() {
                 </button>
               </div>
 
+              {/* Buscador de Equipos */}
+              <Buscador
+                value={equiposPaginado.search}
+                onChange={e => equiposPaginado.setSearch(e.target.value)}
+                placeholder="Buscar equipos por código, descripción, marca, modelo, patente, etc..."
+              />
+
               {/* Tabla equipos */}
               <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #1c2e52" }}>
-                      {["Código", "Descripción", "Proveedor", "Proyecto", "Estado", "QR"].map(h => (
+                      {["Código", "Descripción", "Proveedor", "Proyecto", "Estado", "Acciones"].map(h => (
                         <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {equipos.data.map((eq, i) => {
+                    {equiposPaginado.data.map((eq, i) => {
                       const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
                       return (
-                        <tr key={eq.id} style={{ borderBottom: i < equipos.data.length - 1 ? "1px solid #121e36" : "none", background: i % 2 === 0 ? "transparent" : "#0f172a22" }}>
+                        <tr key={eq.id} style={{ borderBottom: i < equiposPaginado.data.length - 1 ? "1px solid #121e36" : "none", background: i % 2 === 0 ? "transparent" : "#0f172a22" }}>
                           <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
                           <td style={{ padding: "12px 16px", color: "white", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
                           <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proveedor}</td>
@@ -1503,12 +1909,23 @@ export default function AdminMaquinaria() {
                               {cfg.label}
                             </span>
                           </td>
-                          <td style={{ padding: "12px 16px" }}>
+                          <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>
                             <button
-                              onClick={() => setQrEquipo(eq)}
+                              onClick={() => setEditEquipo(eq)}
                               style={{
                                 background: "#1e3a5f", border: "1px solid #2563eb",
                                 color: "#60a5fa", borderRadius: "6px", padding: "6px 12px",
+                                fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                                display: "inline-flex", alignItems: "center", gap: "4px"
+                              }}
+                            >
+                              <Pencil size={11} /> Editar
+                            </button>
+                            <button
+                              onClick={() => setQrEquipo(eq)}
+                              style={{
+                                background: "#121e36", border: "1px solid #1c2e52",
+                                color: "#94a3b8", borderRadius: "6px", padding: "6px 12px",
                                 fontSize: "11px", fontWeight: 700, cursor: "pointer",
                                 display: "inline-flex", alignItems: "center", gap: "4px"
                               }}
@@ -1519,9 +1936,31 @@ export default function AdminMaquinaria() {
                         </tr>
                       );
                     })}
+                    {equiposPaginado.data.length === 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                          No hay equipos registrados o no coinciden con la búsqueda.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
+                <Paginador api={equiposPaginado} label="equipos" />
               </div>
+
+              {editEquipo && (
+                <EditarEquipoModal
+                  equipo={editEquipo}
+                  proyectos={proyectosCompleto.data}
+                  onClose={() => setEditEquipo(null)}
+                  onSave={() => {
+                    setEditEquipo(null);
+                    equiposPaginado.refresh();
+                    equiposCompleto.refresh();
+                    showMsg("✅ Equipo actualizado con éxito");
+                  }}
+                />
+              )}
             </>
           )}
 
@@ -1550,13 +1989,20 @@ export default function AdminMaquinaria() {
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), proyectos.refresh)}
+                  onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), () => { proyectosPaginado.refresh(); proyectosCompleto.refresh(); })}
                   disabled={saving}
                   style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
                 >
                   <Plus size={14} /> {saving ? "Guardando…" : "Registrar Proyecto"}
                 </button>
               </div>
+
+              {/* Buscador de Proyectos */}
+              <Buscador
+                value={proyectosPaginado.search}
+                onChange={e => proyectosPaginado.setSearch(e.target.value)}
+                placeholder="Buscar proyectos por nombre, centro de costos o ubicación..."
+              />
 
               <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1568,7 +2014,7 @@ export default function AdminMaquinaria() {
                     </tr>
                   </thead>
                   <tbody>
-                    {proyectos.data.map((o, idx) => {
+                    {proyectosPaginado.data.map((o, idx) => {
                       const isEditing = editingProyectoId === o.id;
                       return (
                         <tr key={o.id} style={{ borderBottom: "1px solid #1c2e52", background: idx % 2 === 0 ? "transparent" : "#0f172a22" }}>
@@ -1607,7 +2053,7 @@ export default function AdminMaquinaria() {
                               </td>
                               <td style={{ padding: "8px 16px", display: "flex", gap: "8px" }}>
                                 <button
-                                  onClick={handleGuardarObra}
+                                  onClick={handleGuardarProyecto}
                                   disabled={saving}
                                   style={{
                                     background: "#16a34a", border: "none", color: "white",
@@ -1676,15 +2122,16 @@ export default function AdminMaquinaria() {
                         </tr>
                       );
                     })}
-                    {proyectos.data.length === 0 && (
+                    {proyectosPaginado.data.length === 0 && (
                       <tr>
                         <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
-                          No hay proyectos registrados.
+                          No hay proyectos registrados o no coinciden con la búsqueda.
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
+                <Paginador api={proyectosPaginado} label="proyectos" />
               </div>
             </>
           )}
@@ -1737,18 +2184,25 @@ export default function AdminMaquinaria() {
                     <select style={selectStyle} value={formPersonal.proyecto_actual_id}
                       onChange={e => setFormPersonal(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
                       <option value="">Sin asignar</option>
-                      {proyectos.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
+                      {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" }), personal.refresh)}
+                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
                   disabled={saving}
                   style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
                 >
                   <Plus size={14} /> {saving ? "Guardando…" : "Registrar Trabajador"}
                 </button>
               </div>
+
+              {/* Buscador de Personal */}
+              <Buscador
+                value={personalPaginado.search}
+                onChange={e => personalPaginado.setSearch(e.target.value)}
+                placeholder="Buscar personal por nombre, RUT, WhatsApp o rol..."
+              />
 
               <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -1760,7 +2214,7 @@ export default function AdminMaquinaria() {
                     </tr>
                   </thead>
                   <tbody>
-                    {personal.data.map((p, idx) => {
+                    {personalPaginado.data.map((p, idx) => {
                       const isEditing = editingPersonalId === p.id;
                       const rolColors = { "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
                       return (
@@ -1806,7 +2260,7 @@ export default function AdminMaquinaria() {
                                   onChange={e => setFormEditPersonal(prev => ({ ...prev, proyecto_actual_id: e.target.value || null }))}
                                 >
                                   <option value="">Sin asignar</option>
-                                  {proyectos.data.map(o => (
+                                  {proyectosCompleto.data.map(o => (
                                     <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
                                   ))}
                                 </select>
@@ -1908,8 +2362,16 @@ export default function AdminMaquinaria() {
                         </tr>
                       );
                     })}
+                    {personalPaginado.data.length === 0 && (
+                      <tr>
+                        <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                          No hay trabajadores registrados o no coinciden con la búsqueda.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
+                <Paginador api={personalPaginado} label="trabajadores" />
               </div>
             </>
           )}
@@ -1986,7 +2448,7 @@ export default function AdminMaquinaria() {
                                 }))}
                               >
                                 <option value="">Sin asignar</option>
-                                {proyectos.data.map(o => (
+                                {proyectosCompleto.data.map(o => (
                                   <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
                                 ))}
                               </select>
