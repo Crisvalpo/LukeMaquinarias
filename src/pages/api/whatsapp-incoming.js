@@ -284,7 +284,7 @@ export default async function handler(req, res) {
         }
 
         await enviarMensaje(jid, phoneClean,
-          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\nVeo que tu número no está registrado en el sistema. Para enviar tu solicitud de registro al Administrador, por favor responde a este mensaje indicando tu *Nombre Completo* (Ejemplo: _Juan Pérez_).`
+          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\nVeo que tu número no está registrado en el sistema. Para enviar tu solicitud de registro al Administrador, por favor responde a este mensaje indicando tu *Nombre Completo*.`
         );
         return res.status(200).json({ success: true, message: "Instrucciones de registro enviadas" });
       }
