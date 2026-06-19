@@ -415,6 +415,9 @@ function QrEquipoModal({ equipo, botPhone, onClose }) {
 export default function AdminMaquinaria() {
   const [tab, setTab] = useState("monitor");
   const [pautaEquipo, setPautaEquipo] = useState(null);
+  const [filtroCategoria, setFiltroCategoria] = useState("TODAS");
+  const [filtroEstado, setFiltroEstado] = useState("TODOS");
+  const [agruparPorProyecto, setAgruparPorProyecto] = useState(false);
   const pollRef = useRef(null);
 
   // Datos
@@ -772,12 +775,44 @@ export default function AdminMaquinaria() {
     { id: "reportes", label: "Reportes", icon: FileText },
   ];
 
+  const CATEGORIAS_MAESTRAS = ["TODAS", "GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
+
+  // Filtrado de equipos por categoría y estado
+  const equiposFiltrados = equipos.data.filter(eq => {
+    const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
+    const cumpleEst = filtroEstado === "TODOS" || eq.estado_actual === filtroEstado;
+    return cumpleCat && cumpleEst;
+  });
+
+  // Equipos filtrados solo por categoría para mostrar contadores coherentes por categoría
+  const equiposPorCategoria = equipos.data.filter(eq => filtroCategoria === "TODAS" || eq.categoria === filtroCategoria);
+
   const statsCounts = {
-    "Equipo Operativo": equipos.data.filter(e => e.estado_actual === "Equipo Operativo").length,
-    "Disponible": equipos.data.filter(e => e.estado_actual === "Disponible").length,
-    "En Colacion": equipos.data.filter(e => e.estado_actual === "En Colacion").length,
-    "Detenido por Falla": equipos.data.filter(e => e.estado_actual === "Detenido por Falla").length,
+    "Equipo Operativo": equiposPorCategoria.filter(e => e.estado_actual === "Equipo Operativo").length,
+    "Disponible": equiposPorCategoria.filter(e => e.estado_actual === "Disponible").length,
+    "En Colacion": equiposPorCategoria.filter(e => e.estado_actual === "En Colacion").length,
+    "Detenido por Falla": equiposPorCategoria.filter(e => e.estado_actual === "Detenido por Falla").length,
   };
+
+  // Agrupamiento por proyecto
+  let gruposProyectos = {};
+  if (agruparPorProyecto) {
+    equiposFiltrados.forEach(eq => {
+      const projId = eq.proyecto_actual_id || "sin_proyecto";
+      const projNombre = eq.proyectos?.nombre_proyecto || "Equipos sin Proyecto";
+      const projCC = eq.proyectos?.codigo_cc || "—";
+      
+      if (!gruposProyectos[projId]) {
+        gruposProyectos[projId] = {
+          id: projId,
+          nombre: projNombre,
+          cc: projCC,
+          equipos: []
+        };
+      }
+      gruposProyectos[projId].equipos.push(eq);
+    });
+  }
 
   return (
     <>
@@ -1066,7 +1101,7 @@ export default function AdminMaquinaria() {
                 <div>
                   <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Consola de Monitoreo</h1>
                   <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px" }}>
-                    {equipos.data.length} equipos · Actualización automática cada 10s
+                    {equiposFiltrados.length} equipos filtrados (de {equipos.data.length} totales) · Actualización automática cada 10s
                   </p>
                 </div>
                 <button
@@ -1079,6 +1114,162 @@ export default function AdminMaquinaria() {
                 >
                   <RefreshCw size={13} /> Actualizar
                 </button>
+              </div>
+
+              {/* Panel de Controles de Filtros y Agrupamiento (Glassmorphism) */}
+              <div
+                style={{
+                  background: "rgba(16, 28, 51, 0.6)",
+                  backdropFilter: "blur(12px)",
+                  WebkitBackdropFilter: "blur(12px)",
+                  border: "1px solid rgba(28, 46, 82, 0.8)",
+                  borderRadius: "16px",
+                  padding: "20px",
+                  marginBottom: "24px",
+                  boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                {/* Fila de Filtros de Categorías */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Filtrar por Categoría
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                    {CATEGORIAS_MAESTRAS.map(cat => {
+                      const active = filtroCategoria === cat;
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => setFiltroCategoria(cat)}
+                          style={{
+                            padding: "6px 12px",
+                            borderRadius: "20px",
+                            border: active ? "1px solid #ff303e" : "1px solid #1c2e52",
+                            background: active ? "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)" : "rgba(15, 23, 42, 0.4)",
+                            color: active ? "white" : "#94a3b8",
+                            fontSize: "12px",
+                            fontWeight: active ? 700 : 500,
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            boxShadow: active ? "0 4px 12px rgba(255, 48, 62, 0.25)" : "none",
+                          }}
+                          onMouseEnter={e => {
+                            if (!active) {
+                              e.currentTarget.style.borderColor = "#ff303e";
+                              e.currentTarget.style.color = "white";
+                              e.currentTarget.style.background = "rgba(255, 48, 62, 0.05)";
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!active) {
+                              e.currentTarget.style.borderColor = "#1c2e52";
+                              e.currentTarget.style.color = "#94a3b8";
+                              e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                            }
+                          }}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Fila de Filtros de Estado y Switch de Agrupamiento */}
+                <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", paddingTop: "12px", borderTop: "1px solid rgba(28, 46, 82, 0.5)" }}>
+                  {/* Filtro de Estado */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                      Filtrar por Estado
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                      {["TODOS", ...Object.keys(ESTADO_CONFIG)].map(est => {
+                        const active = filtroEstado === est;
+                        const cfg = ESTADO_CONFIG[est];
+                        const color = cfg ? cfg.color : "#64748b";
+                        const activeBg = cfg ? cfg.bg : "rgba(100,116,139,0.15)";
+                        
+                        return (
+                          <button
+                            key={est}
+                            onClick={() => setFiltroEstado(est)}
+                            style={{
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              border: active ? `1.5px solid ${color}` : "1px solid #1c2e52",
+                              background: active ? activeBg : "rgba(15, 23, 42, 0.4)",
+                              color: active ? color : "#94a3b8",
+                              fontSize: "12px",
+                              fontWeight: active ? 700 : 500,
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                            onMouseEnter={e => {
+                              if (!active) {
+                                e.currentTarget.style.borderColor = color;
+                                e.currentTarget.style.color = "white";
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              if (!active) {
+                                e.currentTarget.style.borderColor = "#1c2e52";
+                                e.currentTarget.style.color = "#94a3b8";
+                              }
+                            }}
+                          >
+                            {cfg && <cfg.icon size={12} color={color} />}
+                            {cfg ? cfg.label : "Todos"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Toggle Agrupamiento */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button
+                      onClick={() => setAgruparPorProyecto(!agruparPorProyecto)}
+                      style={{
+                        padding: "10px 16px",
+                        borderRadius: "10px",
+                        border: agruparPorProyecto ? "1px solid #ff303e" : "1px solid #1c2e52",
+                        background: agruparPorProyecto ? "rgba(255, 48, 62, 0.1)" : "rgba(15, 23, 42, 0.4)",
+                        color: agruparPorProyecto ? "#ff303e" : "#94a3b8",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        transition: "all 0.2s ease",
+                        boxShadow: agruparPorProyecto ? "0 4px 12px rgba(255, 48, 62, 0.1)" : "none",
+                      }}
+                      onMouseEnter={e => {
+                        if (!agruparPorProyecto) {
+                          e.currentTarget.style.borderColor = "#ff303e";
+                          e.currentTarget.style.color = "#ff303e";
+                          e.currentTarget.style.background = "rgba(255, 48, 62, 0.05)";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!agruparPorProyecto) {
+                          e.currentTarget.style.borderColor = "#1c2e52";
+                          e.currentTarget.style.color = "#94a3b8";
+                          e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                        }
+                      }}
+                    >
+                      <Building2 size={15} />
+                      <span>{agruparPorProyecto ? "Agrupado por Proyecto" : "Agrupar por Proyecto"}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Stats strip */}
@@ -1108,20 +1299,101 @@ export default function AdminMaquinaria() {
                 })}
               </div>
 
-              {/* Grid de equipos */}
+              {/* Grid o Secciones de equipos */}
               {equipos.loading ? (
                 <div style={{ color: "#64748b", textAlign: "center", padding: "60px" }}>Cargando equipos…</div>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-                  {equipos.data.map(eq => (
-                    <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} />
+              ) : agruparPorProyecto ? (
+                // Vista Agrupada por Proyecto
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {Object.values(gruposProyectos).map(grupo => (
+                    <div
+                      key={grupo.id}
+                      style={{
+                        background: "rgba(18, 30, 54, 0.3)",
+                        border: "1px solid #1c2e52",
+                        borderRadius: "14px",
+                        padding: "20px",
+                      }}
+                    >
+                      {/* Cabecera del Proyecto */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          borderBottom: "1px solid rgba(28, 46, 82, 0.6)",
+                          paddingBottom: "12px",
+                          marginBottom: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div
+                            style={{
+                              width: "32px",
+                              height: "32px",
+                              borderRadius: "8px",
+                              background: "rgba(255, 48, 62, 0.1)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Building2 size={16} color="#ff303e" />
+                          </div>
+                          <div>
+                            <div style={{ color: "white", fontWeight: 700, fontSize: "15px" }}>
+                              {grupo.nombre}
+                            </div>
+                            <div style={{ color: "#64748b", fontSize: "11px", marginTop: "1px" }}>
+                              CC: {grupo.cc}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Badge de cantidad */}
+                        <div
+                          style={{
+                            background: "rgba(255, 48, 62, 0.15)",
+                            color: "#ff303e",
+                            border: "1px solid rgba(255, 48, 62, 0.3)",
+                            borderRadius: "20px",
+                            padding: "4px 10px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {grupo.equipos.length} {grupo.equipos.length === 1 ? "equipo" : "equipos"}
+                        </div>
+                      </div>
+
+                      {/* Grid de equipos del Proyecto */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+                        {grupo.equipos.map(eq => (
+                          <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} />
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                  {equipos.data.length === 0 && (
-                    <div style={{ color: "#64748b", gridColumn: "1/-1", textAlign: "center", padding: "60px" }}>
-                      No hay equipos registrados aún.
+                  {Object.keys(gruposProyectos).length === 0 && (
+                    <div style={{ color: "#64748b", textAlign: "center", padding: "60px" }}>
+                      No se encontraron equipos que cumplan con los filtros en ningún proyecto.
                     </div>
                   )}
                 </div>
+              ) : (
+                // Vista Plana tradicional
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+                    {equiposFiltrados.map(eq => (
+                      <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} />
+                    ))}
+                  </div>
+                  {equiposFiltrados.length === 0 && (
+                    <div style={{ color: "#64748b", gridColumn: "1/-1", textAlign: "center", padding: "60px" }}>
+                      No hay equipos que coincidan con los filtros seleccionados.
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

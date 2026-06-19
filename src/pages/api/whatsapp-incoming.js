@@ -523,130 +523,145 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       try {
         const modelName = "gemini-2.5-flash"; // Usar 2.5-flash para velocidad y function calling robusto
         let responseText = "";
+        let runLoop = true;
+        let iteracion = 0;
+        const maxIteraciones = 4;
+        
+        let currentContents = [...contents];
 
-        const reqBody = {
-          contents,
-          tools,
-          systemInstruction: { parts: [{ text: promptSistemaAdmin }] }
-        };
+        while (runLoop && iteracion < maxIteraciones) {
+          iteracion++;
+          
+          const reqBody = {
+            contents: currentContents,
+            tools,
+            systemInstruction: { parts: [{ text: promptSistemaAdmin }] }
+          };
 
-        const resGemini = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(reqBody)
-          }
-        );
-
-        if (!resGemini.ok) {
-          throw new Error(`Gemini API error: ${resGemini.status} - ${await resGemini.text()}`);
-        }
-
-        const dataGemini = await resGemini.json();
-        const candidate = dataGemini.candidates?.[0];
-        const resParts = candidate?.content?.parts || [];
-
-        const functionCalls = resParts.filter(p => p.functionCall);
-        const textParts = resParts.filter(p => p.text);
-
-        if (textParts.length > 0) {
-          responseText = textParts.map(p => p.text).join("\n");
-        }
-
-        if (functionCalls.length > 0) {
-          console.log(`[whatsapp-incoming] ⚡ Gemini solicitó ejecutar ${functionCalls.length} funciones.`);
-          const functionResponses = [];
-
-          for (const call of functionCalls) {
-            const { name, args } = call.functionCall;
-            let dbResult = "";
-
-            try {
-              if (name === "silenciar_usuario_por_desviacion") {
-                dbResult = "Silenciado con éxito.";
-              } 
-              else if (name === "crear_herramienta_dinamica") {
-                const { nombre_funcion, descripcion, codigo_javascript, esquema_json } = args;
-                console.log(`[whatsapp-incoming] 🛠️ Registrando nueva herramienta dinámica: ${nombre_funcion}`);
-
-                const { error: insertErr } = await supabase
-                  .from("bot_tools_dinamicas")
-                  .upsert([{
-                    nombre_funcion,
-                    descripcion,
-                    codigo_javascript,
-                    esquema_json
-                  }], { onConflict: "nombre_funcion" });
-
-                if (insertErr) {
-                  dbResult = `Error al registrar: ${insertErr.message}`;
-                } else {
-                  try {
-                    const fn = new Function("supabase", "args", `
-                      return (async () => {
-                        ${codigo_javascript}
-                      })();
-                    `);
-                    const resFn = await fn(supabase, {});
-                    dbResult = `Éxito: Registrada y ejecutada. Resultados: ${JSON.stringify(resFn)}`;
-                  } catch (execErr) {
-                    dbResult = `Éxito: Registrada, pero falló ejecución de prueba: ${execErr.message}`;
-                  }
-                }
-              } 
-              else if (dbTools.some(t => t.nombre_funcion === name)) {
-                const targetTool = dbTools.find(t => t.nombre_funcion === name);
-                console.log(`[whatsapp-incoming] ⚡ Ejecutando herramienta dinámica: ${name}`);
-
-                try {
-                  const fn = new Function("supabase", "args", `
-                    return (async () => {
-                      ${targetTool.codigo_javascript}
-                    })();
-                  `);
-                  const resFn = await fn(supabase, args);
-                  dbResult = JSON.stringify(resFn);
-                } catch (execErr) {
-                  dbResult = `Error de ejecución: ${execErr.message}`;
-                }
-              }
-            } catch (errCall) {
-              dbResult = `Error en llamada de herramienta: ${errCall.message}`;
-            }
-
-            functionResponses.push({
-              functionResponse: {
-                name: name,
-                response: { result: dbResult }
-              }
-            });
-          }
-
-          // Segunda llamada a Gemini con los resultados de las funciones
-          contents.push(candidate.content);
-          contents.push({ role: "function", parts: functionResponses });
-
-          const resSecond = await fetch(
+          const resGemini = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                contents,
-                tools,
-                systemInstruction: { parts: [{ text: promptSistemaAdmin }] }
-              })
+              body: JSON.stringify(reqBody)
             }
           );
 
-          if (resSecond.ok) {
-            const dataSecond = await resSecond.json();
-            const secondParts = dataSecond.candidates?.[0]?.content?.parts || [];
-            responseText = secondParts.map(p => p.text).filter(Boolean).join("\n");
+          if (!resGemini.ok) {
+            throw new Error(`Gemini API error: ${resGemini.status} - ${await resGemini.text()}`);
+          }
+
+          const dataGemini = await resGemini.json();
+          const candidate = dataGemini.candidates?.[0];
+          const resParts = candidate?.content?.parts || [];
+
+          const functionCalls = resParts.filter(p => p.functionCall);
+          const textParts = resParts.filter(p => p.text);
+
+          if (textParts.length > 0) {
+            responseText = textParts.map(p => p.text).join("\n");
+          }
+
+          if (functionCalls.length > 0) {
+            console.log(`[whatsapp-incoming] [Iteración ${iteracion}] ⚡ Gemini solicitó ejecutar ${functionCalls.length} funciones.`);
+            const functionResponses = [];
+
+            // Refrescar dbTools en cada iteración en caso de que se haya creado una herramienta
+            let activeDbTools = [];
+            try {
+              const { data: loadedTools } = await supabase
+                .from("bot_tools_dinamicas")
+                .select("nombre_funcion, descripcion, esquema_json, codigo_javascript");
+              if (loadedTools) activeDbTools = loadedTools;
+            } catch (err) {
+              console.error("Error recargando herramientas dinámicas:", err.message);
+            }
+
+            for (const call of functionCalls) {
+              const { name, args } = call.functionCall;
+              let dbResult = "";
+
+              try {
+                if (name === "silenciar_usuario_por_desviacion") {
+                  dbResult = "Silenciado con éxito.";
+                } 
+                else if (name === "crear_herramienta_dinamica") {
+                  const { nombre_funcion, descripcion, codigo_javascript, esquema_json } = args;
+                  console.log(`[whatsapp-incoming] 🛠️ Registrando nueva herramienta dinámica: ${nombre_funcion}`);
+
+                  const { error: insertErr } = await supabase
+                    .from("bot_tools_dinamicas")
+                    .upsert([{
+                      nombre_funcion,
+                      descripcion,
+                      codigo_javascript,
+                      esquema_json
+                    }], { onConflict: "nombre_funcion" });
+
+                  if (insertErr) {
+                    dbResult = `Error al registrar: ${insertErr.message}`;
+                  } else {
+                    dbResult = `Éxito: Herramienta "${nombre_funcion}" registrada exitosamente. Ya está lista para ser llamada con los argumentos adecuados.`;
+                  }
+                } 
+                else if (activeDbTools.some(t => t.nombre_funcion === name)) {
+                  const targetTool = activeDbTools.find(t => t.nombre_funcion === name);
+                  console.log(`[whatsapp-incoming] ⚡ Ejecutando herramienta dinámica: ${name} con args:`, JSON.stringify(args));
+
+                  try {
+                    const fn = new Function("supabase", "args", `
+                      return (async () => {
+                        ${targetTool.codigo_javascript}
+                      })();
+                    `);
+                    const resFn = await fn(supabase, args);
+                    dbResult = JSON.stringify(resFn);
+                  } catch (execErr) {
+                    dbResult = `Error de ejecución: ${execErr.message}`;
+                  }
+                } else {
+                  dbResult = `Error: La herramienta "${name}" no está registrada en el sistema.`;
+                }
+              } catch (errCall) {
+                dbResult = `Error en llamada de herramienta: ${errCall.message}`;
+              }
+
+              functionResponses.push({
+                functionResponse: {
+                  name: name,
+                  response: { result: dbResult }
+                }
+              });
+            }
+
+            // Alimentar la respuesta de la función al historial de la API
+            currentContents.push(candidate.content);
+            currentContents.push({ role: "function", parts: functionResponses });
+
+            // Actualizar catálogo de herramientas del modelo en base a las nuevas creadas
+            try {
+              const { data: updatedDbTools } = await supabase
+                .from("bot_tools_dinamicas")
+                .select("nombre_funcion, descripcion, esquema_json");
+              if (updatedDbTools) {
+                const newDynamicDeclarations = updatedDbTools.map(t => ({
+                  name: t.nombre_funcion,
+                  description: t.description || t.descripcion,
+                  parameters: t.esquema_json.parameters || t.esquema_json
+                }));
+                tools[0].functionDeclarations = [
+                  ...basicTools,
+                  ...adminTools,
+                  ...newDynamicDeclarations
+                ];
+              }
+            } catch (err) {
+              console.error("Error actualizando catálogo de herramientas dinámicas en bucle:", err.message);
+            }
+
+            runLoop = true;
           } else {
-            console.error("[whatsapp-incoming] Error en segunda llamada de Gemini:", await resSecond.text());
-            responseText = "Procesé tu consulta pero no pude generar la respuesta final. Por favor intenta de nuevo.";
+            runLoop = false;
           }
         }
 
