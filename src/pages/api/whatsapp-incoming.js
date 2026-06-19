@@ -741,6 +741,25 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         return res.status(200).json({ success: true });
       }
 
+      // Validar coincidencia de proyecto (obra_actual_id)
+      if (personal.obra_actual_id !== equipo.obra_actual_id) {
+        let obraPersonalNombre = "Sin asignar";
+        if (personal.obra_actual_id) {
+          const { data: opObra } = await supabase
+            .from("obras")
+            .select("nombre_obra")
+            .eq("id", personal.obra_actual_id)
+            .maybeSingle();
+          if (opObra) obraPersonalNombre = opObra.nombre_obra;
+        }
+        const obraEquipoNombre = equipo.obras ? equipo.obras.nombre_obra : "Sin asignar";
+
+        await enviarMensaje(jid, phoneClean,
+          `❌ *Proyecto No Coincide*\n\nHola *${personal.nombre_completo}*, no puedes registrar tu jornada en el equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) porque pertenece al proyecto *"${obraEquipoNombre}"*, y tú estás asignado al proyecto *"${obraPersonalNombre}"*.\n\nPor favor, contacta a tu supervisor para regularizar tu asignación.`
+        );
+        return res.status(200).json({ success: true, message: "Proyecto no coincide" });
+      }
+
       // Verificar si ya hay reporte hoy
       const hoy = new Date().toISOString().slice(0, 10);
       const { data: reporteExistente } = await supabase
