@@ -825,7 +825,7 @@ export default function AdminMaquinaria() {
             {TABS.map(t => {
               const Icono = t.icon;
               const active = tab === t.id;
-              const pendientesCount = t.id === "registros" ? registros.data.filter(r => r.estado === "pendiente").length : 0;
+              const pendientesCount = t.id === "registros" ? registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).length : 0;
               return (
                 <button
                   key={t.id}
