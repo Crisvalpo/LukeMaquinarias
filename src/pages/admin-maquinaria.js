@@ -24,8 +24,8 @@ function useApi(endpoint, deps = []) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetch_ = useCallback(async () => {
-    setLoading(true);
+  const fetch_ = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const r = await fetch(endpoint);
       const json = await r.json();
@@ -33,12 +33,12 @@ function useApi(endpoint, deps = []) {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [endpoint]);
 
-  useEffect(() => { fetch_(); }, deps);
-  return { data, loading, refresh: fetch_ };
+  useEffect(() => { fetch_(false); }, deps);
+  return { data, loading, refresh: (silent = false) => fetch_(silent) };
 }
 
 // ================================================================
@@ -588,7 +588,7 @@ export default function AdminMaquinaria() {
   // Auto-polling del monitor cada 10s
   useEffect(() => {
     if (tab !== "monitor") return;
-    pollRef.current = setInterval(() => equipos.refresh(), 10000);
+    pollRef.current = setInterval(() => equipos.refresh(true), 10000);
     return () => clearInterval(pollRef.current);
   }, [tab]);
 
@@ -909,7 +909,7 @@ export default function AdminMaquinaria() {
             <PautaModal
               equipo={pautaEquipo}
               onClose={() => setPautaEquipo(null)}
-              onSave={() => { setPautaEquipo(null); equipos.refresh(); }}
+              onSave={() => { setPautaEquipo(null); equipos.refresh(true); }}
             />
           )}
 
@@ -989,7 +989,7 @@ export default function AdminMaquinaria() {
                   </p>
                 </div>
                 <button
-                  onClick={equipos.refresh}
+                  onClick={() => equipos.refresh(true)}
                   style={{
                     background: "#121e36", border: "1px solid #1c2e52",
                     borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
@@ -1070,7 +1070,7 @@ export default function AdminMaquinaria() {
                   </p>
                 </div>
                 <button
-                  onClick={equipos.refresh}
+                  onClick={() => equipos.refresh(true)}
                   style={{
                     background: "#121e36", border: "1px solid #1c2e52",
                     borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
