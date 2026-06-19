@@ -459,8 +459,17 @@ function QrEquipoModal({ equipo, botPhone, onClose }) {
 }
 
 // ================================================================
-// COMPONENTES AUXILIARES: BUSCADOR Y PAGINADOR
+// COMPONENTES AUXILIARES: BUSCADOR, PAGINADOR Y RUT
 // ================================================================
+function formatRut(value) {
+  let clean = value.replace(/[^0-9kK]/g, "").toUpperCase().slice(0, 9);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean;
+  let dv = clean.slice(-1);
+  let cuerpo = clean.slice(0, -1);
+  let cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${cuerpoFormateado}-${dv}`;
+}
 function Buscador({ value, onChange, placeholder }) {
   return (
     <div style={{
@@ -2171,7 +2180,7 @@ export default function AdminMaquinaria() {
                   <FormRow label="RUT *">
                     <input style={inputStyle} placeholder="12.345.678-9"
                       value={formPersonal.rut}
-                      onChange={e => setFormPersonal(p => ({ ...p, rut: e.target.value }))} />
+                      onChange={e => setFormPersonal(p => ({ ...p, rut: formatRut(e.target.value) }))} />
                   </FormRow>
                   <FormRow label="Nombre Completo *">
                     <input style={inputStyle} placeholder="Juan Pérez González"
@@ -2256,7 +2265,7 @@ export default function AdminMaquinaria() {
                                 <input
                                   style={{ ...inputStyle, padding: "6px 10px" }}
                                   value={formEditPersonal.rut}
-                                  onChange={e => setFormEditPersonal(prev => ({ ...prev, rut: e.target.value }))}
+                                  onChange={e => setFormEditPersonal(prev => ({ ...prev, rut: formatRut(e.target.value) }))}
                                 />
                               </td>
                               <td style={{ padding: "8px 16px" }}>
@@ -2452,16 +2461,16 @@ export default function AdminMaquinaria() {
                               </select>
                             </td>
                             <td style={{ padding: "12px 16px" }}>
-                              <input
-                                style={{ ...inputStyle, padding: "6px 10px", borderColor: !edit.rut ? "#ef4444" : "#1c2e52" }}
-                                placeholder="12.345.678-9"
-                                value={edit.rut}
-                                onChange={e => setEditRegistros(prev => ({
-                                  ...prev,
-                                  [r.id]: { ...edit, rut: e.target.value }
-                                }))}
-                              />
-                            </td>
+                               <input
+                                 style={{ ...inputStyle, padding: "6px 10px", borderColor: !edit.rut ? "#ef4444" : "#1c2e52" }}
+                                 placeholder="12.345.678-9"
+                                 value={edit.rut}
+                                 onChange={e => setEditRegistros(prev => ({
+                                   ...prev,
+                                   [r.id]: { ...edit, rut: formatRut(e.target.value) }
+                                 }))}
+                               />
+                             </td>
                             <td style={{ padding: "12px 16px" }}>
                               <select
                                 style={{ ...selectStyle, padding: "6px 10px" }}

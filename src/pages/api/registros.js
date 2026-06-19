@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { action, id, rut, nombre_completo, rol_solicitado, nota_rechazo, obra_actual_id } = req.body;
+    const { action, id, rut, nombre_completo, rol_solicitado, nota_rechazo, proyecto_actual_id } = req.body;
 
     if (!id || !action) {
       return res.status(400).json({ success: false, message: "Falta id o action en el body" });
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
             whatsapp: registro.whatsapp,
             rol: rolFinal,
             activo: true,
-            obra_actual_id: obra_actual_id || null
+            proyecto_actual_id: proyecto_actual_id || null
           });
 
         if (errInsert) {
