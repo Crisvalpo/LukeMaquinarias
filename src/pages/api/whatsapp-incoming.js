@@ -1,7 +1,32 @@
 import { createAdminClient } from "../../lib/supabase-server";
-import { procesarAudioOperador, analizarImagenEvidencia, analizarIntencionHistorica } from "../../lib/gemini";
+import { procesarAudioOperador, analizarImagenEvidencia, analizarIntencionHistorica, procesarMensajeConContexto } from "../../lib/gemini";
 import { generarReportePDF } from "../../lib/pdf-generator";
 import crypto from "crypto";
+
+// Helper: Guardar mensaje en historial de chat (tabla maquinaria.mensajes_chat)
+async function guardarMensajeChat(supabase, whatsapp_remitente, rol, contenido, tipo_mensaje = "texto", reporte_id = null) {
+  const { error } = await supabase
+    .from("mensajes_chat")
+    .insert({ whatsapp_remitente, reporte_id, rol, tipo_mensaje, contenido });
+  if (error) console.error("[mensajes_chat] Error guardando mensaje:", error.message);
+}
+
+// Helper: Recuperar últimos N mensajes y formatearlos para Gemini
+async function cargarHistorialGemini(supabase, whatsapp_remitente, limite = 6) {
+  const { data, error } = await supabase
+    .from("mensajes_chat")
+    .select("rol, contenido")
+    .eq("whatsapp_remitente", whatsapp_remitente)
+    .order("created_at", { ascending: true })
+    .limit(limite);
+
+  if (error || !data?.length) return [];
+
+  return data.map(msg => ({
+    role: msg.rol, // 'user' o 'model'
+    parts: [{ text: msg.contenido }]
+  }));
+}
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
 
@@ -742,15 +767,49 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // Obtener especialidades para el prompt
       const { data: especialidades } = await supabase.from("especialidades").select("*");
 
-      // Procesar audio con Gemini
-      const resultado = await procesarAudioOperador(
-        audio.data, audio.mimeType, especialidades || [],
-        { estado_sesion: "CHECKIN" }
-      );
+      // === MEMORIA CONVERSACIONAL ===
+      const transcripcionAudio = `Audio de check-in: horómetro inicial declarado por el operador.`;
+
+      // A. Guardar el mensaje entrante del operador
+      await guardarMensajeChat(supabase, phoneClean, "user", transcripcionAudio, "audio", sesion.reporte_activo_id);
+
+      // B. Cargar los últimos 6 mensajes del hilo
+      const historial = await cargarHistorialGemini(supabase, phoneClean);
+
+      // Si hay historial previo, usamos el chat con contexto; si no, fallback al método REST
+      let resultado;
+      if (historial.length > 0) {
+        // Agregar el audio al último mensaje del historial ya guardado
+        const historialConAudio = [
+          ...historial.slice(0, -1),
+          {
+            role: "user",
+            parts: [
+              { text: transcripcionAudio },
+              { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
+            ]
+          }
+        ];
+        resultado = await procesarMensajeConContexto(
+          historialConAudio,
+          especialidades || [],
+          { estado_sesion: "CHECKIN" }
+        );
+      } else {
+        resultado = await procesarAudioOperador(
+          audio.data, audio.mimeType, especialidades || [],
+          { estado_sesion: "CHECKIN" }
+        );
+      }
 
       console.log("[whatsapp-incoming] Gemini checkin:", JSON.stringify(resultado));
 
       const horometroInicio = resultado.horometro_inicial || 0;
+      const confirmacionBot = resultado.mensaje_conversacional_bot
+        || `✅ *Check-in registrado con éxito.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada, envía audios cuando cambies de actividad:\n• _"Empezamos a trabajar con los cañoneros de Piping"_\n• _"Voy a colación"_\n• _"Máquina disponible, esperando"_\n\nAl cerrar el turno di: *"Cierre de jornada, horómetro final XXXX"*`;
+
+      // C. Guardar la respuesta del bot en el historial
+      await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBot, "texto", sesion.reporte_activo_id);
 
       // Actualizar horómetro inicial en el reporte
       await supabase
@@ -759,8 +818,8 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         .eq("id", sesion.reporte_activo_id);
 
       // Determinar estado dinámicamente según lo que habló, o dejar "Disponible" por defecto
-      const estadoInicialDinamico = (resultado.tipo_evento && resultado.tipo_evento !== "CHECKIN") 
-        ? resultado.tipo_evento 
+      const estadoInicialDinamico = (resultado.tipo_evento && resultado.tipo_evento !== "CHECKIN")
+        ? resultado.tipo_evento
         : "Disponible";
 
       // Insertar primer evento de jornada usando el mapeo real
@@ -782,9 +841,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         })
         .eq("id", sesion.id);
 
-      await enviarMensaje(jid, phoneClean,
-        `✅ *Check-in registrado con éxito.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada, envía audios cuando cambies de actividad:\n• _"Empezamos a trabajar con los cañoneros de Piping"_\n• _"Voy a colación"_\n• _"Máquina disponible, esperando"_\n\nAl cerrar el turno di: *"Cierre de jornada, horómetro final XXXX"*`
-      );
+      await enviarMensaje(jid, phoneClean, confirmacionBot);
 
       return res.status(200).json({ success: true, action: "CHECKIN_REGISTRADO" });
     }
@@ -865,19 +922,52 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const { data: especialidades } = await supabase.from("especialidades").select("*");
       const { data: reporteActual } = await supabase
         .from("reportes_diarios")
-        .select("horometro_inicio")
+        .select("horometro_inicio, equipos(pauta_preventiva_activa)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
 
+      // === MEMORIA CONVERSACIONAL (Caso C: Hitos Intermedios) ===
+      const contenidoUsuario = audio ? "Audio de terreno del operador" : (message || "");
+      const tipoMsgC = audio ? "audio" : "texto";
+
+      // A. Guardar mensaje entrante
+      await guardarMensajeChat(supabase, phoneClean, "user", contenidoUsuario, tipoMsgC, sesion.reporte_activo_id);
+
+      // B. Cargar contexto de los últimos 6 mensajes
+      const historialC = await cargarHistorialGemini(supabase, phoneClean);
+
       let resultado;
       if (audio) {
-        resultado = await procesarAudioOperador(
-          audio.data, audio.mimeType, especialidades || [],
-          {
-            estado_sesion: "INTERMEDIO",
-            horometro_inicio: reporteActual?.horometro_inicio,
-          }
-        );
+        if (historialC.length > 0) {
+          // Reemplazar el último mensaje del historial con audio real
+          const historialConAudio = [
+            ...historialC.slice(0, -1),
+            {
+              role: "user",
+              parts: [
+                { text: contenidoUsuario },
+                { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
+              ]
+            }
+          ];
+          resultado = await procesarMensajeConContexto(
+            historialConAudio,
+            especialidades || [],
+            {
+              estado_sesion: "INTERMEDIO",
+              horometro_inicio: reporteActual?.horometro_inicio,
+              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa
+            }
+          );
+        } else {
+          resultado = await procesarAudioOperador(
+            audio.data, audio.mimeType, especialidades || [],
+            {
+              estado_sesion: "INTERMEDIO",
+              horometro_inicio: reporteActual?.horometro_inicio,
+            }
+          );
+        }
       } else {
         // Procesar texto como fallback
         resultado = {
@@ -886,6 +976,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           detalles_texto: message,
           horometro_final: null,
           petroleo_litros: null,
+          mensaje_conversacional_bot: null,
         };
       }
 
@@ -1036,7 +1127,11 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // Si es un hito de trabajo, concatenamos la especialidad oficial que leyó de la tabla maestra
       const tagEspecialidad = resultado.especialidad_detectada ? ` — *${resultado.especialidad_detectada}*` : "";
       
-      const confirmacion = `${iconosEstado[estadoHito] || "⚪"} *Estado Actualizado: ${estadoHito}*${tagEspecialidad}\n\n📝 _"${resultado.detalles_texto || "Hito registrado con éxito."}"_`;
+      const confirmacion = resultado.mensaje_conversacional_bot
+        || `${iconosEstado[estadoHito] || "⚪"} *Estado Actualizado: ${estadoHito}*${tagEspecialidad}\n\n📝 _"${resultado.detalles_texto || "Hito registrado con éxito."}"_`;
+
+      // Guardar respuesta del bot en historial de chat
+      await guardarMensajeChat(supabase, phoneClean, "model", confirmacion, "texto", sesion.reporte_activo_id);
 
       await enviarMensaje(jid, phoneClean, confirmacion);
 

@@ -2,13 +2,96 @@
  * Motor de IA Gemini para LukeMontaje
  * Usa REST directo (mismo patrón que LukeDelivery, sin SDK npm)
  * Funciones:
- *  - transcribirAudio: Audio base64 → texto + JSON estructurado
- *  - analizarImagen: Imagen base64 → análisis técnico de evidencia
- *  - procesarJornada: Texto transcripción → JSON de hito operacional
+ *  - procesarAudioOperador: Audio base64 → JSON de hito operacional
+ *  - analizarImagenEvidencia: Imagen base64 → análisis técnico de evidencia
+ *  - analizarIntencionHistorica: Texto/audio → clasificación intención PDF histórico
+ *  - procesarMensajeConContexto: Historial de chat → respuesta con memoria conversacional
  */
+
+import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+// ================================================================
+// FUNCIÓN: Chat con memoria conversacional completa
+// Recibe historial ordenado cronológicamente y lo pasa a la API nativa
+// ================================================================
+export async function procesarMensajeConContexto(historialConversacion, listaEspecialidades, contexto = {}) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const listadoEsp = Array.isArray(listaEspecialidades)
+    ? listaEspecialidades.map(e => `- ID: ${e.id} | Nombre: ${e.nombre_oficial}`).join("\n")
+    : "";
+
+  const systemInstruction = `Eres Jaime, el asistente inteligente de operaciones para el proyecto LukeMontaje (LukeEquipos) en una faena industrial chilena.
+Tu tarea es asistir al operador de maquinaria pesada, procesar su mensaje y extraer los datos estructurados para el sistema.
+
+${contexto.pauta_del_dia ? `Pauta preventiva del día fijada por el supervisor: "${contexto.pauta_del_dia}"` : ""}
+${contexto.horometro_inicio ? `Horómetro de inicio registrado: ${contexto.horometro_inicio}` : ""}
+${contexto.estado_sesion ? `Estado actual de la sesión: ${contexto.estado_sesion}` : ""}
+
+Lista oficial de especialidades:
+${listadoEsp}
+
+REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
+1. Identidad: Eres Jaime. Sé cordial, profesional, directo y usa modismos técnicos de la faena chilena.
+2. Evita saludar constantemente: NO vuelvas a saludar (ej: "Hola", "Buenos días", "Buenas tardes") en tus respuestas si en el historial de chat ya existe un saludo inicial o si es un mensaje de seguimiento. Sé directo en confirmar el registro del hito de manera ágil.
+3. Reglas de Mapeo Semántico:
+   - "cañoneros", "viejos de las líneas", "tuberías", "cañerías", "líneas" → especialidad 'Piping'
+   - "fierreros", "montadores", "estructuras", "vigas" → especialidad 'Estructuras'
+   - "colación", "almuerzo", "hora de almuerzo", "colacion" → estado 'En Colacion'
+   - "quedé libre", "máquina disponible", "sin trabajo", "esperando", "no hay trabajo" → estado 'Disponible'
+   - "falla", "avería", "detenido", "no prende", "problema mecánico", "accidente" → estado 'Detenido por Falla'
+   - "cierre", "terminamos", "fin de jornada", "horómetro final", "cerrando" → tipo_evento 'CIERRE'
+   - Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
+   - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
+
+Responde ÚNICAMENTE con un JSON válido. Esquema:
+{
+  "tipo_evento": "CHECKIN | Trabajando | Disponible | En Colacion | Detenido por Falla | CIERRE",
+  "especialidad_id": "UUID_o_null",
+  "especialidad_detectada": "Nombre_oficial_o_null",
+  "horometro_inicial": numero_o_null,
+  "horometro_final": numero_o_null,
+  "petroleo_litros": numero_o_null,
+  "horometro_carga_combustible": numero_o_null,
+  "es_falla_critica": true_o_false,
+  "detalles_texto": "Transcripción resumida del operador",
+  "mensaje_conversacional_bot": "Confirmación breve y cordial al operador en español chileno"
+}`;
+
+  const ai = new GoogleGenAI({ apiKey: geminiKey });
+
+  // El historial viene en formato { role: 'user'|'model', parts: [{ text }] }
+  // Separamos el último mensaje del usuario para enviarlo con sendMessage
+  const historialPrevio = historialConversacion.slice(0, -1);
+  const ultimoMensaje = historialConversacion[historialConversacion.length - 1];
+  const textoPeticion = ultimoMensaje?.parts?.[0]?.text || "";
+
+  const chat = ai.chats.create({
+    model: GEMINI_MODEL,
+    history: historialPrevio,
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      temperature: 0.1,
+      maxOutputTokens: 1024,
+    },
+  });
+
+  const response = await chat.sendMessage({ message: textoPeticion });
+  const rawText = response.text?.trim() || "{}";
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error(`[Gemini] JSON inválido en procesarMensajeConContexto: ${rawText.slice(0, 200)}`);
+  }
+}
 
 // ================================================================
 // FUNCIÓN PRINCIPAL: Procesar audio de operador
