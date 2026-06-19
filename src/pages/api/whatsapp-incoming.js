@@ -275,6 +275,284 @@ export default async function handler(req, res) {
     }
 
     // ================================================================
+    // DESVÍO CONVERSACIONAL PARA SUPERVISORES / JEFES DE ÁREA
+    // ================================================================
+    const esAdmin = personal && (personal.rol === "Supervisor" || personal.rol === "Jefe de Area");
+    const msgUpper = (message || "").trim().toUpperCase();
+
+    if (esAdmin && !msgUpper.startsWith("REPORTE:")) {
+      console.log(`[whatsapp-incoming] 👑 Interacción de Administrador/Supervisor (${personal.nombre_completo})`);
+
+      // 1. Cargar herramientas dinámicas desde Supabase (esquema maquinaria)
+      let dbTools = [];
+      try {
+        const { data: loadedTools } = await supabase
+          .from("bot_tools_dinamicas")
+          .select("nombre_funcion, descripcion, esquema_json, codigo_javascript");
+        if (loadedTools) dbTools = loadedTools;
+      } catch (err) {
+        console.error("[whatsapp-incoming] Error cargando herramientas dinámicas:", err.message);
+      }
+
+      // 2. Definir esquemas de herramientas
+      const basicTools = [
+        {
+          name: "silenciar_usuario_por_desviacion",
+          description: "Silencia o bloquea al usuario actual si sus mensajes se desvían de forma de forma insistente del propósito operacional del bot.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              motivo: { type: "STRING", description: "Breve motivo del silencio." }
+            },
+            required: ["motivo"]
+          }
+        }
+      ];
+
+      const adminTools = [
+        {
+          name: "crear_herramienta_dinamica",
+          description: "Crea y registra una nueva herramienta de consulta dinámica cuando el supervisor solicite un reporte, listado o búsqueda específica de datos de maquinaria, personal o reportes que no exista en el catálogo de herramientas. Debes proporcionarle el código JavaScript asíncrono compatible con Supabase ('supabase') y argumentos ('args') desestructurados en la primera línea, y el esquema JSON de parámetros.",
+          parameters: {
+            type: "OBJECT",
+            properties: {
+              nombre_funcion: {
+                type: "STRING",
+                description: "Nombre único de la función en snake_case (ej. 'obtener_operadores_proyecto'). Debe empezar con 'obtener_' o 'consultar_'."
+              },
+              descripcion: {
+                type: "STRING",
+                description: "Descripción clara de lo que hace la función y qué datos retorna."
+              },
+              codigo_javascript: {
+                type: "STRING",
+                description: "Código JS asíncrono compatible con Node.js que realice la consulta a Supabase usando 'supabase' y 'args'."
+              },
+              esquema_json: {
+                type: "OBJECT",
+                description: "Esquema JSON del parámetro parameters de la función."
+              }
+            },
+            required: ["nombre_funcion", "descripcion", "codigo_javascript", "esquema_json"]
+          }
+        }
+      ];
+
+      const dynamicDeclarations = dbTools.map(t => {
+        const parameters = t.esquema_json.parameters || t.esquema_json;
+        return {
+          name: t.nombre_funcion,
+          description: t.description || t.descripcion,
+          parameters: parameters
+        };
+      });
+
+      const tools = [
+        {
+          functionDeclarations: [
+            ...basicTools,
+            ...adminTools,
+            ...dynamicDeclarations
+          ]
+        }
+      ];
+
+      // 3. Prompt del sistema con mapa del mundo
+      const mapaDelMundo = {
+        obras: { id: "UUID", nombre_obra: "TEXT", codigo_cc: "TEXT", ubicacion: "TEXT", activa: "BOOLEAN" },
+        personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", activo: "BOOLEAN" },
+        equipos: { id: "UUID", codigo_interno: "TEXT", descripcion_equipo: "TEXT", proveedor: "TEXT", obra_actual_id: "UUID REFERENCES obras", estado_actual: "Equipo Operativo | Disponible | En Colacion | Detenido por Falla", pauta_preventiva_activa: "TEXT" },
+        reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
+        eventos_jornada: { id: "UUID", reporte_id: "UUID", estado_hito: "Trabajando | Disponible | En Colacion | Detenido por Falla", especialidad_id: "UUID", hora_evento: "TIMESTAMP", nota_transcripcion: "TEXT" },
+        bot_tools_dinamicas: { id: "UUID", nombre_funcion: "TEXT UNIQUE", descripcion: "TEXT", codigo_javascript: "TEXT", esquema_json: "JSONB" },
+        registros_pendientes: { id: "UUID", whatsapp: "TEXT", nombre_completo: "TEXT", rol_solicitado: "TEXT", estado: "pendiente | aprobado | rechazado", nota_rechazo: "TEXT" }
+      };
+
+      const promptSistemaAdmin = `
+Eres el Asistente de Inteligencia Artificial para el Control de Maquinaria y DevOps de LukeMaquinarias.
+Interactúas con un SUPERVISOR o JEFE DE ÁREA de la faena. Su nombre es: ${personal.nombre_completo}.
+
+Directrices de Comportamiento:
+1. Responde de forma sumamente profesional, clara y concisa en español.
+2. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
+3. Si el supervisor te solicita información de reportes, personal, ubicaciones o estados de la maquinaria, utiliza las herramientas correspondientes.
+4. Si te pide un reporte, listado o cruce de datos personalizado que NO exista en tu catálogo de herramientas dinámicas, DEBES programar la consulta y registrar la herramienta llamando a "crear_herramienta_dinamica".
+
+CRÍTICO - ESQUEMA DE BASE DE DATOS:
+Todas las tablas pertenecen al esquema 'maquinaria'.
+El cliente 'supabase' inyectado en tus herramientas ya está configurado internamente para usar el esquema 'maquinaria' por defecto. Por lo tanto, en tus códigos JavaScript debes consultar las tablas directamente sin prefijar el esquema (ej. escribe supabase.from("equipos") y NO supabase.from("maquinaria.equipos")).
+
+Usa este mapa de tablas para estructurar tus códigos de herramientas dinámicas:
+${JSON.stringify(mapaDelMundo, null, 2)}
+
+Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
+- Desestructura SIEMPRE los parámetros de entrada desde el objeto 'args' en la primera línea.
+- Realiza la consulta a Supabase usando 'supabase' (ej. await supabase.from("equipos").select(...)).
+- Usa comparaciones difusas con '.ilike("columna", \`%\${param}%\`)' para búsquedas de texto.
+- Retorna el resultado (el array de filas o valor único).
+- Ejemplo:
+  const { nombre } = args;
+  const { data, error } = await supabase.from("personal").select("nombre_completo, whatsapp").ilike("nombre_completo", \`%\${nombre}%\`);
+  if (error) throw error;
+  return data;
+`;
+
+      let parts = [];
+      if (tieneAudioEntrante) {
+        parts.push({
+          inlineData: {
+            mimeType: audio.mimeType || "audio/ogg",
+            data: audio.data
+          }
+        });
+      }
+      parts.push({ text: message || "Analiza el audio e interactúa con el supervisor." });
+
+      let contents = [{ role: "user", parts }];
+
+      try {
+        const modelName = "gemini-1.5-flash"; // Usar 1.5-flash para velocidad y function calling robusto
+        let responseText = "";
+
+        const reqBody = {
+          contents,
+          tools,
+          systemInstruction: { parts: [{ text: promptSistemaAdmin }] }
+        };
+
+        const resGemini = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(reqBody)
+          }
+        );
+
+        if (!resGemini.ok) {
+          throw new Error(`Gemini API error: ${resGemini.status} - ${await resGemini.text()}`);
+        }
+
+        const dataGemini = await resGemini.json();
+        const candidate = dataGemini.candidates?.[0];
+        const resParts = candidate?.content?.parts || [];
+
+        const functionCalls = resParts.filter(p => p.functionCall);
+        const textParts = resParts.filter(p => p.text);
+
+        if (textParts.length > 0) {
+          responseText = textParts.map(p => p.text).join("\n");
+        }
+
+        if (functionCalls.length > 0) {
+          console.log(`[whatsapp-incoming] ⚡ Gemini solicitó ejecutar ${functionCalls.length} funciones.`);
+          const functionResponses = [];
+
+          for (const call of functionCalls) {
+            const { name, args } = call.functionCall;
+            let dbResult = "";
+
+            try {
+              if (name === "silenciar_usuario_por_desviacion") {
+                dbResult = "Silenciado con éxito.";
+              } 
+              else if (name === "crear_herramienta_dinamica") {
+                const { nombre_funcion, descripcion, codigo_javascript, esquema_json } = args;
+                console.log(`[whatsapp-incoming] 🛠️ Registrando nueva herramienta dinámica: ${nombre_funcion}`);
+
+                const { error: insertErr } = await supabase
+                  .from("bot_tools_dinamicas")
+                  .upsert([{
+                    nombre_funcion,
+                    descripcion,
+                    codigo_javascript,
+                    esquema_json
+                  }], { onConflict: "nombre_funcion" });
+
+                if (insertErr) {
+                  dbResult = `Error al registrar: ${insertErr.message}`;
+                } else {
+                  try {
+                    const fn = new Function("supabase", "args", `
+                      return (async () => {
+                        ${codigo_javascript}
+                      })();
+                    `);
+                    const resFn = await fn(supabase, {});
+                    dbResult = `Éxito: Registrada y ejecutada. Resultados: ${JSON.stringify(resFn)}`;
+                  } catch (execErr) {
+                    dbResult = `Éxito: Registrada, pero falló ejecución de prueba: ${execErr.message}`;
+                  }
+                }
+              } 
+              else if (dbTools.some(t => t.nombre_funcion === name)) {
+                const targetTool = dbTools.find(t => t.nombre_funcion === name);
+                console.log(`[whatsapp-incoming] ⚡ Ejecutando herramienta dinámica: ${name}`);
+
+                try {
+                  const fn = new Function("supabase", "args", `
+                    return (async () => {
+                      ${targetTool.codigo_javascript}
+                    })();
+                  `);
+                  const resFn = await fn(supabase, args);
+                  dbResult = JSON.stringify(resFn);
+                } catch (execErr) {
+                  dbResult = `Error de ejecución: ${execErr.message}`;
+                }
+              }
+            } catch (errCall) {
+              dbResult = `Error en llamada de herramienta: ${errCall.message}`;
+            }
+
+            functionResponses.push({
+              functionResponse: {
+                name: name,
+                response: { result: dbResult }
+              }
+            });
+          }
+
+          // Segunda llamada a Gemini con los resultados de las funciones
+          contents.push(candidate.content);
+          contents.push({ role: "function", parts: functionResponses });
+
+          const resSecond = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents,
+                tools,
+                systemInstruction: { parts: [{ text: promptSistemaAdmin }] }
+              })
+            }
+          );
+
+          if (resSecond.ok) {
+            const dataSecond = await resSecond.json();
+            const secondParts = dataSecond.candidates?.[0]?.content?.parts || [];
+            responseText = secondParts.map(p => p.text).filter(Boolean).join("\n");
+          } else {
+            console.error("[whatsapp-incoming] Error en segunda llamada de Gemini:", await resSecond.text());
+            responseText = "Procesé tu consulta pero no pude generar la respuesta final. Por favor intenta de nuevo.";
+          }
+        }
+
+        if (responseText) {
+          await enviarMensaje(jid, phoneClean, responseText);
+        }
+        return res.status(200).json({ success: true, responseText });
+
+      } catch (geminiErr) {
+        console.error("[whatsapp-incoming] Error chateando con Supervisor:", geminiErr.message, geminiErr.stack);
+        await enviarMensaje(jid, phoneClean, "Hola, lo siento, tuve un problema al procesar tu consulta comercial. Intenta de nuevo por favor.");
+        return res.status(500).json({ success: false, error: geminiErr.message });
+      }
+    }
+
+    // ================================================================
     // 2. BUSCAR SESIÓN ACTIVA
     // ================================================================
     const { data: sesion } = await supabase
