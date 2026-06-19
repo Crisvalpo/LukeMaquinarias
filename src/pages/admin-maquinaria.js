@@ -100,9 +100,9 @@ function EquipoCard({ equipo, onPautaClick }) {
       {/* Info */}
       <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "10px" }}>
         {equipo.proveedor}
-        {equipo.obras && (
+        {equipo.proyectos && (
           <span style={{ marginLeft: "8px", color: "#475569" }}>
-            · 📍 {equipo.obras.nombre_obra}
+            · 📍 {equipo.proyectos.nombre_proyecto}
           </span>
         )}
       </div>
@@ -419,7 +419,7 @@ export default function AdminMaquinaria() {
 
   // Datos
   const equipos = useApi("/api/equipos", [tab]);
-  const obras = useApi("/api/obras", [tab]);
+  const proyectos = useApi("/api/proyectos", [tab]);
   const personal = useApi("/api/personal", [tab]);
   const reportes = useApi("/api/reportes", [tab]);
   const registros = useApi("/api/registros", [tab]);
@@ -537,7 +537,7 @@ export default function AdminMaquinaria() {
             </div>
             <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
               <span style="color: #64748b;">Proyecto:</span>
-              <span style="color: #cbd5e1; font-weight: 600;">${e.obras?.nombre_obra || "Sin proyecto"}</span>
+              <span style="color: #cbd5e1; font-weight: 600;">${e.proyectos?.nombre_proyecto || "Sin proyecto"}</span>
             </div>
             ${e.ultima_ubicacion_fecha ? `
               <div style="border-top: 1px solid #1c2e52; margin-top: 6px; padding-top: 6px; font-size: 9px; color: #94a3b8;">
@@ -593,13 +593,13 @@ export default function AdminMaquinaria() {
   }, [tab]);
 
   // ---- Formularios ----
-  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", obra_actual_id: "" });
-  const [formObra, setFormObra] = useState({ nombre_obra: "", codigo_cc: "", ubicacion: "" });
-  const [formPersonal, setFormPersonal] = useState({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", obra_actual_id: "" });
-  const [editingObraId, setEditingObraId] = useState(null);
-  const [formEditObra, setFormEditObra] = useState({ nombre_obra: "", codigo_cc: "", ubicacion: "", activa: true });
+  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" });
+  const [formProyecto, setFormProyecto] = useState({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" });
+  const [formPersonal, setFormPersonal] = useState({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" });
+  const [editingProyectoId, setEditingProyectoId] = useState(null);
+  const [formEditProyecto, setFormEditProyecto] = useState({ nombre_proyecto: "", codigo_cc: "", ubicacion: "", activa: true });
   const [editingPersonalId, setEditingPersonalId] = useState(null);
-  const [formEditPersonal, setFormEditPersonal] = useState({ nombre_completo: "", rut: "", whatsapp: "", rol: "Operador", obra_actual_id: "", turno_tipo: "14x14", jornada_tipo: "Dia" });
+  const [formEditPersonal, setFormEditPersonal] = useState({ nombre_completo: "", rut: "", whatsapp: "", rol: "Operador", proyecto_actual_id: "", turno_tipo: "14x14", jornada_tipo: "Dia" });
   const [botPhone, setBotPhone] = useState("");
   const [qrEquipo, setQrEquipo] = useState(null);
 
@@ -641,23 +641,23 @@ export default function AdminMaquinaria() {
     }
   };
 
-  const handleGuardarObra = async () => {
-    if (!formEditObra.nombre_obra || !formEditObra.codigo_cc) {
+  const handleGuardarProyecto = async () => {
+    if (!formEditProyecto.nombre_proyecto || !formEditProyecto.codigo_cc) {
       showMsg("❌ Nombre del proyecto y Centro de Costos son obligatorios", false);
       return;
     }
     setSaving(true);
     try {
-      const r = await fetch("/api/obras", {
+      const r = await fetch("/api/proyectos", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingObraId, ...formEditObra }),
+        body: JSON.stringify({ id: editingProyectoId, ...formEditProyecto }),
       });
       const json = await r.json();
       if (json.success) {
         showMsg("✅ Proyecto actualizado con éxito");
-        setEditingObraId(null);
-        obras.refresh();
+        setEditingProyectoId(null);
+        proyectos.refresh();
       } else {
         showMsg(`❌ Error: ${json.error || json.message}`, false);
       }
@@ -712,7 +712,7 @@ export default function AdminMaquinaria() {
           rut: editInfo.rut,
           nombre_completo: editInfo.nombre_completo,
           rol_solicitado: editInfo.rol_solicitado,
-          obra_actual_id: editInfo.obra_actual_id || null
+          proyecto_actual_id: editInfo.proyecto_actual_id || null
         })
       });
       const json = await r.json();
@@ -766,7 +766,7 @@ export default function AdminMaquinaria() {
     { id: "monitor", label: "Consola", icon: LayoutGrid },
     { id: "mapa", label: "Mapa Faena", icon: MapPin },
     { id: "equipos", label: "Equipos", icon: HardHat },
-    { id: "obras", label: "Proyectos", icon: Building2 },
+    { id: "proyectos", label: "Proyectos", icon: Building2 },
     { id: "personal", label: "Personal", icon: Users },
     { id: "registros", label: "Registros", icon: Users },
     { id: "reportes", label: "Reportes", icon: FileText },
@@ -1043,7 +1043,7 @@ export default function AdminMaquinaria() {
                             </span>
                           </div>
                           <div style={{ color: "white", fontSize: "13px", fontWeight: 600 }}>{e.descripcion_equipo}</div>
-                          <div style={{ color: "#64748b", fontSize: "11px", marginTop: "4px" }}>Proyecto: {e.obras?.nombre_obra || "Sin proyecto"}</div>
+                          <div style={{ color: "#64748b", fontSize: "11px", marginTop: "4px" }}>Proyecto: {e.proyectos?.nombre_proyecto || "Sin proyecto"}</div>
                           
                           {tieneGPS && e.ultima_ubicacion_fecha && (
                             <div style={{ color: "#6366f1", fontSize: "10px", marginTop: "6px" }}>
@@ -1186,15 +1186,15 @@ export default function AdminMaquinaria() {
                   </FormRow>
                   <FormRow label="Proyecto Actual">
                     <select style={selectStyle}
-                      value={formEquipo.obra_actual_id}
-                      onChange={e => setFormEquipo(p => ({ ...p, obra_actual_id: e.target.value }))}>
+                      value={formEquipo.proyecto_actual_id}
+                      onChange={e => setFormEquipo(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
                       <option value="">Sin asignar</option>
-                      {obras.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_obra}</option>)}
+                      {proyectos.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", obra_actual_id: "" }), equipos.refresh)}
+                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "" }), equipos.refresh)}
                   disabled={saving}
                   style={{
                     background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
@@ -1225,7 +1225,7 @@ export default function AdminMaquinaria() {
                           <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
                           <td style={{ padding: "12px 16px", color: "white", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
                           <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proveedor}</td>
-                          <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.obras?.nombre_obra || "—"}</td>
+                          <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proyectos?.nombre_proyecto || "—"}</td>
                           <td style={{ padding: "12px 16px" }}>
                             <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                               {cfg.label}
@@ -1253,8 +1253,8 @@ export default function AdminMaquinaria() {
             </>
           )}
 
-          {/* ==================== OBRAS ==================== */}
-          {tab === "obras" && (
+          {/* ==================== PROYECTOS ==================== */}
+          {tab === "proyectos" && (
             <>
               <h1 style={{ margin: "0 0 24px", fontSize: "22px", fontWeight: 800 }}>Gestión de Proyectos</h1>
 
@@ -1263,22 +1263,22 @@ export default function AdminMaquinaria() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
                   <FormRow label="Nombre Proyecto *">
                     <input style={inputStyle} placeholder="Andina Fase 2"
-                      value={formObra.nombre_obra}
-                      onChange={e => setFormObra(p => ({ ...p, nombre_obra: e.target.value }))} />
+                      value={formProyecto.nombre_proyecto}
+                      onChange={e => setFormProyecto(p => ({ ...p, nombre_proyecto: e.target.value }))} />
                   </FormRow>
                   <FormRow label="Centro de Costos *">
                     <input style={inputStyle} placeholder="CC-ANDINA-01"
-                      value={formObra.codigo_cc}
-                      onChange={e => setFormObra(p => ({ ...p, codigo_cc: e.target.value }))} />
+                      value={formProyecto.codigo_cc}
+                      onChange={e => setFormProyecto(p => ({ ...p, codigo_cc: e.target.value }))} />
                   </FormRow>
                   <FormRow label="Ubicación">
                     <input style={inputStyle} placeholder="Frente Norte, Sector 3"
-                      value={formObra.ubicacion}
-                      onChange={e => setFormObra(p => ({ ...p, ubicacion: e.target.value }))} />
+                      value={formProyecto.ubicacion}
+                      onChange={e => setFormProyecto(p => ({ ...p, ubicacion: e.target.value }))} />
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/obras", formObra, () => setFormObra({ nombre_obra: "", codigo_cc: "", ubicacion: "" }), obras.refresh)}
+                  onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), proyectos.refresh)}
                   disabled={saving}
                   style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
                 >
@@ -1296,8 +1296,8 @@ export default function AdminMaquinaria() {
                     </tr>
                   </thead>
                   <tbody>
-                    {obras.data.map((o, idx) => {
-                      const isEditing = editingObraId === o.id;
+                    {proyectos.data.map((o, idx) => {
+                      const isEditing = editingProyectoId === o.id;
                       return (
                         <tr key={o.id} style={{ borderBottom: "1px solid #1c2e52", background: idx % 2 === 0 ? "transparent" : "#0f172a22" }}>
                           {isEditing ? (
@@ -1305,29 +1305,29 @@ export default function AdminMaquinaria() {
                               <td style={{ padding: "8px 16px" }}>
                                 <input
                                   style={{ ...inputStyle, padding: "6px 10px" }}
-                                  value={formEditObra.codigo_cc}
-                                  onChange={e => setFormEditObra(prev => ({ ...prev, codigo_cc: e.target.value }))}
+                                  value={formEditProyecto.codigo_cc}
+                                  onChange={e => setFormEditProyecto(prev => ({ ...prev, codigo_cc: e.target.value }))}
                                 />
                               </td>
                               <td style={{ padding: "8px 16px" }}>
                                 <input
                                   style={{ ...inputStyle, padding: "6px 10px" }}
-                                  value={formEditObra.nombre_obra}
-                                  onChange={e => setFormEditObra(prev => ({ ...prev, nombre_obra: e.target.value }))}
+                                  value={formEditProyecto.nombre_proyecto}
+                                  onChange={e => setFormEditProyecto(prev => ({ ...prev, nombre_proyecto: e.target.value }))}
                                 />
                               </td>
                               <td style={{ padding: "8px 16px" }}>
                                 <input
                                   style={{ ...inputStyle, padding: "6px 10px" }}
-                                  value={formEditObra.ubicacion || ""}
-                                  onChange={e => setFormEditObra(prev => ({ ...prev, ubicacion: e.target.value }))}
+                                  value={formEditProyecto.ubicacion || ""}
+                                  onChange={e => setFormEditProyecto(prev => ({ ...prev, ubicacion: e.target.value }))}
                                 />
                               </td>
                               <td style={{ padding: "8px 16px" }}>
                                 <select
                                   style={{ ...selectStyle, padding: "6px 10px" }}
-                                  value={formEditObra.activa ? "true" : "false"}
-                                  onChange={e => setFormEditObra(prev => ({ ...prev, activa: e.target.value === "true" }))}
+                                  value={formEditProyecto.activa ? "true" : "false"}
+                                  onChange={e => setFormEditProyecto(prev => ({ ...prev, activa: e.target.value === "true" }))}
                                 >
                                   <option value="true">Activa</option>
                                   <option value="false">Inactiva</option>
@@ -1346,7 +1346,7 @@ export default function AdminMaquinaria() {
                                   <Save size={12} /> Guardar
                                 </button>
                                 <button
-                                  onClick={() => setEditingObraId(null)}
+                                  onClick={() => setEditingProyectoId(null)}
                                   disabled={saving}
                                   style={{
                                     background: "#64748b", border: "none", color: "white",
@@ -1364,7 +1364,7 @@ export default function AdminMaquinaria() {
                                 {o.codigo_cc}
                               </td>
                               <td style={{ padding: "12px 16px", color: "white", fontWeight: 600, fontSize: "13px" }}>
-                                {o.nombre_obra}
+                                {o.nombre_proyecto}
                               </td>
                               <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
                                 {o.ubicacion || "—"}
@@ -1381,9 +1381,9 @@ export default function AdminMaquinaria() {
                               <td style={{ padding: "12px 16px" }}>
                                 <button
                                   onClick={() => {
-                                    setEditingObraId(o.id);
-                                    setFormEditObra({
-                                      nombre_obra: o.nombre_obra,
+                                    setEditingProyectoId(o.id);
+                                    setFormEditProyecto({
+                                      nombre_proyecto: o.nombre_proyecto,
                                       codigo_cc: o.codigo_cc,
                                       ubicacion: o.ubicacion || "",
                                       activa: o.activa
@@ -1404,7 +1404,7 @@ export default function AdminMaquinaria() {
                         </tr>
                       );
                     })}
-                    {obras.data.length === 0 && (
+                    {proyectos.data.length === 0 && (
                       <tr>
                         <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
                           No hay proyectos registrados.
@@ -1462,15 +1462,15 @@ export default function AdminMaquinaria() {
                     </select>
                   </FormRow>
                   <FormRow label="Proyecto Actual">
-                    <select style={selectStyle} value={formPersonal.obra_actual_id}
-                      onChange={e => setFormPersonal(p => ({ ...p, obra_actual_id: e.target.value }))}>
+                    <select style={selectStyle} value={formPersonal.proyecto_actual_id}
+                      onChange={e => setFormPersonal(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
                       <option value="">Sin asignar</option>
-                      {obras.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_obra}</option>)}
+                      {proyectos.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", obra_actual_id: "" }), personal.refresh)}
+                  onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "" }), personal.refresh)}
                   disabled={saving}
                   style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
                 >
@@ -1530,12 +1530,12 @@ export default function AdminMaquinaria() {
                               <td style={{ padding: "8px 16px" }}>
                                 <select
                                   style={{ ...selectStyle, padding: "6px 10px" }}
-                                  value={formEditPersonal.obra_actual_id || ""}
-                                  onChange={e => setFormEditPersonal(prev => ({ ...prev, obra_actual_id: e.target.value || null }))}
+                                  value={formEditPersonal.proyecto_actual_id || ""}
+                                  onChange={e => setFormEditPersonal(prev => ({ ...prev, proyecto_actual_id: e.target.value || null }))}
                                 >
                                   <option value="">Sin asignar</option>
-                                  {obras.data.map(o => (
-                                    <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_obra}</option>
+                                  {proyectos.data.map(o => (
+                                    <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
                                   ))}
                                 </select>
                               </td>
@@ -1602,7 +1602,7 @@ export default function AdminMaquinaria() {
                                 </span>
                               </td>
                               <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
-                                {p.obras ? `${p.obras.codigo_cc} — ${p.obras.nombre_obra.slice(0, 35)}${p.obras.nombre_obra.length > 35 ? "..." : ""}` : "—"}
+                                {p.proyectos ? `${p.proyectos.codigo_cc} — ${p.proyectos.nombre_proyecto.slice(0, 35)}${p.proyectos.nombre_proyecto.length > 35 ? "..." : ""}` : "—"}
                               </td>
                               <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
                                 {p.turno_tipo} · {p.jornada_tipo}
@@ -1616,7 +1616,7 @@ export default function AdminMaquinaria() {
                                       rut: p.rut,
                                       whatsapp: p.whatsapp,
                                       rol: p.rol,
-                                      obra_actual_id: p.obra_actual_id,
+                                      proyecto_actual_id: p.proyecto_actual_id,
                                       turno_tipo: p.turno_tipo || "14x14",
                                       jornada_tipo: p.jornada_tipo || "Dia"
                                     });
@@ -1663,7 +1663,7 @@ export default function AdminMaquinaria() {
                     </thead>
                     <tbody>
                       {registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).map((r) => {
-                        const edit = editRegistros[r.id] || { rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador", obra_actual_id: "" };
+                        const edit = editRegistros[r.id] || { rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador", proyecto_actual_id: "" };
                         return (
                           <tr key={r.id} style={{ borderBottom: "1px solid #121e36" }}>
                             <td style={{ padding: "12px 16px", color: "#60a5fa", fontWeight: 700, fontSize: "13px" }}>
@@ -1707,15 +1707,15 @@ export default function AdminMaquinaria() {
                             <td style={{ padding: "12px 16px" }}>
                               <select
                                 style={{ ...selectStyle, padding: "6px 10px" }}
-                                value={edit.obra_actual_id || ""}
+                                value={edit.proyecto_actual_id || ""}
                                 onChange={e => setEditRegistros(prev => ({
                                   ...prev,
-                                  [r.id]: { ...edit, obra_actual_id: e.target.value }
+                                  [r.id]: { ...edit, proyecto_actual_id: e.target.value }
                                 }))}
                               >
                                 <option value="">Sin asignar</option>
-                                {obras.data.map(o => (
-                                  <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_obra}</option>
+                                {proyectos.data.map(o => (
+                                  <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
                                 ))}
                               </select>
                             </td>

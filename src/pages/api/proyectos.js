@@ -5,23 +5,23 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     const { data, error } = await supabase
-      .from("obras")
+      .from("proyectos")
       .select("*")
-      .order("nombre_obra");
+      .order("nombre_proyecto");
 
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.status(200).json({ success: true, data });
   }
 
   if (req.method === "POST") {
-    const { nombre_obra, codigo_cc, ubicacion } = req.body;
-    if (!nombre_obra || !codigo_cc) {
+    const { nombre_proyecto, codigo_cc, ubicacion } = req.body;
+    if (!nombre_proyecto || !codigo_cc) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
 
-    const { data, error } = await supabase
-      .from("obras")
-      .insert({ nombre_obra, codigo_cc, ubicacion })
+  const { data, error } = await supabase
+      .from("proyectos")
+      .insert({ nombre_proyecto, codigo_cc, ubicacion })
       .select()
       .single();
 
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     if (!id) return res.status(400).json({ success: false, message: "Falta id" });
 
     const { data, error } = await supabase
-      .from("obras")
+      .from("proyectos")
       .update(updates)
       .eq("id", id)
       .select()

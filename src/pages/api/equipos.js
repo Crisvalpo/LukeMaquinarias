@@ -4,10 +4,10 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    // Listar equipos con estado actual y obra
+    // Listar equipos con estado actual y proyecto
     const { data, error } = await supabase
       .from("equipos")
-      .select("*, obras(nombre_obra, codigo_cc)")
+      .select("*, proyectos(nombre_proyecto, codigo_cc)")
       .order("codigo_interno");
 
     if (error) return res.status(500).json({ success: false, error: error.message });
@@ -16,17 +16,17 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     // Crear nuevo equipo
-    const { codigo_interno, descripcion_equipo, proveedor, obra_actual_id, pauta_preventiva_activa } = req.body;
+    const { codigo_interno, descripcion_equipo, proveedor, proyecto_actual_id, pauta_preventiva_activa } = req.body;
 
     if (!codigo_interno || !descripcion_equipo) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
 
-    const cleanObraId = obra_actual_id === "" ? null : obra_actual_id;
+    const cleanProyectoId = proyecto_actual_id === "" ? null : proyecto_actual_id;
 
     const { data, error } = await supabase
       .from("equipos")
-      .insert({ codigo_interno, descripcion_equipo, proveedor: proveedor || "EIMISA", obra_actual_id: cleanObraId, pauta_preventiva_activa })
+      .insert({ codigo_interno, descripcion_equipo, proveedor: proveedor || "EIMISA", proyecto_actual_id: cleanProyectoId, pauta_preventiva_activa })
       .select()
       .single();
 
@@ -35,12 +35,12 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "PATCH") {
-    // Actualizar equipo (pauta, estado, obra)
+    // Actualizar equipo (pauta, estado, proyecto)
     const { id, ...updates } = req.body;
     if (!id) return res.status(400).json({ success: false, message: "Falta id" });
 
-    if (updates.hasOwnProperty("obra_actual_id") && updates.obra_actual_id === "") {
-      updates.obra_actual_id = null;
+    if (updates.hasOwnProperty("proyecto_actual_id") && updates.proyecto_actual_id === "") {
+      updates.proyecto_actual_id = null;
     }
 
     const { data, error } = await supabase

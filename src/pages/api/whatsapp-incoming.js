@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     // ================================================================
     const { data: personal } = await supabase
       .from("personal")
-      .select("*, obras(*)")
+      .select("*, proyectos(*)")
       .or(`whatsapp.eq.${phoneClean},whatsapp.eq.+${phoneClean}`)
       .eq("activo", true)
       .maybeSingle();
@@ -436,17 +436,17 @@ export default async function handler(req, res) {
 
       // 3. Prompt del sistema con mapa del mundo
       const mapaDelMundo = {
-        obras: { id: "UUID", nombre_obra: "TEXT", codigo_cc: "TEXT", ubicacion: "TEXT", activa: "BOOLEAN" },
-        personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", obra_actual_id: "UUID REFERENCES obras", activo: "BOOLEAN" },
-        equipos: { id: "UUID", codigo_interno: "TEXT", descripcion_equipo: "TEXT", proveedor: "TEXT", obra_actual_id: "UUID REFERENCES obras", estado_actual: "Equipo Operativo | Disponible | En Colacion | Detenido por Falla", pauta_preventiva_activa: "TEXT" },
+        proyectos: { id: "UUID", nombre_proyecto: "TEXT", codigo_cc: "TEXT", ubicacion: "TEXT", activa: "BOOLEAN" },
+        personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", proyecto_actual_id: "UUID REFERENCES proyectos", activo: "BOOLEAN" },
+        equipos: { id: "UUID", codigo_interno: "TEXT", descripcion_equipo: "TEXT", proveedor: "TEXT", proyecto_actual_id: "UUID REFERENCES proyectos", estado_actual: "Equipo Operativo | Disponible | En Colacion | Detenido por Falla", pauta_preventiva_activa: "TEXT" },
         reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
         eventos_jornada: { id: "UUID", reporte_id: "UUID", estado_hito: "Trabajando | Disponible | En Colacion | Detenido por Falla", especialidad_id: "UUID", hora_evento: "TIMESTAMP", nota_transcripcion: "TEXT" },
         bot_tools_dinamicas: { id: "UUID", nombre_funcion: "TEXT UNIQUE", descripcion: "TEXT", codigo_javascript: "TEXT", esquema_json: "JSONB" },
         registros_pendientes: { id: "UUID", whatsapp: "TEXT", nombre_completo: "TEXT", rol_solicitado: "TEXT", estado: "pendiente | aprobado | rechazado", nota_rechazo: "TEXT" }
       };
 
-      const obraAsignadaInfo = personal.obras
-        ? `Proyecto / Obra actual: "${personal.obras.nombre_obra}" (Centro de Costos / Contrato / Código CC: "${personal.obras.codigo_cc}")`
+      const obraAsignadaInfo = personal.proyectos
+        ? `Proyecto / Faena actual: "${personal.proyectos.nombre_proyecto}" (Centro de Costos / Contrato / Código CC: "${personal.proyectos.codigo_cc}")`
         : 'Ningún proyecto, obra, faena o contrato asignado actualmente.';
 
       const promptSistemaAdmin = `
@@ -460,8 +460,8 @@ Interactúas con un supervisor o jefe de área. Sus datos actuales son:
 Directrices de Comportamiento:
 1. Responde de forma atenta, sumamente profesional, clara y concisa en español.
 2. Identifícate de manera simple como "jAIme, tu asistente virtual de Eimisa". Nunca digas que eres un asistente de DevOps ni que eres de LukeMaquinarias.
-3. Entiende que los términos "obra", "proyecto", "faena" y "contrato" son sinónimos y se mapean directamente a los registros de la tabla 'obras'.
-4. La asociación del personal (incluido el supervisor que habla contigo) con una obra/proyecto/faena/contrato se define mediante el campo 'obra_actual_id' de la tabla 'personal' (que referencia a 'obras.id').
+3. Entiende que los términos "obra", "proyecto", "faena" y "contrato" son sinónimos y se mapean directamente a los registros de la tabla 'proyectos'.
+4. La asociación del personal (incluido el supervisor que habla contigo) con un proyecto se define mediante el campo 'proyecto_actual_id' de la tabla 'personal' (que referencia a 'proyectos.id').
 5. Si te pregunta sobre su propio rol o qué proyecto/obra/faena/contrato tiene asociado, respóndele directamente usando los datos actuales proporcionados arriba.
 6. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
 7. Si el supervisor te solicita información de reportes, personal, ubicaciones o estados de la maquinaria, utiliza las herramientas correspondientes.
@@ -742,7 +742,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // Buscar equipo
       const { data: equipo } = await supabase
         .from("equipos")
-        .select("*, obras(*)")
+        .select("*, proyectos(*)")
         .eq("codigo_interno", codigoEquipo)
         .maybeSingle();
 
@@ -753,18 +753,18 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         return res.status(200).json({ success: true });
       }
 
-      // Validar coincidencia de proyecto (obra_actual_id)
-      if (personal.obra_actual_id !== equipo.obra_actual_id) {
+      // Validar coincidencia de proyecto (proyecto_actual_id)
+      if (personal.proyecto_actual_id !== equipo.proyecto_actual_id) {
         let obraPersonalNombre = "Sin asignar";
-        if (personal.obra_actual_id) {
+        if (personal.proyecto_actual_id) {
           const { data: opObra } = await supabase
-            .from("obras")
-            .select("nombre_obra")
-            .eq("id", personal.obra_actual_id)
+            .from("proyectos")
+            .select("nombre_proyecto")
+            .eq("id", personal.proyecto_actual_id)
             .maybeSingle();
-          if (opObra) obraPersonalNombre = opObra.nombre_obra;
+          if (opObra) obraPersonalNombre = opObra.nombre_proyecto;
         }
-        const obraEquipoNombre = equipo.obras ? equipo.obras.nombre_obra : "Sin asignar";
+        const obraEquipoNombre = equipo.proyectos ? equipo.proyectos.nombre_proyecto : "Sin asignar";
 
         await enviarMensaje(jid, phoneClean,
           `❌ *Proyecto No Coincide*\n\nHola *${personal.nombre_completo}*, no puedes registrar tu jornada en el equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) porque pertenece al proyecto *"${obraEquipoNombre}"*, y tú estás asignado al proyecto *"${obraPersonalNombre}"*.\n\nPor favor, contacta a tu supervisor para regularizar tu asignación.`
@@ -830,7 +830,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       await enviarMensaje(jid, phoneClean,
-        `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.obras ? `\n📍 Proyecto: ${equipo.obras.nombre_obra}` : ""}${mensajePauta}\n\n📻 Por favor envía un *audio* indicando tu *horómetro inicial* y confirmando el estado del equipo.`
+        `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n📻 Por favor envía un *audio* indicando tu *horómetro inicial* y confirmando el estado del equipo.`
       );
 
       return res.status(200).json({ success: true, action: "SESION_CREADA" });
