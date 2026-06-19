@@ -441,7 +441,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       let contents = [{ role: "user", parts }];
 
       try {
-        const modelName = "gemini-1.5-flash"; // Usar 1.5-flash para velocidad y function calling robusto
+        const modelName = "gemini-2.5-flash"; // Usar 2.5-flash para velocidad y function calling robusto
         let responseText = "";
 
         const reqBody = {
