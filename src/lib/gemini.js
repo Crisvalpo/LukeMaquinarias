@@ -172,3 +172,64 @@ Responde en español técnico chileno, de forma concisa y directa.`;
     esCritico,
   };
 }
+
+// ================================================================
+// FUNCIÓN: Clasificador conversacional de intenciones históricas
+// ================================================================
+export async function analizarIntencionHistorica(textoOAudio, contextoFechaActual = new Date().toISOString().slice(0, 10)) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const prompt = `Analiza la petición del operador de maquinaria. Determina si está pidiendo un reporte PDF o informe de días anteriores.
+Fecha de hoy: ${contextoFechaActual}
+
+Debes retornar estrictamente un JSON con este formato:
+{
+  "es_consulta_pdf": true o false,
+  "fecha_solicitada": "YYYY-MM-DD" o null (Calcula la fecha exacta si dice 'ayer', 'el lunes', 'el 15 de junio', etc. en base a la fecha de hoy)
+}`;
+
+  const parts = [{ text: prompt }];
+
+  if (typeof textoOAudio === "object" && textoOAudio?.data) {
+    parts.push({
+      inlineData: {
+        mimeType: textoOAudio.mimeType || "audio/ogg; codecs=opus",
+        data: textoOAudio.data,
+      }
+    });
+  } else {
+    parts.push({ text: textoOAudio || "Audio entrante" });
+  }
+
+  const payload = {
+    contents: [{ parts }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.1,
+      maxOutputTokens: 256,
+    }
+  };
+
+  const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`[Gemini] Error en analizarIntencionHistorica: ${res.status} - ${err}`);
+    return { es_consulta_pdf: false, fecha_solicitada: null };
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return { es_consulta_pdf: false, fecha_solicitada: null };
+  }
+}

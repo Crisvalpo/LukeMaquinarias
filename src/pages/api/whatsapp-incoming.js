@@ -1,5 +1,5 @@
 import { createAdminClient } from "../../lib/supabase-server";
-import { procesarAudioOperador, analizarImagenEvidencia } from "../../lib/gemini";
+import { procesarAudioOperador, analizarImagenEvidencia, analizarIntencionHistorica } from "../../lib/gemini";
 import { generarReportePDF } from "../../lib/pdf-generator";
 import crypto from "crypto";
 
@@ -609,12 +609,39 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
     }
 
     // ================================================================
-    // CASO A: Sin sesión → Esperar REPORTE:CODIGO
+    // CASO A: Sin sesión → Esperar REPORTE:CODIGO O CONSULTA HISTÓRICA
     // ================================================================
     if (!sesion) {
       const msgUpper = (message || "").trim().toUpperCase();
 
+      // Si NO es un escaneo de QR, evaluamos intenciones de consulta histórica antes de rechazar
       if (!msgUpper.startsWith("REPORTE:")) {
+        const entradaParaAnalizar = tieneAudioEntrante ? audio : (message || "Audio entrante");
+        const intencion = await analizarIntencionHistorica(entradaParaAnalizar);
+
+        if (intencion.es_consulta_pdf && intencion.fecha_solicitada) {
+          // Ir a buscar el reporte en la base de datos local
+          const { data: reporteHisto } = await supabase
+            .from("reportes_diarios")
+            .select("pdf_url, fecha")
+            .eq("operador_id", personal.id)
+            .eq("fecha", intencion.fecha_solicitada)
+            .maybeSingle();
+
+          if (reporteHisto?.pdf_url) {
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
+            await enviarMensaje(jid, phoneClean, 
+              `📄 *Reporte Histórico Encontrado*\n\nHola ${personal.nombre_completo}, aquí tienes el PDF de tu jornada del día *${intencion.fecha_solicitada}*:\n👉 ${baseUrl}${reporteHisto.pdf_url}`
+            );
+          } else {
+            await enviarMensaje(jid, phoneClean, 
+              `🤷‍♂️ No encontré ningún reporte registrado para ti en la fecha *${intencion.fecha_solicitada}*. Verifica el día e intenta nuevamente.`
+            );
+          }
+          return res.status(200).json({ success: true, action: "CONSULTA_HISTORICA_PROCESADA" });
+        }
+
+        // Si no es consulta de PDF, enviamos el saludo instructivo normal de inicio de turno
         await enviarMensaje(jid, phoneClean,
           `👋 Hola *${personal.nombre_completo}*.\n\nPara iniciar tu jornada, escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`
         );
@@ -731,12 +758,17 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         .update({ horometro_inicio: horometroInicio })
         .eq("id", sesion.reporte_activo_id);
 
-      // Insertar primer evento de jornada
-      const especialidadId = resultado.especialidad_id || null;
+      // Determinar estado dinámicamente según lo que habló, o dejar "Disponible" por defecto
+      const estadoInicialDinamico = (resultado.tipo_evento && resultado.tipo_evento !== "CHECKIN") 
+        ? resultado.tipo_evento 
+        : "Disponible";
+
+      // Insertar primer evento de jornada usando el mapeo real
+      const integrityEspecialidad = resultado.especialidad_id || null;
       await supabase.from("eventos_jornada").insert({
         reporte_id: sesion.reporte_activo_id,
-        estado_hito: "Disponible",
-        especialidad_id: especialidadId,
+        estado_hito: estadoInicialDinamico,
+        especialidad_id: integrityEspecialidad,
         hora_evento: new Date().toISOString(),
         nota_transcripcion: `CHECK-IN: ${resultado.detalles_texto || "Inicio de jornada"}`,
       });
@@ -892,74 +924,81 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           `⏳ *Consolidando tu reporte diario...*\nGenerando PDF con todos los hitos del día.`
         );
 
-        // Generar PDF
-        try {
-          const { data: reporteCompleto } = await supabase
-            .from("reportes_diarios")
-            .select("*")
-            .eq("id", sesion.reporte_activo_id)
-            .single();
+        // Responder de inmediato al webhook para evitar timeouts
+        res.status(200).json({ success: true, action: "CHECKOUT_PROCESANDO" });
 
-          const { data: equipo } = await supabase
-            .from("equipos")
-            .select("*")
-            .eq("id", reporteCompleto.equipo_id)
-            .single();
+        // Procesar la compilación del PDF en segundo plano (asíncronamente)
+        (async () => {
+          try {
+            const { data: reporteCompleto } = await supabase
+              .from("reportes_diarios")
+              .select("*")
+              .eq("id", sesion.reporte_activo_id)
+              .single();
 
-          const supervisor = reporteCompleto.supervisor_id
-            ? (await supabase.from("personal").select("nombre_completo").eq("id", reporteCompleto.supervisor_id).maybeSingle()).data
-            : null;
+            const { data: equipo } = await supabase
+              .from("equipos")
+              .select("*")
+              .eq("id", reporteCompleto.equipo_id)
+              .single();
 
-          const { data: eventosRaw } = await supabase
-            .from("eventos_jornada")
-            .select("*, especialidades(nombre_oficial)")
-            .eq("reporte_id", sesion.reporte_activo_id)
-            .order("hora_evento", { ascending: true });
+            const supervisor = reporteCompleto.supervisor_id
+              ? (await supabase.from("personal").select("nombre_completo").eq("id", reporteCompleto.supervisor_id).maybeSingle()).data
+              : null;
 
-          const eventos = (eventosRaw || []).map(e => ({
-            ...e,
-            especialidad_nombre: e.especialidades?.nombre_oficial,
-          }));
+            const { data: eventosRaw } = await supabase
+              .from("eventos_jornada")
+              .select("*, especialidades(nombre_oficial)")
+              .eq("reporte_id", sesion.reporte_activo_id)
+              .order("hora_evento", { ascending: true });
 
-          const { data: evidencias } = await supabase
-            .from("evidencias")
-            .select("*")
-            .eq("reporte_id", sesion.reporte_activo_id);
+            const eventos = (eventosRaw || []).map(e => ({
+              ...e,
+              especialidad_nombre: e.especialidades?.nombre_oficial,
+            }));
 
-          const pdfUrl = await generarReportePDF({
-            reporte: reporteCompleto,
-            equipo,
-            operador: personal,
-            supervisor,
-            eventos,
-            evidencias: evidencias || [],
-          });
+            const { data: evidencias } = await supabase
+              .from("evidencias")
+              .select("*")
+              .eq("reporte_id", sesion.reporte_activo_id);
 
-          // Guardar URL del PDF
-          await supabase
-            .from("reportes_diarios")
-            .update({ pdf_url: pdfUrl })
-            .eq("id", sesion.reporte_activo_id);
+            const pdfUrl = await generarReportePDF({
+              reporte: reporteCompleto,
+              equipo,
+              operador: personal,
+              supervisor,
+              eventos,
+              evidencias: evidencias || [],
+            });
 
-          // Cerrar sesión
-          await supabase
-            .from("sesiones_whatsapp")
-            .delete()
-            .eq("id", sesion.id);
+            // Guardar URL del PDF
+            await supabase
+              .from("reportes_diarios")
+              .update({ pdf_url: pdfUrl })
+              .eq("id", sesion.reporte_activo_id);
 
-          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
-          await enviarMensaje(jid, phoneClean,
-            `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`
-          );
-        } catch (pdfErr) {
-          console.error("[whatsapp-incoming] Error generando PDF:", pdfErr.message);
-          await supabase.from("sesiones_whatsapp").delete().eq("id", sesion.id);
-          await enviarMensaje(jid, phoneClean,
-            `✅ Jornada cerrada correctamente. Hubo un problema generando el PDF, pero tus datos están guardados. Contacta a tu supervisor.`
-          );
-        }
+            // Cerrar sesión
+            await supabase
+              .from("sesiones_whatsapp")
+              .delete()
+              .eq("id", sesion.id);
 
-        return res.status(200).json({ success: true, action: "CHECKOUT_REGISTRADO" });
+            const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
+            await enviarMensaje(jid, phoneClean,
+              `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`
+            );
+          } catch (pdfErr) {
+            console.error("[whatsapp-incoming] Error generando PDF en segundo plano:", pdfErr.message);
+            await supabase.from("sesiones_whatsapp").delete().eq("id", sesion.id);
+            await enviarMensaje(jid, phoneClean,
+              `✅ Jornada cerrada correctamente. Hubo un problema generando el PDF, pero tus datos están guardados. Contacta a tu supervisor.`
+            );
+          }
+        })().catch(err => {
+          console.error("[whatsapp-incoming] Error crítico en ejecución asíncrona de PDF:", err.message);
+        });
+
+        return;
       }
 
       // === HITO INTERMEDIO ===
@@ -994,7 +1033,10 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         "Detenido por Falla": "🔴",
       };
 
-      const confirmacion = `${iconosEstado[estadoHito] || "⚪"} *${estadoHito}*${resultado.especialidad_detectada ? ` — ${resultado.especialidad_detectada}` : ""}\n\n_${resultado.detalles_texto || "Hito registrado."}_`;
+      // Si es un hito de trabajo, concatenamos la especialidad oficial que leyó de la tabla maestra
+      const tagEspecialidad = resultado.especialidad_detectada ? ` — *${resultado.especialidad_detectada}*` : "";
+      
+      const confirmacion = `${iconosEstado[estadoHito] || "⚪"} *Estado Actualizado: ${estadoHito}*${tagEspecialidad}\n\n📝 _"${resultado.detalles_texto || "Hito registrado con éxito."}"_`;
 
       await enviarMensaje(jid, phoneClean, confirmacion);
 

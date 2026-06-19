@@ -87,7 +87,18 @@ async function connectToWhatsApp() {
           ? lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut
           : true;
       console.log("[wa-bridge-montaje] Conexión cerrada, reconectando:", shouldReconnect);
-      if (shouldReconnect) connectToWhatsApp();
+      if (shouldReconnect) {
+        connectToWhatsApp();
+      } else {
+        console.log("[wa-bridge-montaje] Sesión desvinculada (loggedOut). Limpiando credenciales para generar nuevo QR...");
+        try {
+          fs.rmSync("auth_info_baileys", { recursive: true, force: true });
+        } catch (err) {
+          console.error("[wa-bridge-montaje] Error limpiando credenciales:", err.message);
+        }
+        latestQr = null;
+        connectToWhatsApp();
+      }
     } else if (connection === "open") {
       connectionState = "connected";
       latestQr = null;
