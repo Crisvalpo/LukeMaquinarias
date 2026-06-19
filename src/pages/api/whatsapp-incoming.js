@@ -222,7 +222,7 @@ export default async function handler(req, res) {
     // ================================================================
     const { data: personal } = await supabase
       .from("personal")
-      .select("*")
+      .select("*, obras(*)")
       .or(`whatsapp.eq.${phoneClean},whatsapp.eq.+${phoneClean}`)
       .eq("activo", true)
       .maybeSingle();
@@ -437,7 +437,7 @@ export default async function handler(req, res) {
       // 3. Prompt del sistema con mapa del mundo
       const mapaDelMundo = {
         obras: { id: "UUID", nombre_obra: "TEXT", codigo_cc: "TEXT", ubicacion: "TEXT", activa: "BOOLEAN" },
-        personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", activo: "BOOLEAN" },
+        personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", obra_actual_id: "UUID REFERENCES obras", activo: "BOOLEAN" },
         equipos: { id: "UUID", codigo_interno: "TEXT", descripcion_equipo: "TEXT", proveedor: "TEXT", obra_actual_id: "UUID REFERENCES obras", estado_actual: "Equipo Operativo | Disponible | En Colacion | Detenido por Falla", pauta_preventiva_activa: "TEXT" },
         reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
         eventos_jornada: { id: "UUID", reporte_id: "UUID", estado_hito: "Trabajando | Disponible | En Colacion | Detenido por Falla", especialidad_id: "UUID", hora_evento: "TIMESTAMP", nota_transcripcion: "TEXT" },
@@ -445,15 +445,27 @@ export default async function handler(req, res) {
         registros_pendientes: { id: "UUID", whatsapp: "TEXT", nombre_completo: "TEXT", rol_solicitado: "TEXT", estado: "pendiente | aprobado | rechazado", nota_rechazo: "TEXT" }
       };
 
+      const obraAsignadaInfo = personal.obras
+        ? `Proyecto / Obra actual: "${personal.obras.nombre_obra}" (Centro de Costos / Contrato / Código CC: "${personal.obras.codigo_cc}")`
+        : 'Ningún proyecto, obra, faena o contrato asignado actualmente.';
+
       const promptSistemaAdmin = `
-Eres el Asistente de Inteligencia Artificial para el Control de Maquinaria y DevOps de LukeMaquinarias.
-Interactúas con un SUPERVISOR o JEFE DE ÁREA de la faena. Su nombre es: ${personal.nombre_completo}.
+Eres jAIme, tu asistente virtual de Eimisa.
+Interactúas con un supervisor o jefe de área. Sus datos actuales son:
+- Nombre: ${personal.nombre_completo}
+- Rol: ${personal.rol}
+- WhatsApp: ${personal.whatsapp}
+- ${obraAsignadaInfo}
 
 Directrices de Comportamiento:
-1. Responde de forma sumamente profesional, clara y concisa en español.
-2. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
-3. Si el supervisor te solicita información de reportes, personal, ubicaciones o estados de la maquinaria, utiliza las herramientas correspondientes.
-4. Si te pide un reporte, listado o cruce de datos personalizado que NO exista en tu catálogo de herramientas dinámicas, DEBES programar la consulta y registrar la herramienta llamando a "crear_herramienta_dinamica".
+1. Responde de forma atenta, sumamente profesional, clara y concisa en español.
+2. Identifícate de manera simple como "jAIme, tu asistente virtual de Eimisa". Nunca digas que eres un asistente de DevOps ni que eres de LukeMaquinarias.
+3. Entiende que los términos "obra", "proyecto", "faena" y "contrato" son sinónimos y se mapean directamente a los registros de la tabla 'obras'.
+4. La asociación del personal (incluido el supervisor que habla contigo) con una obra/proyecto/faena/contrato se define mediante el campo 'obra_actual_id' de la tabla 'personal' (que referencia a 'obras.id').
+5. Si te pregunta sobre su propio rol o qué proyecto/obra/faena/contrato tiene asociado, respóndele directamente usando los datos actuales proporcionados arriba.
+6. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
+7. Si el supervisor te solicita información de reportes, personal, ubicaciones o estados de la maquinaria, utiliza las herramientas correspondientes.
+8. Si te pide un reporte, listado o cruce de datos personalizado que NO exista en tu catálogo de herramientas dinámicas, DEBES programar la consulta y registrar la herramienta llamando a "crear_herramienta_dinamica".
 
 CRÍTICO - ESQUEMA DE BASE DE DATOS:
 Todas las tablas pertenecen al esquema 'maquinaria'.
