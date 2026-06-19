@@ -22,9 +22,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
 
+    const cleanObraId = obra_actual_id === "" ? null : obra_actual_id;
+
     const { data, error } = await supabase
       .from("equipos")
-      .insert({ codigo_interno, descripcion_equipo, proveedor: proveedor || "EIMISA", obra_actual_id, pauta_preventiva_activa })
+      .insert({ codigo_interno, descripcion_equipo, proveedor: proveedor || "EIMISA", obra_actual_id: cleanObraId, pauta_preventiva_activa })
       .select()
       .single();
 
@@ -36,6 +38,10 @@ export default async function handler(req, res) {
     // Actualizar equipo (pauta, estado, obra)
     const { id, ...updates } = req.body;
     if (!id) return res.status(400).json({ success: false, message: "Falta id" });
+
+    if (updates.hasOwnProperty("obra_actual_id") && updates.obra_actual_id === "") {
+      updates.obra_actual_id = null;
+    }
 
     const { data, error } = await supabase
       .from("equipos")

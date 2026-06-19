@@ -19,9 +19,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
 
+    const cleanObraId = obra_actual_id === "" ? null : obra_actual_id;
+
     const { data, error } = await supabase
       .from("personal")
-      .insert({ rut, nombre_completo, whatsapp, rol, turno_tipo: turno_tipo || "14x14", jornada_tipo: jornada_tipo || "Dia", obra_actual_id })
+      .insert({ rut, nombre_completo, whatsapp, rol, turno_tipo: turno_tipo || "14x14", jornada_tipo: jornada_tipo || "Dia", obra_actual_id: cleanObraId })
       .select()
       .single();
 
@@ -32,6 +34,10 @@ export default async function handler(req, res) {
   if (req.method === "PATCH") {
     const { id, ...updates } = req.body;
     if (!id) return res.status(400).json({ success: false, message: "Falta id" });
+
+    if (updates.hasOwnProperty("obra_actual_id") && updates.obra_actual_id === "") {
+      updates.obra_actual_id = null;
+    }
 
     const { data, error } = await supabase
       .from("personal")
