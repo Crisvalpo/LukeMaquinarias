@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       const { data, error } = await supabase
         .from("registros_pendientes")
         .select("*")
+        .not("nombre_completo", "is", null)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
         }
 
         const nombreFinal = nombre_completo || registro.nombre_completo;
-        const rolFinal = rol_solicitado || registro.rol_solicitado;
+        const rolFinal = rol_solicitado || registro.rol_solicitado || "Operador";
 
         // A. Insertar en personal
         const { error: errInsert } = await supabase
@@ -112,7 +113,7 @@ export default async function handler(req, res) {
         if (errUpdate) throw errUpdate;
 
         // B. Enviar WhatsApp de rechazo
-        const mensajeRechazo = `❌ *Solicitud de Registro Rechazada*\n\nHola *${registro.nombre_completo || "Usuario"}*, tu solicitud de registro en LukeEquipos ha sido rechazada por el Administrador.\n\n*Motivo:* ${nota_rechazo || "No cumple con los requisitos de la faena."}\n\nSi crees que es un error o deseas volver a intentarlo, puedes enviar tu solicitud nuevamente con el comando:\n*REGISTRO: Nombre Completo - Rol - RUT*`;
+        const mensajeRechazo = `❌ *Solicitud de Registro Rechazada*\n\nHola *${registro.nombre_completo || "Usuario"}*, tu solicitud de registro en LukeEquipos ha sido rechazada por el Administrador.\n\n*Motivo:* ${nota_rechazo || "No cumple con los requisitos de la faena."}\n\nSi deseas volver a solicitar el registro, puedes responder a este chat indicando tu *Nombre Completo*.`;
         await enviarMensaje(registro.whatsapp, mensajeRechazo);
 
         return res.status(200).json({ success: true, message: "Solicitud rechazada" });

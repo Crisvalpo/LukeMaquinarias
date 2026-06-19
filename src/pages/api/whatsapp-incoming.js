@@ -236,36 +236,20 @@ export default async function handler(req, res) {
         .maybeSingle();
 
       const msgText = (message || "").trim();
-      // Regex para validar formato: REGISTRO: Nombre - Rol - RUT
-      const regexRegistro = /^REGISTRO\s*:\s*(.+?)\s*-\s*(.+?)\s*-\s*(.+)$/i;
-      const match = msgText.match(regexRegistro);
+      const prefix = "REGISTRO:";
+      let nombreDirecto = null;
+      if (msgText.toUpperCase().startsWith(prefix)) {
+        nombreDirecto = msgText.slice(prefix.length).trim();
+      }
 
-      if (match) {
-        const nombre = match[1].trim();
-        const rolRaw = match[2].trim();
-        const rut = match[3].trim();
-
-        // Validar Rol
-        const rolesValidos = ["Operador", "Supervisor", "Rigger", "Jefe de Area"];
-        // Normalizar rol para comparar
-        const rolNorm = rolesValidos.find(
-          r => r.toLowerCase().replace(/\s/g, "") === rolRaw.toLowerCase().replace(/\s/g, "")
-        );
-
-        if (!rolNorm) {
-          await enviarMensaje(jid, phoneClean,
-            `❌ El rol *"${rolRaw}"* no es válido.\n\nRoles permitidos:\n• *Operador*\n• *Supervisor*\n• *Rigger*\n• *Jefe de Area*\n\nPor favor envía la solicitud nuevamente.`
-          );
-          return res.status(200).json({ success: true });
-        }
-
-        // Guardar o actualizar en registros_pendientes
+      // Atajo o Fallback: si envía el comando REGISTRO: Juan Pérez
+      if (nombreDirecto) {
         const { error: errUpsert } = await supabase
           .from("registros_pendientes")
           .upsert({
             whatsapp: phoneClean,
-            nombre_completo: nombre,
-            rol_solicitado: rolNorm,
+            nombre_completo: nombreDirecto,
+            rol_solicitado: "Operador",
             estado: "pendiente",
             nota_rechazo: null,
             created_at: new Date().toISOString()
@@ -278,27 +262,90 @@ export default async function handler(req, res) {
         }
 
         await enviarMensaje(jid, phoneClean,
-          `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombre}\n• *Rol:* ${rolNorm}\n• *RUT:* ${rut}\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`
+          `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombreDirecto}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`
         );
         return res.status(200).json({ success: true, action: "SOLICITUD_CREADA" });
       }
 
-      // Si no coincide con el formato REGISTRO:
+      // Caso 1: Si no tiene ningún registro en registros_pendientes, lo creamos con nombre_completo nulo
       if (!registroPendiente) {
+        const { error: errInsert } = await supabase
+          .from("registros_pendientes")
+          .insert({
+            whatsapp: phoneClean,
+            nombre_completo: null,
+            rol_solicitado: "Operador",
+            estado: "pendiente",
+            created_at: new Date().toISOString()
+          });
+
+        if (errInsert) {
+          console.error("[whatsapp-incoming] Error creando registro inicial:", errInsert.message);
+        }
+
         await enviarMensaje(jid, phoneClean,
-          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\nVeo que tu número no está registrado en el sistema. Para enviar tu solicitud de registro al Administrador, por favor responde con el siguiente formato:\n\n*REGISTRO: Tu Nombre Completo - Rol Solicitado - Tu RUT*\n\n*Roles disponibles:*\n• Operador\n• Supervisor\n• Rigger\n• Jefe de Area\n\n*Ejemplo:*\n_REGISTRO: Juan Pérez - Operador - 18.765.432-1_`
+          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\nVeo que tu número no está registrado en el sistema. Para enviar tu solicitud de registro al Administrador, por favor responde a este mensaje indicando tu *Nombre Completo* (Ejemplo: _Juan Pérez_).`
         );
         return res.status(200).json({ success: true, message: "Instrucciones de registro enviadas" });
-      } else if (registroPendiente.estado === "pendiente") {
+      }
+
+      // Caso 2: Si el registro existe pero el nombre es nulo, el mensaje actual es su nombre completo
+      if (!registroPendiente.nombre_completo) {
+        if (!msgText) {
+          await enviarMensaje(jid, phoneClean, `❌ Por favor, responde con un mensaje de texto indicando tu *Nombre Completo*.`);
+          return res.status(200).json({ success: true, message: "Esperando nombre en texto" });
+        }
+
+        const { error: errUpdate } = await supabase
+          .from("registros_pendientes")
+          .update({
+            nombre_completo: msgText,
+            estado: "pendiente",
+            nota_rechazo: null,
+            created_at: new Date().toISOString()
+          })
+          .eq("whatsapp", phoneClean);
+
+        if (errUpdate) {
+          console.error("[whatsapp-incoming] Error guardando nombre completo:", errUpdate.message);
+          await enviarMensaje(jid, phoneClean, `❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.`);
+          return res.status(500).json({ success: false });
+        }
+
         await enviarMensaje(jid, phoneClean,
-          `⏳ *Tu solicitud sigue pendiente*\n\nHola *${registroPendiente.nombre_completo}*, tu solicitud de registro como *${registroPendiente.rol_solicitado}* está siendo revisada por un Administrador.\n\nTe notificaremos por este medio inmediatamente después de ser aprobada.`
+          `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${msgText}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`
+        );
+        return res.status(200).json({ success: true, action: "SOLICITUD_CREADA" });
+      }
+
+      // Caso 3: Si tiene registro completo pero está pendiente
+      if (registroPendiente.estado === "pendiente") {
+        await enviarMensaje(jid, phoneClean,
+          `⏳ *Tu solicitud sigue pendiente*\n\nHola *${registroPendiente.nombre_completo}*, tu solicitud de registro como *Operador* está siendo revisada por un Administrador.\n\nTe notificaremos por este medio inmediatamente después de ser aprobada.`
         );
         return res.status(200).json({ success: true, message: "Solicitud pendiente" });
-      } else if (registroPendiente.estado === "rechazado") {
+      }
+
+      // Caso 4: Si la solicitud fue rechazada, reseteamos el nombre y le pedimos que lo ingrese de nuevo
+      if (registroPendiente.estado === "rechazado") {
+        const { error: errReset } = await supabase
+          .from("registros_pendientes")
+          .update({
+            nombre_completo: null,
+            estado: "pendiente",
+            nota_rechazo: null,
+            created_at: new Date().toISOString()
+          })
+          .eq("whatsapp", phoneClean);
+
+        if (errReset) {
+          console.error("[whatsapp-incoming] Error reseteando solicitud rechazada:", errReset.message);
+        }
+
         await enviarMensaje(jid, phoneClean,
-          `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud de registro como *${registroPendiente.rol_solicitado}* fue rechazada.\n\n*Motivo:* ${registroPendiente.nota_rechazo || "No especificado."}\n\nSi deseas volver a solicitar el registro con datos correctos, envía:\n\n*REGISTRO: Tu Nombre Completo - Rol Solicitado - Tu RUT*`
+          `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud anterior fue rechazada.\n*Motivo:* ${registroPendiente.nota_rechazo || "No cumple con los requisitos de la faena."}\n\nPor favor, responde a este mensaje indicando tu *Nombre Completo* para enviar una nueva solicitud.`
         );
-        return res.status(200).json({ success: true, message: "Solicitud rechazada previamente" });
+        return res.status(200).json({ success: true, message: "Solicitud rechazada reseteada" });
       }
 
       return res.status(200).json({ success: true, message: "No registrado" });

@@ -1662,7 +1662,7 @@ export default function AdminMaquinaria() {
                       </tr>
                     </thead>
                     <tbody>
-                      {registros.data.filter(r => r.estado === "pendiente").map((r) => {
+                      {registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).map((r) => {
                         const edit = editRegistros[r.id] || { rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador", obra_actual_id: "" };
                         return (
                           <tr key={r.id} style={{ borderBottom: "1px solid #121e36" }}>
@@ -1746,9 +1746,9 @@ export default function AdminMaquinaria() {
                           </tr>
                         );
                       })}
-                      {registros.data.filter(r => r.estado === "pendiente").length === 0 && (
+                      {registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).length === 0 && (
                         <tr>
-                          <td colSpan={5} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                          <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
                             No hay solicitudes de registro pendientes de aprobación.
                           </td>
                         </tr>
