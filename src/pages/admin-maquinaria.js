@@ -1003,10 +1003,21 @@ export default function AdminMaquinaria() {
   const [qrEquipo, setQrEquipo] = useState(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("bot_phone");
-      setBotPhone(saved || process.env.NEXT_PUBLIC_BOT_PHONE || "56911110001");
-    }
+    const loadBotPhone = async () => {
+      try {
+        const r = await fetch("/api/config");
+        const json = await r.json();
+        if (json.success && json.valor) {
+          setBotPhone(json.valor);
+        } else {
+          setBotPhone("56911110001");
+        }
+      } catch (e) {
+        console.error("Error al cargar configuración del bot:", e);
+        setBotPhone("56911110001");
+      }
+    };
+    loadBotPhone();
   }, []);
 
   const [saving, setSaving] = useState(false);
@@ -1819,9 +1830,22 @@ export default function AdminMaquinaria() {
                     onChange={e => setBotPhone(e.target.value)}
                   />
                   <button
-                    onClick={() => {
-                      localStorage.setItem("bot_phone", botPhone);
-                      showMsg("✅ Teléfono del bot guardado");
+                    onClick={async () => {
+                      try {
+                        const r = await fetch("/api/config", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ valor: botPhone }),
+                        });
+                        const json = await r.json();
+                        if (json.success) {
+                          showMsg("✅ Teléfono del bot guardado en base de datos");
+                        } else {
+                          showMsg("❌ Error al guardar en base de datos", false);
+                        }
+                      } catch (e) {
+                        showMsg("❌ Error al guardar en base de datos", false);
+                      }
                     }}
                     style={{
                       background: "#ff303e", border: "none", color: "white",
