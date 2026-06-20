@@ -277,7 +277,7 @@ function EquipoCard({ equipo, onPautaClick }) {
       </div>
 
       {/* Info */}
-      <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "10px" }}>
+      <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px" }}>
         {equipo.proveedor}
         {equipo.proyectos && (
           <span style={{ marginLeft: "8px", color: "#475569" }}>
@@ -285,6 +285,83 @@ function EquipoCard({ equipo, onPautaClick }) {
           </span>
         )}
       </div>
+
+      {/* Indicador Estilo Tablero Automotriz Digital */}
+      {(() => {
+        const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
+        const valorLectura = esVehiculo ? equipo.ultimo_odometro : equipo.ultimo_horometro;
+        const colorGlow = esVehiculo ? "#38bdf8" : "#10b981"; // Azul Glaciar vs Verde Neon
+        const label = esVehiculo ? "ODÓMETRO" : "HORÓMETRO";
+        const unidad = esVehiculo ? "km" : "hrs";
+        const formattedValue = valorLectura != null ? Number(valorLectura).toLocaleString("es-CL") : "------";
+
+        return (
+          <div
+            style={{
+              background: "#090f1d",
+              border: "1px solid #1e293b",
+              borderRadius: "8px",
+              padding: "10px 12px",
+              marginBottom: "12px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Pequeña barra brillante lateral */}
+            <div
+              style={{
+                position: "absolute",
+                left: 0, top: 0, bottom: 0,
+                width: "3px",
+                background: colorGlow,
+                boxShadow: `0 0 8px ${colorGlow}`,
+              }}
+            />
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginLeft: "4px" }}>
+              <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                {label}
+              </span>
+              <span style={{ color: "#475569", fontSize: "9px", fontWeight: 500 }}>
+                ÚLTIMO REGISTRO
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: "4px",
+                fontFamily: "monospace",
+                background: "#050811",
+                padding: "4px 10px",
+                borderRadius: "4px",
+                border: "1px solid #111e36",
+                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.9)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  color: colorGlow,
+                  letterSpacing: "1px",
+                  textShadow: `0 0 6px ${colorGlow}`,
+                }}
+              >
+                {formattedValue}
+              </span>
+              <span style={{ fontSize: "10px", color: "#475569", fontWeight: 700 }}>
+                {unidad}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Pauta activa */}
       {equipo.pauta_preventiva_activa && (

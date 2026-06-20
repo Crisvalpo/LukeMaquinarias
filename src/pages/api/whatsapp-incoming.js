@@ -5,24 +5,31 @@ import crypto from "crypto";
 
 // Helper: Guardar mensaje en historial de chat (tabla maquinaria.mensajes_chat)
 async function guardarMensajeChat(supabase, whatsapp_remitente, rol, contenido, tipo_mensaje = "texto", reporte_id = null) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("mensajes_chat")
-    .insert({ whatsapp_remitente, reporte_id, rol, tipo_mensaje, contenido });
-  if (error) console.error("[mensajes_chat] Error guardando mensaje:", error.message);
+    .insert({ whatsapp_remitente, reporte_id, rol, tipo_mensaje, contenido })
+    .select()
+    .maybeSingle();
+  if (error) {
+    console.error("[mensajes_chat] Error guardando mensaje:", error.message);
+    return null;
+  }
+  return data;
 }
 
-// Helper: Recuperar últimos N mensajes y formatearlos para Gemini
-async function cargarHistorialGemini(supabase, whatsapp_remitente, limite = 6) {
+// Helper: Recuperar últimos N mensajes y formatearlos para Gemini (ventana deslizante)
+async function cargarHistorialGemini(supabase, whatsapp_remitente, limite = 10) {
   const { data, error } = await supabase
     .from("mensajes_chat")
     .select("rol, contenido")
     .eq("whatsapp_remitente", whatsapp_remitente)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false }) // Traer los más recientes primero
     .limit(limite);
 
   if (error || !data?.length) return [];
 
-  return data.map(msg => ({
+  // Invertir el orden para entregarlo cronológicamente (antiguo -> nuevo) a Gemini
+  return data.reverse().map(msg => ({
     role: msg.rol, // 'user' o 'model'
     parts: [{ text: msg.contenido }]
   }));
@@ -972,29 +979,53 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         if (audio) {
           resultado = await procesarAudioVehiculo(
             audio.data, audio.mimeType,
-            { estado_sesion: "CHECKIN", km_inicio: null }
+            { estado_sesion: "CHECKIN", km_inicio: null, pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa }
           );
         } else {
           resultado = await procesarTextoVehiculo(
             message.trim(),
-            { estado_sesion: "CHECKIN", km_inicio: null }
+            { estado_sesion: "CHECKIN", km_inicio: null, pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa }
           );
         }
 
         console.log("[whatsapp-incoming] Gemini vehiculo checkin:", JSON.stringify(resultado));
 
-        const kmInicial = resultado.km_inicial || null;
-        const destinoRuta = resultado.destino_ruta || null;
+        const kmInicial = resultado.km_inicial || reporteCheckin?.km_inicial || null;
+        const destinoRuta = resultado.destino_ruta || reporteCheckin?.destino_ruta || null;
         const confirmacionBot = resultado.mensaje_conversacional_bot
           || `✅ *Vehículo registrado.*${kmInicial ? `\n🔢 Odómetro inicial: *${kmInicial.toLocaleString("es-CL")} km*` : ""}${destinoRuta ? `\n📍 Destino: *${destinoRuta}*` : ""}\n\nEnvía un audio o texto al finalizar para registrar el odómetro final.`;
 
         const tipoEntrada = audio ? "audio" : "texto";
-        await guardarMensajeChat(supabase, phoneClean, "user", `Check-in vehículo: odómetro ${kmInicial}, destino ${destinoRuta}`, tipoEntrada, sesion.reporte_activo_id);
-        await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBot, "texto", sesion.reporte_activo_id);
+        const userMsgContenido = audio ? "Audio check-in vehículo." : message.trim();
+        const msgUsuario = await guardarMensajeChat(supabase, phoneClean, "user", userMsgContenido, tipoEntrada, sesion.reporte_activo_id);
 
+        if (audio && resultado.detalles_texto && msgUsuario?.id) {
+          await supabase
+            .from("mensajes_chat")
+            .update({ contenido: resultado.detalles_texto })
+            .eq("id", msgUsuario.id);
+        }
+
+        // Guardar valores acumulados en la base de datos de manera incremental
         await supabase.from("reportes_diarios")
           .update({ km_inicial: kmInicial, destino_ruta: destinoRuta })
           .eq("id", sesion.reporte_activo_id);
+
+        if (kmInicial) {
+          await supabase.from("equipos")
+            .update({ ultimo_odometro: kmInicial })
+            .eq("id", reporteCheckin.equipo_id);
+        }
+
+        // Validar pauta de seguridad si existe
+        if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada === false) {
+          const confirmacionPauta = resultado.mensaje_conversacional_bot
+            || `⚠️ *Atención*: Para registrar el inicio de su turno, debe confirmar primero si realizó la pauta de seguridad de hoy:\n\n_"${reporteCheckin.equipos.pauta_preventiva_activa}"_\n\nPor favor confirme que la realizó por texto o audio.`;
+
+          await guardarMensajeChat(supabase, phoneClean, "model", confirmacionPauta, "texto", sesion.reporte_activo_id);
+          await enviarMensaje(jid, phoneClean, confirmacionPauta);
+          return res.status(200).json({ success: true, action: "ESPERANDO_CONFIRMACION_PAUTA" });
+        }
 
         await supabase.from("eventos_jornada").insert({
           reporte_id: sesion.reporte_activo_id,
@@ -1018,13 +1049,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         ? (tipoSeguimiento === 'camion' ? `Audio check-in: horómetro inicial del camión.` : `Audio check-in: horómetro inicial del operador.`)
         : message.trim();
 
-      await guardarMensajeChat(supabase, phoneClean, "user", transcripcionEntrada, tipoEntradaLog, sesion.reporte_activo_id);
+      const msgUsuario = await guardarMensajeChat(supabase, phoneClean, "user", transcripcionEntrada, tipoEntradaLog, sesion.reporte_activo_id);
       const historial = await cargarHistorialGemini(supabase, phoneClean);
 
       const contextoCheckin = {
         estado_sesion: "CHECKIN",
         seguimiento_completo: seguimientoCompleto,
         tipo_seguimiento: tipoSeguimiento,
+        pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa,
       };
 
       if (audio) {
@@ -1059,7 +1091,36 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
 
       console.log(`[whatsapp-incoming] Gemini checkin [${tipoEntradaLog}]:`, JSON.stringify(resultado));
 
-      const horometroInicio = resultado.horometro_inicial || 0;
+      // Actualizar chat log con la transcripción real si es audio
+      if (audio && resultado.detalles_texto && msgUsuario?.id) {
+        await supabase
+          .from("mensajes_chat")
+          .update({ contenido: resultado.detalles_texto })
+          .eq("id", msgUsuario.id);
+      }
+
+      // Guardar el horómetro inicial acumulado
+      const horometroInicio = resultado.horometro_inicial || reporteCheckin?.horometro_inicio || 0;
+      await supabase.from("reportes_diarios")
+        .update({ horometro_inicio: horometroInicio })
+        .eq("id", sesion.reporte_activo_id);
+
+      if (horometroInicio) {
+        await supabase.from("equipos")
+          .update({ ultimo_horometro: horometroInicio })
+          .eq("id", reporteCheckin.equipo_id);
+      }
+
+      // Validar pauta de seguridad si existe
+      if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada === false) {
+        const confirmacionBotEst = resultado.mensaje_conversacional_bot
+          || `⚠️ *Atención*: Para iniciar su turno, debe confirmar si ha cumplido con la pauta de seguridad de hoy:\n\n_"${reporteCheckin.equipos.pauta_preventiva_activa}"_\n\nPor favor, confirme que la realizó por texto o audio.`;
+
+        await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBotEst, "texto", sesion.reporte_activo_id);
+        await enviarMensaje(jid, phoneClean, confirmacionBotEst);
+        return res.status(200).json({ success: true, action: "ESPERANDO_CONFIRMACION_PAUTA" });
+      }
+
       const confirmacionBotEst = resultado.mensaje_conversacional_bot
         || `✅ *Check-in registrado.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada envía audios o mensajes cuando cambies de actividad.\nAl cerrar di: *"Cierre de jornada, horómetro final XXXX"*`;
 
@@ -1192,7 +1253,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const tipoMsgC = audio ? "audio" : "texto";
 
       // A. Guardar mensaje entrante
-      await guardarMensajeChat(supabase, phoneClean, "user", contenidoUsuario, tipoMsgC, sesion.reporte_activo_id);
+      const msgUsuarioC = await guardarMensajeChat(supabase, phoneClean, "user", contenidoUsuario, tipoMsgC, sesion.reporte_activo_id);
 
       // B. Cargar contexto de los últimos 6 mensajes
       const historialC = await cargarHistorialGemini(supabase, phoneClean);
@@ -1236,6 +1297,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
 
       console.log("[whatsapp-incoming] Gemini hito:", JSON.stringify(resultado));
 
+      // Actualizar chat log con la transcripción real si es audio
+      if (audio && resultado.detalles_texto && msgUsuarioC?.id) {
+        await supabase
+          .from("mensajes_chat")
+          .update({ contenido: resultado.detalles_texto })
+          .eq("id", msgUsuarioC.id);
+      }
+
       // ¿Es cierre de jornada?
       const esCierre =
         resultado.tipo_evento === "CIERRE" ||
@@ -1259,6 +1328,13 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           .from("reportes_diarios")
           .update(updateData)
           .eq("id", sesion.reporte_activo_id);
+
+        const eqUpdate = {};
+        if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
+        if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
+        if (Object.keys(eqUpdate).length > 0) {
+          await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipos.id);
+        }
 
         // Evento de cierre
         await supabase.from("eventos_jornada").insert({
@@ -1380,6 +1456,12 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             }),
           })
           .eq("id", sesion.reporte_activo_id);
+
+        if (resultado.horometro_carga_combustible) {
+          await supabase.from("equipos")
+            .update({ ultimo_horometro: resultado.horometro_carga_combustible })
+            .eq("id", reporteActual.equipos.id);
+        }
       }
 
       const iconosEstado = {

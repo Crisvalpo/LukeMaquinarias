@@ -52,6 +52,11 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - "cierre", "terminamos", "fin de jornada", "horómetro final", "cerrando" → tipo_evento 'CIERRE'
    - Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
    - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
+6. Regla de Pauta Preventiva (pauta_del_dia):
+   - Si se proporciona 'pauta_del_dia' en el contexto, el operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
+   - Si el operador confirma o declara haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
+   - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en su mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+   - Si no hay pauta_del_dia en el contexto, establece 'pauta_confirmada' en true.
 
 Responde ÚNICAMENTE con un JSON válido. Esquema:
 {
@@ -64,7 +69,8 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida del operador",
-  "mensaje_conversacional_bot": "Confirmación breve y cordial al operador en español chileno"
+  "pauta_confirmada": true_o_false,
+  "mensaje_conversacional_bot": "Confirmación breve y cordial al operador en español chileno, o solicitud de confirmación de la pauta de seguridad si pauta_confirmada es false"
 }`;
 
   const payload = {
@@ -129,6 +135,7 @@ Este equipo NO requiere Rigger ni especialidades de montaje.
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
+${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas:
 - Extrae horómetro_inicial en check-in ("horómetro veinte mil" = 20000)
@@ -137,6 +144,11 @@ Reglas:
 - NO preguntes por especialidad ni Rigger jamás
 - Tono formal y respetuoso, sin "compadre"
 - Si no declara horómetro en check-in, pregúntalo de forma directa
+- Regla de Pauta Preventiva (pauta_del_dia):
+  - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
+  - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -149,7 +161,8 @@ Respuesta ÚNICAMENTE en JSON válido:
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": false,
   "detalles_texto": "Transcripción resumida",
-  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+  "pauta_confirmada": true_o_false,
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español, o solicitud de pauta si pauta_confirmada es false"
 }`;
   } else {
     // Flujo estándar (grúas, maquinaria pesada/semipesada)
@@ -167,11 +180,17 @@ Reglas de Mapeo Semántico ESTRICTAS:
 - "fierreros", "montadores", "estructuras" → 'Estructuras'
 - "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' | "cierre/fin" → 'CIERRE'
 - Números hablados: "dos mil trescientos" = 2300
+- Regla de Pauta Preventiva (pauta_del_dia):
+  - Si se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Si el operador confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
+  - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
 ${contexto.seguimiento_completo !== undefined ? `- seguimiento_completo: ${contexto.seguimiento_completo}` : ''}
+${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 IMPORTANTE: Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown.
 
@@ -185,7 +204,9 @@ Esquema de retorno:
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
-  "detalles_texto": "Transcripción resumida"
+  "detalles_texto": "Transcripción resumida",
+  "pauta_confirmada": true_o_false,
+  "mensaje_conversacional_bot": "Confirmación o solicitud de pauta en español"
 }`;
   }
 
@@ -253,6 +274,7 @@ Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJ
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
+${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas de extracción:
 - Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
@@ -265,6 +287,11 @@ Reglas de extracción:
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
+- Regla de Pauta Preventiva (pauta_del_dia):
+  - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
+  - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -274,7 +301,8 @@ Respuesta ÚNICAMENTE en JSON válido:
   "destino_ruta": "texto_o_null",
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
-  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+  "pauta_confirmada": true_o_false,
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español, o solicitud de pauta si pauta_confirmada es false"
 }`;
 
   const payload = {
@@ -331,6 +359,7 @@ Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJ
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
+${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas de extracción:
 - Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
@@ -343,6 +372,11 @@ Reglas de extracción:
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
+- Regla de Pauta Preventiva (pauta_del_dia):
+  - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
+  - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -352,7 +386,8 @@ Respuesta ÚNICAMENTE en JSON válido:
   "destino_ruta": "texto_o_null",
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
-  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+  "pauta_confirmada": true_o_false,
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español, o solicitud de pauta si pauta_confirmada es false"
 }`;
 
   const payload = {
