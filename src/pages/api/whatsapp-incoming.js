@@ -1245,15 +1245,30 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             );
           }
         } else {
-          // Procesar texto como fallback
-          resultado = {
-            tipo_evento: "Trabajando",
-            especialidad_id: null,
-            detalles_texto: message,
-            horometro_final: null,
-            petroleo_litros: null,
-            mensaje_conversacional_bot: null,
-          };
+          // Procesar texto mediante Gemini con memoria
+          if (historialC.length > 0) {
+            resultado = await procesarMensajeConContexto(
+              historialC,
+              especialidades || [],
+              {
+                estado_sesion: "INTERMEDIO",
+                horometro_inicio: reporteActual?.horometro_inicio,
+                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
+                seguimiento_completo: seguimientoCompleto
+              }
+            );
+          } else {
+            resultado = await procesarMensajeConContexto(
+              [{ role: "user", parts: [{ text: message.trim() }] }],
+              especialidades || [],
+              {
+                estado_sesion: "INTERMEDIO",
+                horometro_inicio: reporteActual?.horometro_inicio,
+                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
+                seguimiento_completo: seguimientoCompleto
+              }
+            );
+          }
         }
       }
 
@@ -1262,8 +1277,8 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // ¿Es cierre de jornada?
       const esCierre =
         resultado.tipo_evento === "CIERRE" ||
-        resultado.horometro_final !== null ||
-        resultado.km_final !== null;
+        resultado.horometro_final != null ||
+        resultado.km_final != null;
 
       if (esCierre) {
         // === CIERRE DE JORNADA ===
