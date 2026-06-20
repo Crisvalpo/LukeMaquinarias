@@ -11,7 +11,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
 
 // ================================================================
 // FUNCIÓN: Chat con memoria conversacional completa
@@ -79,7 +79,7 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
     systemInstruction: { parts: [{ text: systemInstruction }] },
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
     },
   };
@@ -99,14 +99,22 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
   }
 
   const data = await res.json();
+  console.log("[Gemini Debug] Objeto data completo:", JSON.stringify(data, null, 2));
   const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
 
   try {
     return JSON.parse(rawText);
-  } catch {
+  } catch (parseErr) {
+    console.error("[Gemini Debug] Error parseando JSON. Texto crudo recibido:", rawText);
     const match = rawText.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    throw new Error(`[Gemini] JSON inválido en procesarMensajeConContexto: ${rawText.slice(0, 200)}`);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (innerErr) {
+        console.error("[Gemini Debug] Falló también el parseo del match regex. Match:", match[0]);
+      }
+    }
+    throw new Error(`[Gemini] JSON inválido en procesarMensajeConContexto: ${rawText.slice(0, 200)} | Error: ${parseErr.message}`);
   }
 }
 
@@ -229,7 +237,7 @@ Esquema de retorno:
     ],
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
     },
   };
@@ -320,7 +328,7 @@ Respuesta ÚNICAMENTE en JSON válido:
     },
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 512,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
     },
   };
@@ -406,7 +414,7 @@ Respuesta ÚNICAMENTE en JSON válido:
     },
     generationConfig: {
       temperature: 0.1,
-      maxOutputTokens: 512,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
     },
   };
@@ -536,7 +544,7 @@ Debes retornar estrictamente un JSON con este formato:
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.1,
-      maxOutputTokens: 256,
+      maxOutputTokens: 2048,
     }
   };
 

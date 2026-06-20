@@ -1282,16 +1282,18 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const historialC = await cargarHistorialGemini(supabase, phoneClean);
 
       let resultado;
+      const estadoSesionEnv = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" ? "CIERRE" : "INTERMEDIO";
+
       if (tipoSeguimiento === 'vehiculo') {
         if (audio) {
           resultado = await procesarAudioVehiculo(
             audio.data, audio.mimeType,
-            { estado_sesion: "INTERMEDIO", km_inicio: reporteActual?.km_inicial }
+            { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
           );
         } else {
           resultado = await procesarTextoVehiculo(
             message.trim(),
-            { estado_sesion: "INTERMEDIO", km_inicio: reporteActual?.km_inicial }
+            { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
           );
         }
       } else {
@@ -1299,7 +1301,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           resultado = await procesarAudioOperador(
             audio.data, audio.mimeType, especialidades || [],
             {
-              estado_sesion: "INTERMEDIO",
+              estado_sesion: estadoSesionEnv,
               horometro_inicio: reporteActual?.horometro_inicio,
               seguimiento_completo: seguimientoCompleto
             }
@@ -1309,7 +1311,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             [{ role: "user", parts: [{ text: message.trim() }] }],
             especialidades || [],
             {
-              estado_sesion: "INTERMEDIO",
+              estado_sesion: estadoSesionEnv,
               horometro_inicio: reporteActual?.horometro_inicio,
               seguimiento_completo: seguimientoCompleto
             }
@@ -1318,6 +1320,31 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       console.log("[whatsapp-incoming] Gemini hito:", JSON.stringify(resultado));
+
+      // Guardrail por software para combustible en el cierre o hito
+      if (resultado) {
+        const textoEntrante = (message || resultado.detalles_texto || "").toLowerCase();
+        const tieneCombustible = textoEntrante.includes("combustible") || textoEntrante.includes("petroleo") || textoEntrante.includes("petróleo") || textoEntrante.includes("carga");
+        const tieneFallaReal = textoEntrante.includes("pana") || textoEntrante.includes("roto") || textoEntrante.includes("averia") || textoEntrante.includes("falla mecanica") || textoEntrante.includes("falla eléctrica") || textoEntrante.includes("daño") || textoEntrante.includes("fuga") || textoEntrante.includes("malo") || textoEntrante.includes("desperfecto") || textoEntrante.includes("pinchado");
+        
+        if (tieneCombustible && !tieneFallaReal) {
+          if (resultado.es_falla_critica) {
+            console.log("[whatsapp-incoming] 🛡️ Guardrail: Desactivando es_falla_critica de Gemini (asumido combustible).");
+            resultado.es_falla_critica = false;
+          }
+          if (resultado.tipo_evento === "Detenido por Falla") {
+            const esCierreJornada = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || resultado.horometro_final != null || resultado.km_final != null;
+            console.log(`[whatsapp-incoming] 🛡️ Guardrail: Cambiando tipo_evento de Detenido por Falla a ${esCierreJornada ? "CIERRE" : "Disponible"}.`);
+            resultado.tipo_evento = esCierreJornada ? "CIERRE" : "Disponible";
+          }
+          if (resultado.petroleo_litros === null || resultado.petroleo_litros === undefined) {
+            resultado.petroleo_litros = 0;
+          }
+          if (resultado.mensaje_conversacional_bot && (resultado.mensaje_conversacional_bot.includes("falla") || resultado.mensaje_conversacional_bot.includes("pana") || resultado.mensaje_conversacional_bot.includes("operativo nuevamente"))) {
+            resultado.mensaje_conversacional_bot = null; // Permitir que el fallback de éxito genere el texto amigable
+          }
+        }
+      }
 
       // Actualizar chat log con la transcripción real si es audio
       if (audio && resultado.detalles_texto && msgUsuarioC?.id) {
