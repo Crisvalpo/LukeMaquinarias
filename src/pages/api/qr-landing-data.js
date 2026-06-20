@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     // 1. Obtener datos del equipo
     const { data: equipo, error: errorEquipo } = await supabase
       .from("equipos")
-      .select("id, codigo_interno, descripcion_equipo, proveedor, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, proyectos(nombre_proyecto, codigo_cc)")
+      .select("id, codigo_interno, descripcion_equipo, proveedor, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, ultimo_horometro, ultimo_odometro, pauta_preventiva_activa, tipo_seguimiento, proyectos(nombre_proyecto, codigo_cc)")
       .eq("codigo_interno", codigo)
       .maybeSingle();
 

@@ -41,6 +41,13 @@ export default function QrLanding() {
   const [coords, setCoords] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Estados de check-in web consolidado
+  const [lecturaActual, setLecturaActual] = useState("");
+  const [destinoRuta, setDestinoRuta] = useState("");
+  const [pautaConfirmada, setPautaConfirmada] = useState(false);
+  const [errorMessageLocal, setErrorMessageLocal] = useState("");
+  const [checkinSuccess, setCheckinSuccess] = useState(false);
+
   // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
     if (!router.isReady || !codigo) return;
@@ -182,40 +189,83 @@ export default function QrLanding() {
     reader.readAsDataURL(file);
   };
 
-  // Obtener geolocalización mediante API HTML5 del navegador
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Tu dispositivo o navegador no soporta geolocalización.");
+  // Procesar check-in consolidado desde la Web
+  const handleCheckinWeb = async (e) => {
+    e.preventDefault();
+    if (!equipo || !operador) return;
+
+    const requiereSeguimiento = equipo.seguimiento_completo !== false;
+    const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
+    const ultimaLectura = (esVehiculo ? equipo.ultimo_odometro : equipo.ultimo_horometro) || 0;
+    
+    // Validar lectura inicial
+    let valorLecturaNum = 0;
+    if (requiereSeguimiento) {
+      if (!lecturaActual) {
+        setErrorMessageLocal(`Por favor ingresa el ${esVehiculo ? "odómetro" : "horómetro"} inicial.`);
+        return;
+      }
+      valorLecturaNum = parseFloat(lecturaActual);
+      if (isNaN(valorLecturaNum) || valorLecturaNum < 0) {
+        setErrorMessageLocal("Ingresa un valor numérico válido.");
+        return;
+      }
+      if (valorLecturaNum < ultimaLectura) {
+        setErrorMessageLocal(`La lectura no puede ser menor al último registro (${ultimaLectura.toLocaleString("es-CL")} ${esVehiculo ? "km" : "hrs"}).`);
+        return;
+      }
+    }
+
+    // Validar pauta preventiva
+    if (equipo.pauta_preventiva_activa && !pautaConfirmada) {
+      setErrorMessageLocal("Debes confirmar la pauta de seguridad para iniciar tu jornada.");
       return;
     }
 
+    setErrorMessageLocal("");
     setUbicacionCargando(true);
+
+    if (!navigator.geolocation) {
+      setErrorMessageLocal("Tu dispositivo o navegador no soporta geolocalización.");
+      setUbicacionCargando(false);
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
         setCoords({ latitude, longitude });
 
         try {
-          // Enviar las coordenadas al servidor para guardarlas de inmediato en el equipo
-          const res = await fetch("/api/equipos/update-ubicacion", {
+          // Enviar todo al backend consolidado
+          const res = await fetch("/api/equipos/checkin-web", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               equipoId: equipo.id,
-              latitude,
-              longitude
+              operadorId: operador.id,
+              valorLectura: valorLecturaNum,
+              latitud: latitude,
+              longitud: longitude,
+              pautaConfirmada: equipo.pauta_preventiva_activa ? true : false,
+              destinoRuta: esVehiculo ? destinoRuta : null
             })
           });
 
           const json = await res.json();
           if (json.success) {
+            setCheckinSuccess(true);
             setUbicacionOk(true);
+            // Redirigir a WhatsApp
+            const messageText = `REPORTE:${equipo.codigo_interno}`;
+            const cleanPhone = botPhone.replace(/[^0-9]/g, "");
+            window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
           } else {
-            alert("Error al guardar ubicación: " + (json.error || json.message));
+            setErrorMessageLocal(json.message || "Error al procesar el check-in en el servidor.");
           }
         } catch (err) {
           console.error(err);
-          alert("Error al comunicar la ubicación al servidor.");
+          setErrorMessageLocal("Error de red al conectar con el servidor.");
         } finally {
           setUbicacionCargando(false);
         }
@@ -225,9 +275,9 @@ export default function QrLanding() {
         setUbicacionCargando(false);
         let errorTxt = "No se pudo obtener la geolocalización.";
         if (error.code === error.PERMISSION_DENIED) {
-          errorTxt = "Permiso denegado. Por favor, activa el GPS de tu celular y concede permisos de ubicación en tu navegador para continuar.";
+          errorTxt = "Permiso de GPS denegado. Por favor, activa el GPS de tu celular y concede permisos de ubicación en tu navegador para continuar.";
         }
-        alert(errorTxt);
+        setErrorMessageLocal(errorTxt);
       },
       {
         enableHighAccuracy: true,
@@ -235,14 +285,6 @@ export default function QrLanding() {
         maximumAge: 0
       }
     );
-  };
-
-  // Redirigir a WhatsApp
-  const handleStartJornada = () => {
-    if (!ubicacionOk || !equipo) return;
-    const messageText = `REPORTE:${equipo.codigo_interno}`;
-    const cleanPhone = botPhone.replace(/[^0-9]/g, "");
-    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
   };
 
   // Spinner de carga inicial
@@ -464,56 +506,129 @@ export default function QrLanding() {
                 )}
               </div>
 
-              {/* Acciones principales (Los dos botones grandes obligatorios) */}
-              <div className="actions-section">
-                {/* BOTÓN 1: Obtener ubicación */}
-                <button 
-                  className={`action-button geo-btn ${ubicacionOk ? "success" : ""}`}
-                  onClick={handleGetLocation}
-                  disabled={ubicacionCargando || ubicacionOk}
+              {/* Formulario de Check-in Web Consolidado */}
+              <form onSubmit={handleCheckinWeb} className="checkin-web-form">
+                
+                {/* 1. Si requiere seguimiento de odómetro/horómetro */}
+                {equipo.seguimiento_completo !== false && (
+                  <div className="reading-validation-box">
+                    {equipo.tipo_seguimiento === "vehiculo" ? (
+                      <>
+                        <div className="digital-odometer cian">
+                          <div className="odometer-label">ÚLTIMO ODÓMETRO REGISTRADO</div>
+                          <div className="odometer-value-display">
+                            {(equipo.ultimo_odometro || 0).toLocaleString("es-CL")} <span className="unit">KM</span>
+                          </div>
+                        </div>
+                        
+                        <div className="input-group mt-4">
+                          <label htmlFor="reading-input">Ingresa el Kilometraje (Odómetro) Inicial</label>
+                          <input
+                            id="reading-input"
+                            type="number"
+                            step="any"
+                            placeholder={`Ej: ${(equipo.ultimo_odometro || 0) + 10}`}
+                            value={lecturaActual}
+                            onChange={(e) => setLecturaActual(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="input-group mt-3">
+                          <label htmlFor="route-input">Destino de la Ruta</label>
+                          <input
+                            id="route-input"
+                            type="text"
+                            placeholder="Ej: Sector Norte, Oficinas, Faena..."
+                            value={destinoRuta}
+                            onChange={(e) => setDestinoRuta(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="digital-odometer green">
+                          <div className="odometer-label">ÚLTIMO HORÓMETRO REGISTRADO</div>
+                          <div className="odometer-value-display">
+                            {(equipo.ultimo_horometro || 0).toLocaleString("es-CL")} <span className="unit">HRS</span>
+                          </div>
+                        </div>
+
+                        <div className="input-group mt-4">
+                          <label htmlFor="reading-input">Ingresa el Horómetro Inicial</label>
+                          <input
+                            id="reading-input"
+                            type="number"
+                            step="any"
+                            placeholder={`Ej: ${((equipo.ultimo_horometro || 0) + 1).toFixed(1)}`}
+                            value={lecturaActual}
+                            onChange={(e) => setLecturaActual(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. Pauta preventiva obligatoria */}
+                {equipo.pauta_preventiva_activa && (
+                  <div className="pauta-preventiva-box mt-4 animate-fade-in">
+                    <div className="pauta-header">
+                      <AlertCircle size={16} className="pauta-icon" />
+                      <span>PAUTA DE SEGURIDAD HOY</span>
+                    </div>
+                    <div className="pauta-content">
+                      "{equipo.pauta_preventiva_activa}"
+                    </div>
+                    <div className="pauta-checkbox-wrapper">
+                      <label className="checkbox-container">
+                        <input
+                          type="checkbox"
+                          checked={pautaConfirmada}
+                          onChange={(e) => setPautaConfirmada(e.target.checked)}
+                          required
+                        />
+                        <span className="checkmark"></span>
+                        <span className="checkbox-text">Confirmo que realicé la inspección y el equipo cumple con esta pauta.</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Mensajes de error locales */}
+                {errorMessageLocal && (
+                  <div className="alert alert-error mt-4">
+                    <AlertCircle size={16} />
+                    <span>{errorMessageLocal}</span>
+                  </div>
+                )}
+
+                {/* 4. Botón Único de Envío */}
+                <button
+                  type="submit"
+                  className={`submit-btn mt-4 ${ubicacionCargando ? "loading" : ""}`}
+                  disabled={ubicacionCargando}
                 >
                   {ubicacionCargando ? (
                     <>
-                      <Loader2 className="spinner animate-spin" size={20} />
-                      <div className="btn-text-wrapper">
-                        <span className="btn-title">Determinando Ubicación...</span>
-                        <span className="btn-subtitle">Espera unos segundos</span>
-                      </div>
+                      <Loader2 className="spinner animate-spin mr-2" size={16} />
+                      <span>Validando y Registrando...</span>
                     </>
-                  ) : ubicacionOk ? (
+                  ) : checkinSuccess ? (
                     <>
-                      <CheckCircle size={20} />
-                      <div className="btn-text-wrapper">
-                        <span className="btn-title">Ubicación Registrada ✅</span>
-                        <span className="btn-subtitle">
-                          Lat: {coords?.latitude.toFixed(5)}, Lng: {coords?.longitude.toFixed(5)}
-                        </span>
-                      </div>
+                      <CheckCircle size={16} className="mr-2" />
+                      <span>¡Turno Registrado! Abriendo WhatsApp...</span>
                     </>
                   ) : (
                     <>
-                      <MapPin size={20} />
-                      <div className="btn-text-wrapper">
-                        <span className="btn-title">1. Registrar Ubicación GPS</span>
-                        <span className="btn-subtitle">Presiona para validar ubicación</span>
-                      </div>
+                      <span>Iniciar Turno y Abrir WhatsApp</span>
+                      <ArrowRight size={16} className="ml-2" />
                     </>
                   )}
                 </button>
-
-                {/* BOTÓN 2: Iniciar jornada en WhatsApp */}
-                <button 
-                  className={`action-button start-btn ${ubicacionOk ? "active" : "disabled"}`}
-                  onClick={handleStartJornada}
-                  disabled={!ubicacionOk}
-                >
-                  <MessageSquare size={20} />
-                  <div className="btn-text-wrapper">
-                    <span className="btn-title">2. Iniciar Turno en WhatsApp</span>
-                    <span className="btn-subtitle">Continúa la jornada con el bot</span>
-                  </div>
-                </button>
-              </div>
+              </form>
             </div>
           )}
         </div>
@@ -962,82 +1077,131 @@ export default function QrLanding() {
           padding: 8px 0;
         }
 
-        /* Sección de Acciones (Botones Grandes) */
-        .actions-section {
+        /* Formulario de Check-in Web */
+        .checkin-web-form {
+          text-align: left;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
         }
 
-        .action-button {
-          width: 100%;
-          border: none;
+        /* Tableros Digitales Estilo Automotriz Glowing */
+        .digital-odometer {
+          background: #060c18;
+          border-radius: 14px;
+          padding: 16px;
+          text-align: center;
+          position: relative;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        .digital-odometer::before {
+          content: "";
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 50%;
+          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
+          pointer-events: none;
+        }
+
+        .odometer-label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 1.5px;
+          color: #64748b;
+          margin-bottom: 6px;
+        }
+
+        .odometer-value-display {
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 28px;
+          font-weight: 800;
+          letter-spacing: 2px;
+        }
+
+        .digital-odometer.green {
+          border-color: rgba(16, 185, 129, 0.3);
+          box-shadow: 0 0 15px rgba(16, 185, 129, 0.05), inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+        .digital-odometer.green .odometer-value-display {
+          color: #10b981;
+          text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .digital-odometer.cian {
+          border-color: rgba(6, 182, 212, 0.3);
+          box-shadow: 0 0 15px rgba(6, 182, 212, 0.05), inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+        .digital-odometer.cian .odometer-value-display {
+          color: #06b6d4;
+          text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        .unit {
+          font-size: 14px;
+          font-weight: 500;
+          opacity: 0.7;
+          margin-left: 2px;
+        }
+
+        /* Pauta de Seguridad Hoy */
+        .pauta-preventiva-box {
+          background: rgba(245, 158, 11, 0.03);
+          border: 1px solid rgba(245, 158, 11, 0.15);
           border-radius: 12px;
-          padding: 14px 16px;
+          padding: 16px;
+        }
+
+        .pauta-header {
           display: flex;
           align-items: center;
-          gap: 14px;
-          cursor: pointer;
-          text-align: left;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          color: white;
-          outline: none;
-        }
-
-        .btn-text-wrapper {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .btn-title {
-          font-size: 14px;
-          font-weight: 700;
-          letter-spacing: -0.2px;
-        }
-
-        .btn-subtitle {
+          gap: 8px;
           font-size: 11px;
-          opacity: 0.7;
-          margin-top: 2px;
+          font-weight: 700;
+          color: #f59e0b;
+          letter-spacing: 0.5px;
+          margin-bottom: 8px;
         }
 
-        /* Botón de Geolocalización */
-        .geo-btn {
-          background: #1e3a5f;
-          border: 1px solid #2563eb;
-          box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
-        }
-        .geo-btn:hover:not(:disabled) {
-          background: #2563eb;
-          transform: translateY(-1.5px);
-          box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
+        .pauta-content {
+          font-size: 13px;
+          line-height: 1.5;
+          color: #e2e8f0;
+          font-style: italic;
+          margin-bottom: 14px;
+          padding-left: 4px;
+          border-left: 2px solid rgba(245, 158, 11, 0.3);
         }
 
-        .geo-btn.success {
-          background: rgba(16, 185, 129, 0.12);
-          border: 1px solid #10b981;
-          color: #34d399;
-          box-shadow: none;
-          cursor: not-allowed;
+        /* Checkbox Custom Estilizado */
+        .pauta-checkbox-wrapper {
+          display: flex;
+          align-items: flex-start;
         }
 
-        /* Botón de WhatsApp */
-        .start-btn.active {
-          background: linear-gradient(135deg, #ff303e, #c21a25);
-          box-shadow: 0 4px 12px rgba(255, 48, 62, 0.2);
+        .checkbox-container {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
           cursor: pointer;
-        }
-        .start-btn.active:hover {
-          transform: translateY(-1.5px);
-          box-shadow: 0 6px 18px rgba(255, 48, 62, 0.4);
+          font-size: 12px;
+          color: #cbd5e1;
+          line-height: 1.4;
+          user-select: none;
         }
 
-        .start-btn.disabled {
-          background: #1e293b;
-          border: 1px solid rgba(255,255,255,0.05);
-          color: #475569;
-          cursor: not-allowed;
-          opacity: 0.65;
+        .checkbox-container input {
+          margin-top: 2px;
+          cursor: pointer;
+          accent-color: #f59e0b;
+        }
+
+        .checkbox-text {
+          font-weight: 500;
         }
 
         /* Animaciones */

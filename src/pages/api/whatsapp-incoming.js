@@ -850,7 +850,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const hoy = new Date().toISOString().slice(0, 10);
       const { data: reporteExistente } = await supabase
         .from("reportes_diarios")
-        .select("id")
+        .select("id, horometro_inicio, km_inicial")
         .eq("equipo_id", equipo.id)
         .eq("operador_id", personal.id)
         .eq("fecha", hoy)
@@ -888,6 +888,16 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           estado_espera: "SESION_ABIERTA_INTERMEDIA",
           updated_at: new Date().toISOString(),
         });
+
+        // Si fue creado por la web con lecturas ya guardadas, enviamos saludo amigable de inicio
+        const lecturaReg = reporteExistente.horometro_inicio || reporteExistente.km_inicial || 0;
+        if (lecturaReg > 0) {
+          const sufijoMedida = equipo.tipo_seguimiento === 'vehiculo' ? 'km' : 'hrs';
+          await enviarMensaje(jid, phoneClean,
+            `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos el inicio de tu jornada en *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) con un valor inicial de *${lecturaReg.toLocaleString("es-CL")} ${sufijoMedida}*.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`
+          );
+          return res.status(200).json({ success: true, action: "SESION_INICIADA_WEB" });
+        }
 
         await enviarMensaje(jid, phoneClean,
           `✅ *${personal.nombre_completo}*, ya tienes un reporte abierto para *${equipo.descripcion_equipo}* hoy.\nPuedes continuar enviando audios de actualización o envía el cierre de jornada.`
@@ -1156,20 +1166,31 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       sesion.estado_espera === "SESION_ABIERTA_INTERMEDIA" ||
       sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO"
     ) {
-      // Guard: si envía REPORTE:CODIGO con sesión activa → avisar y bloquear
+      // Guard: si envía REPORTE:CODIGO con sesión activa
       // (no dejar que Gemini lo procese como hito de texto)
       const msgUpperC = (message || "").trim().toUpperCase();
       if (msgUpperC.startsWith("REPORTE:")) {
+        const codigoScan = msgUpperC.replace("REPORTE:", "").trim();
         const { data: reporteActivo } = await supabase
           .from("reportes_diarios")
           .select("*, equipos(descripcion_equipo, codigo_interno)")
           .eq("id", sesion.reporte_activo_id)
           .maybeSingle();
         const equipoActivo = reporteActivo?.equipos;
-        await enviarMensaje(jid, phoneClean,
-          `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo?.codigo_interno || ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`
-        );
-        return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA" });
+
+        if (equipoActivo && equipoActivo.codigo_interno.toUpperCase() === codigoScan) {
+          // El mismo equipo, confirmación positiva
+          await enviarMensaje(jid, phoneClean,
+            `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos que tu jornada para *${equipoActivo.descripcion_equipo}* (${equipoActivo.codigo_interno}) se encuentra activa y registrada con éxito.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`
+          );
+          return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA_MISMO_EQUIPO" });
+        } else {
+          // Equipo diferente, advertencia
+          await enviarMensaje(jid, phoneClean,
+            `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo?.codigo_interno || ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`
+          );
+          return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA_OTRO_EQUIPO" });
+        }
       }
 
       // --- Manejo de IMAGEN → Supabase Storage ---
