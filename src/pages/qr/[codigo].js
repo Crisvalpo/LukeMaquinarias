@@ -41,18 +41,35 @@ export default function QrLanding() {
   const [coords, setCoords] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Intentar cargar la identificación de localStorage al montar
+  // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
     if (!router.isReady || !codigo) return;
 
-    const storedId = localStorage.getItem("luke_operador_identificador");
-    if (storedId) {
-      setIdentificador(storedId);
-      setIsIdentified(true);
-      fetchLandingData(storedId);
-    } else {
-      setLoadingData(false);
-    }
+    const init = async () => {
+      // 1. Cargar datos del equipo y del botPhone iniciales
+      try {
+        const res = await fetch(`/api/qr-landing-data?codigo=${codigo}`);
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setEquipo(data.equipo);
+          setBotPhone(data.botPhone);
+        }
+      } catch (err) {
+        console.error("Error cargando datos iniciales del equipo:", err);
+      }
+
+      // 2. Verificar si hay sesión en localStorage
+      const storedId = localStorage.getItem("luke_operador_identificador");
+      if (storedId) {
+        setIdentificador(storedId);
+        setIsIdentified(true);
+        fetchLandingData(storedId);
+      } else {
+        setLoadingData(false);
+      }
+    };
+
+    init();
   }, [router.isReady, codigo]);
 
   // Consultar datos de la landing page
@@ -319,9 +336,23 @@ export default function QrLanding() {
               </p>
 
               {authError && (
-                <div className="alert alert-error">
-                  <AlertCircle size={16} />
-                  <span>{authError}</span>
+                <div className="alert-error-wrapper">
+                  <div className="alert alert-error">
+                    <AlertCircle size={16} />
+                    <span>{authError}</span>
+                  </div>
+                  <div className="registro-nuevo-box">
+                    <p>¿Eres un operador nuevo en LukeEquipos?</p>
+                    <a 
+                      href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("REGISTRO: " + identificador)}`}
+                      className="registro-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MessageSquare size={14} className="mr-2" />
+                      <span>Solicitar Registro por WhatsApp</span>
+                    </a>
+                  </div>
                 </div>
               )}
 
@@ -618,6 +649,50 @@ export default function QrLanding() {
           background: rgba(239, 68, 68, 0.08);
           border: 1px solid rgba(239, 68, 68, 0.2);
           color: #fca5a5;
+        }
+
+        .alert-error-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .registro-nuevo-box {
+          background: rgba(37, 99, 235, 0.05);
+          border: 1px dashed rgba(37, 99, 235, 0.2);
+          border-radius: 8px;
+          padding: 14px;
+          text-align: center;
+        }
+
+        .registro-nuevo-box p {
+          font-size: 12px;
+          color: #94a3b8;
+          margin-bottom: 10px;
+        }
+
+        .registro-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: #2563eb;
+          color: white;
+          text-decoration: none;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 700;
+          transition: background 0.2s, transform 0.1s;
+        }
+
+        .registro-link:hover {
+          background: #1d4ed8;
+          transform: translateY(-0.5px);
+        }
+
+        .mr-2 {
+          margin-right: 6px;
         }
 
         /* Formularios */
