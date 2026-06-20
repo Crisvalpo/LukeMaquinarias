@@ -917,11 +917,11 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const tipoSeguimientoEquipo = equipo.tipo_seguimiento || 'estandar';
       let mensajeInstruccion;
       if (tipoSeguimientoEquipo === 'vehiculo') {
-        mensajeInstruccion = `🚗 *${personal.nombre_completo}*, vehículo registrado:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n📻 Por favor envía un *audio* indicando el *kilometraje (odómetro)* del vehículo y tu destino.\n_Ejemplo: "Odómetro 84.320, voy al sector norte"_`;
+        mensajeInstruccion = `🚗 *${personal.nombre_completo}*, vehículo registrado:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica el *kilometraje (odómetro)* y tu destino por *audio o texto*.\n_Ejemplo: "Odómetro 84.320, voy al sector norte"_`;
       } else if (tipoSeguimientoEquipo === 'camion') {
-        mensajeInstruccion = `🚛 *${personal.nombre_completo}*, inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n📻 Por favor envía un *audio* indicando tu *horómetro inicial* y el estado del camión.`;
+        mensajeInstruccion = `🚛 *${personal.nombre_completo}*, inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del camión por *audio o texto*.\n_Ejemplo: "Horómetro 15.200, camión operativo"_`;
       } else {
-        mensajeInstruccion = `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n📻 Por favor envía un *audio* indicando tu *horómetro inicial* y confirmando el estado del equipo.`;
+        mensajeInstruccion = `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del equipo por *audio o texto*.\n_Ejemplo: "Horómetro 2.300, equipo operativo, trabajando con Piping"_`;
       }
 
       await enviarMensaje(jid, phoneClean, mensajeInstruccion);
@@ -930,7 +930,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
     }
 
     // ================================================================
-    // CASO B: Sesión ESPERANDO_CHECKIN_AUDIO
+    // CASO B: Sesión ESPERANDO_CHECKIN_AUDIO (acepta audio O texto)
     // ================================================================
     if (sesion.estado_espera === "ESPERANDO_CHECKIN_AUDIO") {
       // Obtener tipo_seguimiento del equipo desde el reporte activo
@@ -941,18 +941,19 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         .maybeSingle();
       const tipoSeguimiento = reporteCheckin?.equipos?.tipo_seguimiento || 'estandar';
       const seguimientoCompleto = reporteCheckin?.equipos?.seguimiento_completo !== false;
+      const nombreEquipo = reporteCheckin?.equipos?.descripcion_equipo || "el equipo";
+      const codigoEquipo = reporteCheckin?.equipos?.codigo_interno || "";
 
-      if (!audio) {
-        // Mensaje de recordatorio adaptado al tipo + nombre del equipo
-        const nombreEquipo = reporteCheckin?.equipos?.descripcion_equipo || "el equipo";
-        const codigoEquipo = reporteCheckin?.equipos?.codigo_interno || "";
-        const ejemploAudio = tipoSeguimiento === 'vehiculo'
+      // Aceptar audio O texto — si no viene ninguno, recordar
+      const tieneEntrada = !!audio || !!(message && message.trim().length > 1);
+      if (!tieneEntrada) {
+        const ejemploTexto = tipoSeguimiento === 'vehiculo'
           ? `_"Odómetro 84.320, voy al sector norte"_`
-          : `_"Horómetro inicial dos mil trescientos, equipo operativo"_`;
+          : `_"Horómetro 2300, equipo operativo"_`;
         await enviarMensaje(jid, phoneClean,
-          `⏳ *${personal.nombre_completo}*, tu check-in para *${nombreEquipo}* (${codigoEquipo}) está pendiente.\n\n🎤 Envía un *audio* para registrarlo.\nEjemplo: ${ejemploAudio}`
+          `⏳ *${personal.nombre_completo}*, tu check-in para *${nombreEquipo}* (${codigoEquipo}) está pendiente.\n\n💬 Envía un *audio* o *texto* para registrarlo.\nEjemplo: ${ejemploTexto}`
         );
-        return res.status(200).json({ success: true, action: "ESPERANDO_AUDIO" });
+        return res.status(200).json({ success: true, action: "ESPERANDO_ENTRADA" });
       }
 
       let resultado;
@@ -960,31 +961,51 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // ── FLUJO VEHÍCULO (camioneta, furgón, minibús) ──────────────────
       if (tipoSeguimiento === 'vehiculo') {
         console.log("[whatsapp-incoming] 🚗 Procesando check-in VEHÍCULO");
-        resultado = await procesarAudioVehiculo(
-          audio.data, audio.mimeType,
-          { estado_sesion: "CHECKIN", km_inicio: null }
-        );
+
+        if (audio) {
+          resultado = await procesarAudioVehiculo(
+            audio.data, audio.mimeType,
+            { estado_sesion: "CHECKIN", km_inicio: null }
+          );
+        } else {
+          // Texto: usar procesarMensajeConContexto con contexto de vehículo
+          const historialTexto = [{ role: "user", parts: [{ text: message.trim() }] }];
+          resultado = await procesarMensajeConContexto(
+            historialTexto, [],
+            { estado_sesion: "CHECKIN", tipo_seguimiento: "vehiculo" }
+          );
+          // Mapear campos de texto al esquema de vehículo
+          resultado = {
+            tipo_evento: resultado.tipo_evento || "CHECKIN",
+            km_inicial: resultado.horometro_inicial || null,  // Gemini a veces mapea km como horometro
+            km_final: resultado.horometro_final || null,
+            destino_ruta: resultado.detalles_texto || null,
+            es_falla_critica: resultado.es_falla_critica || false,
+            detalles_texto: resultado.detalles_texto || message.trim(),
+            mensaje_conversacional_bot: resultado.mensaje_conversacional_bot || null,
+          };
+        }
+
         console.log("[whatsapp-incoming] Gemini vehiculo checkin:", JSON.stringify(resultado));
 
         const kmInicial = resultado.km_inicial || null;
         const destinoRuta = resultado.destino_ruta || null;
         const confirmacionBot = resultado.mensaje_conversacional_bot
-          || `✅ *Vehículo registrado.*${kmInicial ? `\n🔢 Odómetro inicial: *${kmInicial.toLocaleString("es-CL")} km*` : ""}${destinoRuta ? `\n📍 Destino: *${destinoRuta}*` : ""}\n\nEnvía un audio al finalizar para registrar el odómetro final.`;
+          || `✅ *Vehículo registrado.*${kmInicial ? `\n🔢 Odómetro inicial: *${kmInicial.toLocaleString("es-CL")} km*` : ""}${destinoRuta ? `\n📍 Destino: *${destinoRuta}*` : ""}\n\nEnvía un audio o texto al finalizar para registrar el odómetro final.`;
 
-        await guardarMensajeChat(supabase, phoneClean, "user", `Check-in vehículo: odómetro ${kmInicial}, destino ${destinoRuta}`, "audio", sesion.reporte_activo_id);
+        const tipoEntrada = audio ? "audio" : "texto";
+        await guardarMensajeChat(supabase, phoneClean, "user", `Check-in vehículo: odómetro ${kmInicial}, destino ${destinoRuta}`, tipoEntrada, sesion.reporte_activo_id);
         await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBot, "texto", sesion.reporte_activo_id);
 
-        // Actualizar reporte con km_inicial y destino_ruta
         await supabase.from("reportes_diarios")
           .update({ km_inicial: kmInicial, destino_ruta: destinoRuta })
           .eq("id", sesion.reporte_activo_id);
 
-        // Primer evento de jornada
         await supabase.from("eventos_jornada").insert({
           reporte_id: sesion.reporte_activo_id,
           estado_hito: "Disponible",
           hora_evento: new Date().toISOString(),
-          nota_transcripcion: `CHECK-IN VEHÍCULO: ${resultado.detalles_texto || "Inicio de uso"} | Odómetro: ${kmInicial} | Destino: ${destinoRuta}`,
+          nota_transcripcion: `CHECK-IN VEHÍCULO [${tipoEntrada}]: ${resultado.detalles_texto || "Inicio de uso"} | Odómetro: ${kmInicial} | Destino: ${destinoRuta}`,
         });
 
         await supabase.from("sesiones_whatsapp")
@@ -995,12 +1016,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         return res.status(200).json({ success: true, action: "CHECKIN_VEHICULO_REGISTRADO" });
       }
 
-      // ── FLUJO ESTÁNDAR y CAMIÓN (horómetro) ──────────────────────────
-      const transcripcionAudio = tipoSeguimiento === 'camion'
-        ? `Audio de check-in: horómetro inicial del camión.`
-        : `Audio de check-in: horómetro inicial declarado por el operador.`;
+      // ── FLUJO ESTÁNDAR y CAMIÓN (horómetro, acepta audio O texto) ───
+      const { data: especialidades } = await supabase.from("especialidades").select("*");
+      const tipoEntradaLog = audio ? "audio" : "texto";
+      const transcripcionEntrada = audio
+        ? (tipoSeguimiento === 'camion' ? `Audio check-in: horómetro inicial del camión.` : `Audio check-in: horómetro inicial del operador.`)
+        : message.trim();
 
-      await guardarMensajeChat(supabase, phoneClean, "user", transcripcionAudio, "audio", sesion.reporte_activo_id);
+      await guardarMensajeChat(supabase, phoneClean, "user", transcripcionEntrada, tipoEntradaLog, sesion.reporte_activo_id);
       const historial = await cargarHistorialGemini(supabase, phoneClean);
 
       const contextoCheckin = {
@@ -1009,33 +1032,43 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         tipo_seguimiento: tipoSeguimiento,
       };
 
-      if (historial.length > 0) {
-        const historialConAudio = [
-          ...historial.slice(0, -1),
-          {
-            role: "user",
-            parts: [
-              { text: transcripcionAudio },
-              { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
-            ]
-          }
-        ];
-        const { data: especialidades } = await supabase.from("especialidades").select("*");
-        resultado = await procesarMensajeConContexto(historialConAudio, especialidades || [], contextoCheckin);
+      if (audio) {
+        // Con audio: usar historial con inlineData o fallback REST
+        if (historial.length > 0) {
+          const historialConAudio = [
+            ...historial.slice(0, -1),
+            {
+              role: "user",
+              parts: [
+                { text: transcripcionEntrada },
+                { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
+              ]
+            }
+          ];
+          resultado = await procesarMensajeConContexto(historialConAudio, especialidades || [], contextoCheckin);
+        } else {
+          resultado = await procesarAudioOperador(audio.data, audio.mimeType, especialidades || [], contextoCheckin);
+        }
       } else {
-        const { data: especialidades } = await supabase.from("especialidades").select("*");
-        resultado = await procesarAudioOperador(
-          audio.data, audio.mimeType, especialidades || [], contextoCheckin
+        // Con texto: pasar directamente en el historial
+        const historialConTexto = [
+          ...historial.slice(0, -1),
+          { role: "user", parts: [{ text: transcripcionEntrada }] }
+        ];
+        resultado = await procesarMensajeConContexto(
+          historialConTexto.length > 0 ? historialConTexto : [{ role: "user", parts: [{ text: transcripcionEntrada }] }],
+          especialidades || [],
+          contextoCheckin
         );
       }
 
-      console.log("[whatsapp-incoming] Gemini checkin:", JSON.stringify(resultado));
+      console.log(`[whatsapp-incoming] Gemini checkin [${tipoEntradaLog}]:`, JSON.stringify(resultado));
 
       const horometroInicio = resultado.horometro_inicial || 0;
-      const confirmacionBot = resultado.mensaje_conversacional_bot
-        || `✅ *Check-in registrado con éxito.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada, envía audios cuando cambies de actividad.\nAl cerrar el turno di: *"Cierre de jornada, horómetro final XXXX"*`;
+      const confirmacionBotEst = resultado.mensaje_conversacional_bot
+        || `✅ *Check-in registrado.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada envía audios o mensajes cuando cambies de actividad.\nAl cerrar di: *"Cierre de jornada, horómetro final XXXX"*`;
 
-      await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBot, "texto", sesion.reporte_activo_id);
+      await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBotEst, "texto", sesion.reporte_activo_id);
 
       await supabase.from("reportes_diarios")
         .update({ horometro_inicio: horometroInicio })
@@ -1049,14 +1082,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         estado_hito: estadoInicialDinamico,
         especialidad_id: resultado.especialidad_id || null,
         hora_evento: new Date().toISOString(),
-        nota_transcripcion: `CHECK-IN: ${resultado.detalles_texto || "Inicio de jornada"}`,
+        nota_transcripcion: `CHECK-IN [${tipoEntradaLog}]: ${resultado.detalles_texto || transcripcionEntrada}`,
       });
 
       await supabase.from("sesiones_whatsapp")
         .update({ estado_espera: "SESION_ABIERTA_INTERMEDIA", updated_at: new Date().toISOString() })
         .eq("id", sesion.id);
 
-      await enviarMensaje(jid, phoneClean, confirmacionBot);
+      await enviarMensaje(jid, phoneClean, confirmacionBotEst);
       return res.status(200).json({ success: true, action: "CHECKIN_REGISTRADO" });
     }
 
