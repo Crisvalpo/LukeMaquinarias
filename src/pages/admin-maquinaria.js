@@ -4,7 +4,8 @@ import Link from "next/link";
 import {
   HardHat, Wrench, Building2, Users, LayoutGrid, FileText,
   Plus, RefreshCw, ChevronRight, AlertTriangle, Clock,
-  CheckCircle, Coffee, XCircle, Pencil, Save, X, ThumbsUp, ThumbsDown, MessageSquare, MapPin, Map, QrCode, Search
+  CheckCircle, Coffee, XCircle, Pencil, Save, X, ThumbsUp, ThumbsDown, MessageSquare, MapPin, Map, QrCode, Search,
+  Camera, Loader2
 } from "lucide-react";
 
 // ================================================================
@@ -227,11 +228,18 @@ function EquipoCard({ equipo, onPautaClick }) {
   const cfg = ESTADO_CONFIG[equipo.estado_actual] || ESTADO_CONFIG["Disponible"];
   const Icono = cfg.icon;
 
+  const hasImage = equipo.imagen_url && equipo.imagen_url.trim() !== "";
+  const cardBackground = hasImage
+    ? `linear-gradient(rgba(18, 30, 54, 0.86), rgba(18, 30, 54, 0.96)), url(${equipo.imagen_url})`
+    : "#121e36";
+
   return (
     <div
       className="equipo-card"
       style={{
-        background: "#121e36",
+        background: cardBackground,
+        backgroundSize: hasImage ? "cover" : "auto",
+        backgroundPosition: hasImage ? "center" : "auto",
         border: `2px solid ${cfg.border}`,
         borderRadius: "12px",
         padding: "18px",
@@ -883,9 +891,54 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     categoria: equipo?.categoria || "MAQUINARIA PESADA",
     anio_fabricacion: equipo?.anio_fabricacion !== null && equipo?.anio_fabricacion !== undefined ? equipo.anio_fabricacion.toString() : "",
     seguimiento_completo: equipo?.seguimiento_completo !== false,
+    imagen_url: equipo?.imagen_url || "",
   });
   const [saving, setSaving] = useState(false);
+  const [subiendoFondo, setSubiendoFondo] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handleUploadFondo = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSubiendoFondo(true);
+    setErrorMsg("");
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const base64String = event.target?.result;
+      if (!base64String) {
+        setSubiendoFondo(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/equipos/upload-imagen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            equipoId: equipo.id,
+            imageBase64: base64String
+          })
+        });
+
+        const json = await res.json();
+        if (json.success && json.imagen_url) {
+          setFormData(prev => ({ ...prev, imagen_url: json.imagen_url }));
+        } else {
+          setErrorMsg("Error al subir imagen: " + (json.error || json.message));
+        }
+      } catch (err) {
+        console.error(err);
+        setErrorMsg("Ocurrió un error al subir la fotografía.");
+      } finally {
+        setSubiendoFondo(false);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async () => {
     if (!formData.codigo_interno.trim() || !formData.descripcion_equipo.trim()) {
@@ -911,6 +964,7 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         categoria: formData.categoria,
         anio_fabricacion: formData.anio_fabricacion.trim() !== "" ? parseInt(formData.anio_fabricacion) : null,
         seguimiento_completo: formData.seguimiento_completo,
+        imagen_url: formData.imagen_url.trim() || null,
       };
 
       const r = await fetch("/api/equipos", {
@@ -1048,6 +1102,85 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
                 boxSizing: "border-box",
               }}
             />
+          </FormRow>
+        </div>
+
+        <div style={{ marginBottom: "18px" }}>
+          <FormRow label="Fotografía de Fondo del Equipo">
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  style={inputStyle}
+                  placeholder="Pegue la URL de la imagen aquí o suba un archivo..."
+                  value={formData.imagen_url}
+                  onChange={e => setFormData(p => ({ ...p, imagen_url: e.target.value }))}
+                />
+              </div>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: "none" }}
+                  accept="image/*"
+                  onChange={handleUploadFondo}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={subiendoFondo}
+                  style={{
+                    background: "#2563eb",
+                    border: "none",
+                    borderRadius: "8px",
+                    color: "white",
+                    padding: "10px 16px",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    transition: "background 0.2s"
+                  }}
+                >
+                  {subiendoFondo ? (
+                    <>
+                      <Loader2 className="spinner animate-spin" size={14} />
+                      <span>Subiendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={14} />
+                      <span>Subir Imagen</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            {formData.imagen_url && (
+              <div style={{ marginTop: "10px", position: "relative", width: "100%", height: "140px", borderRadius: "8px", overflow: "hidden", border: "1px solid #1c2e52" }}>
+                <img
+                  src={formData.imagen_url}
+                  alt="Previsualización de fondo"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormData(p => ({ ...p, imagen_url: "" }))}
+                  style={{
+                    position: "absolute", top: "8px", right: "8px",
+                    background: "rgba(239, 68, 68, 0.9)", border: "none",
+                    borderRadius: "50%", width: "24px", height: "24px",
+                    color: "white", display: "flex", alignItems: "center",
+                    justifyContent: "center", cursor: "pointer", fontSize: "12px",
+                    fontWeight: 700
+                  }}
+                  title="Eliminar imagen"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </FormRow>
         </div>
 
