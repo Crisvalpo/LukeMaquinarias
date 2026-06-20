@@ -91,6 +91,136 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
 }
 
 // ================================================================
+// COMPONENTE: Avatar de Personal con Tooltip
+// ================================================================
+function PersonalAvatar({ persona, rolEtiqueta, cfgBorder }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  if (!persona) return null;
+
+  const iniciales = persona.nombre_completo
+    ? persona.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")
+    : "??";
+
+  // URL de WhatsApp directa
+  const whatsappUrl = persona.whatsapp
+    ? `https://wa.me/${persona.whatsapp.replace(/\+/g, "").replace(/\s/g, "")}`
+    : null;
+
+  return (
+    <div
+      style={{ position: "relative", display: "inline-block" }}
+      onMouseEnter={() => {
+        setShowTooltip(true);
+        setIsHovered(true);
+      }}
+      onMouseLeave={() => {
+        setShowTooltip(false);
+        setIsHovered(false);
+      }}
+    >
+      {/* Círculo del avatar */}
+      <div
+        onClick={() => {
+          if (whatsappUrl) window.open(whatsappUrl, "_blank");
+        }}
+        style={{
+          width: "32px",
+          height: "32px",
+          borderRadius: "50%",
+          cursor: "pointer",
+          border: `2px solid ${cfgBorder || "#2563eb"}`,
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(15, 23, 42, 0.8)",
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)",
+          transform: isHovered ? "scale(1.15)" : "scale(1)",
+          transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        }}
+      >
+        {persona.foto_url ? (
+          <img
+            src={persona.foto_url}
+            alt={persona.nombre_completo}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <span style={{ fontSize: "11px", fontWeight: 800, color: "#60a5fa" }}>
+            {iniciales}
+          </span>
+        )}
+      </div>
+
+      {/* Tooltip emergente (popover premium) */}
+      {showTooltip && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "40px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "#0b1329",
+            border: "1px solid rgba(37, 99, 235, 0.3)",
+            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.5)",
+            borderRadius: "8px",
+            padding: "10px 12px",
+            zIndex: 100,
+            width: "180px",
+            pointerEvents: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            textAlign: "left"
+          }}
+        >
+          <div style={{ fontSize: "9px", fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            {rolEtiqueta}
+          </div>
+          <div style={{ fontSize: "12px", fontWeight: 700, color: "white", lineHeight: "1.2" }}>
+            {persona.nombre_completo}
+          </div>
+          {persona.whatsapp && (
+            <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+              📱 {persona.whatsapp}
+            </div>
+          )}
+          {whatsappUrl && (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                marginTop: "6px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "4px",
+                background: "#25d366",
+                color: "white",
+                textDecoration: "none",
+                fontSize: "10px",
+                fontWeight: 700,
+                padding: "4px 8px",
+                borderRadius: "4px",
+                textAlign: "center",
+                transition: "background 0.2s"
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = "#1ebd54"}
+              onMouseOut={(e) => e.currentTarget.style.background = "#25d366"}
+            >
+              💬 WhatsApp
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================================================================
 // TARJETA DE EQUIPO (Monitor)
 // ================================================================
 function EquipoCard({ equipo, onPautaClick }) {
@@ -106,7 +236,7 @@ function EquipoCard({ equipo, onPautaClick }) {
         borderRadius: "12px",
         padding: "18px",
         position: "relative",
-        overflow: "hidden",
+        overflow: "visible", // Permitir que los tooltips floten sobre los bordes de la tarjeta
         transition: "all 0.3s ease",
       }}
     >
@@ -176,56 +306,54 @@ function EquipoCard({ equipo, onPautaClick }) {
         </div>
       )}
 
-      {/* Operador asociado */}
-      {equipo.reporte_hoy && equipo.reporte_hoy.operador && (
+      {/* Personal asociado */}
+      {equipo.reporte_hoy && (
         <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
           marginTop: "4px",
           marginBottom: "12px",
           padding: "8px 10px",
           background: "rgba(15, 23, 42, 0.4)",
           borderRadius: "8px",
           border: "1px solid rgba(28, 46, 82, 0.4)",
-          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)"
+          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px"
         }}>
-          {equipo.reporte_hoy.operador.foto_url ? (
-            <img
-              src={equipo.reporte_hoy.operador.foto_url}
-              alt={equipo.reporte_hoy.operador.nombre_completo}
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: `1.5px solid ${cfg.border}`
-              }}
-            />
-          ) : (
-            <div style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              background: "rgba(37, 99, 235, 0.15)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "10px",
-              fontWeight: 800,
-              color: "#60a5fa",
-              border: `1.5px solid ${cfg.border}`
-            }}>
-              {equipo.reporte_hoy.operador.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
-            </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <span style={{ color: "white", fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {equipo.reporte_hoy.operador.nombre_completo}
-            </span>
-            <span style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 600 }}>
-              Operador Asignado
-            </span>
+          <div style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+            Personal Asignado
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px" }}>
+            {equipo.tipo_seguimiento === "vehiculo" ? (
+              equipo.reporte_hoy.supervisor ? (
+                <PersonalAvatar
+                  persona={equipo.reporte_hoy.supervisor}
+                  rolEtiqueta="Supervisor"
+                  cfgBorder={cfg.border}
+                />
+              ) : (
+                <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
+              )
+            ) : (
+              <>
+                {equipo.reporte_hoy.operador ? (
+                  <PersonalAvatar
+                    persona={equipo.reporte_hoy.operador}
+                    rolEtiqueta="Operador"
+                    cfgBorder={cfg.border}
+                  />
+                ) : (
+                  <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
+                )}
+                {equipo.reporte_hoy.rigger && (
+                  <PersonalAvatar
+                    persona={equipo.reporte_hoy.rigger}
+                    rolEtiqueta="Rigger"
+                    cfgBorder="#a855f7"
+                  />
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

@@ -20,7 +20,12 @@ export default async function handler(req, res) {
     const hoy = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD
     const { data: reportesHoy } = await supabase
       .from("reportes_diarios")
-      .select("*, operador:personal(id, nombre_completo, foto_url)")
+      .select(`
+        *,
+        operador:personal!reportes_diarios_operador_id_fkey(id, nombre_completo, foto_url, whatsapp),
+        supervisor:personal!reportes_diarios_supervisor_id_fkey(id, nombre_completo, foto_url, whatsapp),
+        rigger:personal!reportes_diarios_rigger_id_fkey(id, nombre_completo, foto_url, whatsapp)
+      `)
       .eq("fecha", hoy);
 
     const reportesMap = reportesHoy ? new Map(reportesHoy.map(r => [r.equipo_id, r])) : new Map();
