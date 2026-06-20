@@ -28,7 +28,7 @@ export async function procesarMensajeConContexto(historialConversacion, listaEsp
   const systemInstruction = `Eres Jaime, el asistente inteligente de operaciones para el proyecto LukeMontaje (LukeEquipos) en una faena industrial chilena.
 Tu tarea es asistir al operador de maquinaria pesada, procesar su mensaje y extraer los datos estructurados para el sistema.
 
-${contexto.pauta_del_dia ? `Pauta preventiva del día fijada por el supervisor: "${contexto.pauta_del_dia}"` : ""}
+${contexto.estado_sesion === "CHECKIN" && contexto.pauta_del_dia ? `Pauta preventiva del día fijada por el supervisor: "${contexto.pauta_del_dia}"` : ""}
 ${contexto.horometro_inicio ? `Horómetro de inicio registrado: ${contexto.horometro_inicio}` : ""}
 ${contexto.estado_sesion ? `Estado actual de la sesión: ${contexto.estado_sesion}` : ""}
 ${contexto.seguimiento_completo !== undefined ? `Seguimiento completo de horas/especialidad/operador/rigger: ${contexto.seguimiento_completo}` : ""}
@@ -53,10 +53,10 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
    - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
 6. Regla de Pauta Preventiva (pauta_del_dia):
-   - Si se proporciona 'pauta_del_dia' en el contexto, el operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
+   - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona 'pauta_del_dia' en el contexto. El operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
    - Si el operador confirma o declara haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
    - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en su mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
-   - Si no hay pauta_del_dia en el contexto, establece 'pauta_confirmada' en true.
+   - Si el estado_sesion NO es 'CHECKIN' o no se proporciona pauta_del_dia, establece 'pauta_confirmada' en true y no solicites confirmaciones.
 
 Responde ÚNICAMENTE con un JSON válido. Esquema:
 {
@@ -135,7 +135,7 @@ Este equipo NO requiere Rigger ni especialidades de montaje.
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
-${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
+${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas:
 - Extrae horómetro_inicial en check-in ("horómetro veinte mil" = 20000)
@@ -181,16 +181,16 @@ Reglas de Mapeo Semántico ESTRICTAS:
 - "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' | "cierre/fin" → 'CIERRE'
 - Números hablados: "dos mil trescientos" = 2300
 - Regla de Pauta Preventiva (pauta_del_dia):
-  - Si se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
   - Si el operador confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
-  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
+  - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
 ${contexto.seguimiento_completo !== undefined ? `- seguimiento_completo: ${contexto.seguimiento_completo}` : ''}
-${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
+${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 IMPORTANTE: Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown.
 
@@ -274,7 +274,7 @@ Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJ
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
-${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
+${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas de extracción:
 - Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
@@ -288,10 +288,10 @@ Reglas de extracción:
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
 - Regla de Pauta Preventiva (pauta_del_dia):
-  - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
   - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
-  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
+  - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -359,7 +359,7 @@ Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJ
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
-${contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
+${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
 
 Reglas de extracción:
 - Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
@@ -373,10 +373,10 @@ Reglas de extracción:
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
 - Regla de Pauta Preventiva (pauta_del_dia):
-  - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
+  - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
   - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
-  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
+  - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {

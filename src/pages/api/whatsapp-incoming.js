@@ -2,6 +2,8 @@ import { createAdminClient } from "../../lib/supabase-server";
 import { procesarAudioOperador, procesarAudioVehiculo, procesarTextoVehiculo, analizarImagenEvidencia, analizarIntencionHistorica, procesarMensajeConContexto } from "../../lib/gemini";
 import { generarReportePDF } from "../../lib/pdf-generator";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
 // Helper: Guardar mensaje en historial de chat (tabla maquinaria.mensajes_chat)
 async function guardarMensajeChat(supabase, whatsapp_remitente, rol, contenido, tipo_mensaje = "texto", reporte_id = null) {
@@ -847,7 +849,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       // Verificar si ya hay reporte hoy
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
       const { data: reporteExistente } = await supabase
         .from("reportes_diarios")
         .select("id, horometro_inicio, km_inicial")
@@ -1309,7 +1311,6 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             {
               estado_sesion: "INTERMEDIO",
               horometro_inicio: reporteActual?.horometro_inicio,
-              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
               seguimiento_completo: seguimientoCompleto
             }
           );
@@ -1327,18 +1328,47 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       // ¿Es cierre de jornada?
-      const esCierre =
+      const intentoCierre =
         resultado.tipo_evento === "CIERRE" ||
         resultado.horometro_final != null ||
         resultado.km_final != null;
+
+      if (intentoCierre) {
+        const esVehiculo = tipoSeguimiento === 'vehiculo';
+        const lecturaFinal = esVehiculo ? resultado.km_final : resultado.horometro_final;
+
+        // Si no se proporcionó la lectura final obligatoria para el cierre
+        // y la sesión aún NO estaba en ESPERANDO_CHECKOUT_AUDIO (primer aviso)
+        if (lecturaFinal == null && sesion.estado_espera !== "ESPERANDO_CHECKOUT_AUDIO") {
+          await supabase.from("sesiones_whatsapp")
+            .update({ estado_espera: "ESPERANDO_CHECKOUT_AUDIO", updated_at: new Date().toISOString() })
+            .eq("id", sesion.id);
+
+          const ejemploCierre = esVehiculo
+            ? `_"Cierre, kilometraje final ochenta y cuatro mil quinientos, sin carga de combustible"_`
+            : `_"Cierre, horómetro final dos mil trescientos diez, sin combustible"_`;
+
+          const msgPedirLectura = resultado.mensaje_conversacional_bot
+            || `🏁 *Entendido, cierre de jornada solicitado.*\n\nPara consolidar tu reporte, por favor indica por *audio o texto* el **${esVehiculo ? 'odómetro (kilometraje) final' : 'horómetro final'}** y si realizaste carga de combustible.\n\n_Ejemplo: ${ejemploCierre}_`;
+
+          await guardarMensajeChat(supabase, phoneClean, "model", msgPedirLectura, "texto", sesion.reporte_activo_id);
+          await enviarMensaje(jid, phoneClean, msgPedirLectura);
+          return res.status(200).json({ success: true, action: "ESPERANDO_LECTURA_FINAL" });
+        }
+      }
+
+      const esCierre = intentoCierre;
 
       if (esCierre) {
         // === CIERRE DE JORNADA ===
         const horometroFinal = resultado.horometro_final;
         const kmFinal = resultado.km_final;
 
+        const esFalla = resultado.es_falla_critica || resultado.tipo_evento === "Detenido por Falla";
+        const estadoFinalCierre = esFalla ? "Detenido por Falla" : "Disponible";
+
         // Actualizar reporte con datos de cierre
-        const updateData = { estado_final: "Equipo Operativo" };
+        const updateData = { estado_final: esFalla ? "Detenido por Falla" : "Disponible" };
         if (horometroFinal) updateData.horometro_final = horometroFinal;
         if (kmFinal) updateData.km_final = kmFinal;
         if (resultado.petroleo_litros) updateData.petroleo_litros = resultado.petroleo_litros;
@@ -1350,19 +1380,17 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           .update(updateData)
           .eq("id", sesion.reporte_activo_id);
 
-        const eqUpdate = {};
+        const eqUpdate = { estado_actual: estadoFinalCierre };
         if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
         if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
-        if (Object.keys(eqUpdate).length > 0) {
-          await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipos.id);
-        }
+        await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipos.id);
 
         // Evento de cierre
         await supabase.from("eventos_jornada").insert({
           reporte_id: sesion.reporte_activo_id,
-          estado_hito: "Disponible",
+          estado_hito: estadoFinalCierre,
           hora_evento: new Date().toISOString(),
-          nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}`,
+          nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}${horometroFinal ? ` | Horómetro: ${horometroFinal}` : ""}`,
         });
 
         await enviarMensaje(jid, phoneClean,
@@ -1415,6 +1443,34 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
               eventos,
               evidencias: evidencias || [],
             });
+
+            // Subir PDF a Supabase Storage para persistencia ante despliegues
+            try {
+              const localFilePath = path.join(process.cwd(), "public", pdfUrl);
+              if (fs.existsSync(localFilePath)) {
+                const fileBuffer = fs.readFileSync(localFilePath);
+                const fechaPdf = new Date(reporteCompleto.fecha);
+                const anioPdf = fechaPdf.getFullYear();
+                const mesPdf = String(fechaPdf.getMonth() + 1).padStart(2, "0");
+                const storagePath = `reportes/${anioPdf}/${mesPdf}/${reporteCompleto.id}.pdf`;
+
+                console.log(`[whatsapp-incoming] 📄 Subiendo PDF a Supabase Storage: ${storagePath}...`);
+                const { error: uploadErr } = await supabase.storage
+                  .from(BUCKET)
+                  .upload(storagePath, fileBuffer, {
+                    contentType: "application/pdf",
+                    upsert: true
+                  });
+
+                if (uploadErr) {
+                  console.error("[whatsapp-incoming] Error subiendo PDF a Storage:", uploadErr.message);
+                } else {
+                  console.log(`[whatsapp-incoming] 📄 PDF respaldado exitosamente en Supabase Storage: ${storagePath}`);
+                }
+              }
+            } catch (storageErr) {
+              console.error("[whatsapp-incoming] Error en respaldo de PDF a Supabase Storage:", storageErr.message);
+            }
 
             // Guardar URL del PDF
             await supabase
