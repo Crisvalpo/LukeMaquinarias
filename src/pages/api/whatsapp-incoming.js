@@ -1264,7 +1264,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const { data: especialidades } = await supabase.from("especialidades").select("*");
       const { data: reporteActual } = await supabase
         .from("reportes_diarios")
-        .select("horometro_inicio, km_inicial, equipos(pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+        .select("equipo_id, horometro_inicio, km_inicial, equipos(id, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
 
@@ -1410,7 +1410,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         const eqUpdate = { estado_actual: estadoFinalCierre };
         if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
         if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
-        await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipos.id);
+        await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipo_id);
 
         // Evento de cierre
         await supabase.from("eventos_jornada").insert({
@@ -1564,7 +1564,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         if (resultado.horometro_carga_combustible) {
           await supabase.from("equipos")
             .update({ ultimo_horometro: resultado.horometro_carga_combustible })
-            .eq("id", reporteActual.equipos.id);
+            .eq("id", reporteActual.equipo_id);
         }
       }
 
