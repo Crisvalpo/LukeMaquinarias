@@ -1611,7 +1611,10 @@ export default function AdminMaquinaria() {
       (eq.modelo || "").toLowerCase().includes(query) ||
       (eq.patente || "").toLowerCase().includes(query) ||
       (eq.proveedor || "").toLowerCase().includes(query) ||
-      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query);
+      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.operador?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
 
     return cumpleCat && cumpleEst && cumpleSearch;
   });
@@ -1628,7 +1631,10 @@ export default function AdminMaquinaria() {
       (eq.modelo || "").toLowerCase().includes(query) ||
       (eq.patente || "").toLowerCase().includes(query) ||
       (eq.proveedor || "").toLowerCase().includes(query) ||
-      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query);
+      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.operador?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
 
     return cumpleCat && cumpleSearch;
   });
