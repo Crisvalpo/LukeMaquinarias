@@ -1,5 +1,24 @@
 import { createAdminClient } from "../../lib/supabase-server";
 
+function formatRut(val) {
+  if (!val) return "";
+  const clean = val.replace(/[^0-9kK]/g, "").slice(0, 9);
+  if (clean.length <= 1) return clean;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1).toUpperCase();
+  let formattedBody = "";
+  let count = 0;
+  for (let i = body.length - 1; i >= 0; i--) {
+    formattedBody = body.charAt(i) + formattedBody;
+    count++;
+    if (count === 3 && i > 0) {
+      formattedBody = "." + formattedBody;
+      count = 0;
+    }
+  }
+  return `${formattedBody}-${dv}`;
+}
+
 export default async function handler(req, res) {
   const supabase = createAdminClient();
 
@@ -12,8 +31,16 @@ export default async function handler(req, res) {
 
     // Filtrar por búsqueda si se provee
     if (search && search.trim() !== "") {
-      const searchTerms = `%${search.trim()}%`;
-      query = query.or(`nombre_completo.ilike.${searchTerms},rut.ilike.${searchTerms},whatsapp.ilike.${searchTerms},rol.ilike.${searchTerms}`);
+      const searchStr = search.trim();
+      const searchTerms = `%${searchStr}%`;
+      const cleanSearch = searchStr.replace(/[^0-9kK]/g, "");
+      let orFilter = `nombre_completo.ilike.${searchTerms},rut.ilike.${searchTerms},whatsapp.ilike.${searchTerms},rol.ilike.${searchTerms}`;
+      
+      if (cleanSearch.length >= 7 && cleanSearch.length <= 9) {
+        const formatted = formatRut(cleanSearch);
+        orFilter += `,rut.ilike.%${formatted}%`;
+      }
+      query = query.or(orFilter);
     }
 
     if (page || limit) {
@@ -45,11 +72,12 @@ export default async function handler(req, res) {
     }
 
     const cleanProyectoId = proyecto_actual_id === "" ? null : proyecto_actual_id;
+    const formattedRut = formatRut(rut);
 
     const { data, error } = await supabase
       .from("personal")
       .insert({
-        rut,
+        rut: formattedRut,
         nombre_completo,
         whatsapp,
         rol,
@@ -71,6 +99,9 @@ export default async function handler(req, res) {
 
     if (updates.hasOwnProperty("proyecto_actual_id") && updates.proyecto_actual_id === "") {
       updates.proyecto_actual_id = null;
+    }
+    if (updates.hasOwnProperty("rut") && updates.rut) {
+      updates.rut = formatRut(updates.rut);
     }
 
     const { data, error } = await supabase

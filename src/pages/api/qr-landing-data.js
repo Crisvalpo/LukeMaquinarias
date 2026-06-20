@@ -1,5 +1,24 @@
 import { createAdminClient } from "../../lib/supabase-server";
 
+function formatRut(val) {
+  if (!val) return "";
+  const clean = val.replace(/[^0-9kK]/g, "").slice(0, 9);
+  if (clean.length <= 1) return clean;
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1).toUpperCase();
+  let formattedBody = "";
+  let count = 0;
+  for (let i = body.length - 1; i >= 0; i--) {
+    formattedBody = body.charAt(i) + formattedBody;
+    count++;
+    if (count === 3 && i > 0) {
+      formattedBody = "." + formattedBody;
+      count = 0;
+    }
+  }
+  return `${formattedBody}-${dv}`;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.setHeader("Allow", ["GET"]);
@@ -43,11 +62,12 @@ export default async function handler(req, res) {
     // 3. Si se proporciona un identificador, obtener datos del operador
     if (identificador && identificador.trim() !== "") {
       const cleanIdentificador = identificador.trim();
+      const formattedRut = formatRut(cleanIdentificador);
       
       const { data: op, error: errorOp } = await supabase
         .from("personal")
         .select("id, rut, nombre_completo, whatsapp, rol, foto_url")
-        .or(`rut.eq.${cleanIdentificador},whatsapp.eq.${cleanIdentificador},whatsapp.eq.+${cleanIdentificador}`)
+        .or(`rut.eq.${cleanIdentificador},rut.eq.${formattedRut},whatsapp.eq.${cleanIdentificador},whatsapp.eq.+${cleanIdentificador}`)
         .eq("activo", true)
         .maybeSingle();
 
