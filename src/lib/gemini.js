@@ -11,7 +11,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 // ================================================================
 // FUNCIÓN: Chat con memoria conversacional completa
@@ -51,6 +51,7 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - "falla", "avería", "detenido", "no prende", "problema mecánico", "accidente" → estado 'Detenido por Falla'
    - "cierre", "terminamos", "fin de jornada", "horómetro final", "cerrando" → tipo_evento 'CIERRE'
    - Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
+   - IMPORTANTE (Carga de Combustible): Frases como "sin combustible", "no cargué combustible", "sin petróleo", "sin carga" al referirse al cierre significan únicamente que los litros de combustible cargados son 0 (petroleo_litros = 0). NUNCA interpretes estas frases como una falla del equipo o como estado "Detenido por Falla". Solo marca falla ('es_falla_critica: true' o estado 'Detenido por Falla') si el operador reporta una avería mecánica, pana, rotura o desperfecto físico.
    - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
 6. Regla de Pauta Preventiva (pauta_del_dia):
    - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona 'pauta_del_dia' en el contexto. El operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
@@ -140,7 +141,8 @@ ${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta prev
 Reglas:
 - Extrae horómetro_inicial en check-in ("horómetro veinte mil" = 20000)
 - Extrae horómetro_final en cierre
-- Detecta: "colación" → 'En Colacion', "disponible/esperando" → 'Disponible', "falla/problema" → 'Detenido por Falla', "cerrando/fin" → 'CIERRE'
+- Detecta: "colación" → 'En Colacion', "disponible/esperando" → 'Disponible', "falla/problema" → 'Detenido por Falla' (solo si reporta avería/pana, no por decir 'sin carga de combustible'), "cerrando/fin" → 'CIERRE'
+- IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla o estado 'Detenido por Falla'.
 - NO preguntes por especialidad ni Rigger jamás
 - Tono formal y respetuoso, sin "compadre"
 - Si no declara horómetro en check-in, pregúntalo de forma directa
@@ -178,7 +180,8 @@ Reglas de Mapeo Semántico ESTRICTAS:
 - Tono formal y neutral de género. NUNCA uses "compadre".
 - "cañoneros", "líneas", "tuberías" → 'Piping'
 - "fierreros", "montadores", "estructuras" → 'Estructuras'
-- "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' | "cierre/fin" → 'CIERRE'
+- "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' (solo por pana o avería física, no por decir 'sin carga de combustible') | "cierre/fin" → 'CIERRE'
+- IMPORTANTE: Frases como "sin combustible", "no cargué combustible", "sin petróleo" o "sin carga" al referirse al cierre significan petroleo_litros = 0. NUNCA las interpretes como falla o estado 'Detenido por Falla'.
 - Números hablados: "dos mil trescientos" = 2300
 - Regla de Pauta Preventiva (pauta_del_dia):
   - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
@@ -283,7 +286,8 @@ Reglas de extracción:
 - Cierre: extrae km_final
 - "colación" → estado 'En Colacion'
 - "disponible" → estado 'Disponible'
-- "falla/problema/accidente" → estado 'Detenido por Falla'
+- "falla/problema/accidente" → estado 'Detenido por Falla' (solo por desperfectos, no por decir 'sin carga de combustible')
+- IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
@@ -368,7 +372,8 @@ Reglas de extracción:
 - Cierre: extrae km_final
 - "colación" → estado 'En Colacion'
 - "disponible" → estado 'Disponible'
-- "falla/problema/accidente" → estado 'Detenido por Falla'
+- "falla/problema/accidente" → estado 'Detenido por Falla' (solo por desperfectos, no por decir 'sin carga de combustible')
+- IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".

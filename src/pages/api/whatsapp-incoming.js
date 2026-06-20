@@ -556,7 +556,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       let contents = [{ role: "user", parts }];
 
       try {
-        const modelName = "gemini-2.5-flash"; // Usar 2.5-flash para velocidad y function calling robusto
+        const modelName = "gemini-1.5-flash"; // Usar 1.5-flash para máxima estabilidad en producción
         let responseText = "";
         let runLoop = true;
         let iteracion = 0;
@@ -1582,6 +1582,15 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error("[whatsapp-incoming] Error general:", err.message, err.stack);
+    try {
+      if (phoneClean) {
+        await enviarMensaje(jid, phoneClean, 
+          `⚠️ *Aviso del Sistema*:\n\nHola ${personal?.nombre_completo || "Operador"}, tuvimos un inconveniente al procesar tu último mensaje o audio de voz.\n\nPor favor, **intenta nuevamente** escribiendo en texto o enviando un audio más corto. ¡Gracias!`
+        );
+      }
+    } catch (sendErr) {
+      console.error("[whatsapp-incoming] Error al enviar mensaje de fallback en catch:", sendErr.message);
+    }
     return res.status(500).json({ success: false, error: err.message });
   }
 }
