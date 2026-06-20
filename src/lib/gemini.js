@@ -280,10 +280,12 @@ Respuesta ÚNICAMENTE en JSON válido:
   const payload = {
     contents: [{
       parts: [
-        { text: promptSistema },
         { inlineData: { mimeType: mimeType || "audio/ogg; codecs=opus", data: audioBase64 } }
       ]
     }],
+    systemInstruction: {
+      parts: [{ text: promptSistema }]
+    },
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 512,
@@ -356,10 +358,12 @@ Respuesta ÚNICAMENTE en JSON válido:
   const payload = {
     contents: [{
       parts: [
-        { text: promptSistema },
         { text: texto }
       ]
     }],
+    systemInstruction: {
+      parts: [{ text: promptSistema }]
+    },
     generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 512,
