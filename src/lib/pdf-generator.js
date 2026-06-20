@@ -165,12 +165,20 @@ export async function generarReportePDF({
 
       // Caja de métricas
       const boxW = (W - 20) / 4;
-      const metricas = [
-        { label: "Hr. Inicio", value: reporte.horometro_inicio?.toLocaleString("es-CL") || "—" },
-        { label: "Hr. Final", value: reporte.horometro_final?.toLocaleString("es-CL") || "—" },
-        { label: "Horas Trabajadas", value: reporte.horas_trabajadas ? `${reporte.horas_trabajadas} hrs` : "—" },
-        { label: "Combustible", value: reporte.petroleo_litros ? `${reporte.petroleo_litros} L` : "—" },
-      ];
+      const esVehiculo = equipo.tipo_seguimiento === 'vehiculo';
+      const metricas = esVehiculo
+        ? [
+            { label: "Odóm. Inicio", value: reporte.km_inicial ? `${reporte.km_inicial.toLocaleString("es-CL")} km` : "—" },
+            { label: "Odóm. Final", value: reporte.km_final ? `${reporte.km_final.toLocaleString("es-CL")} km` : "—" },
+            { label: "Km Recorridos", value: (reporte.km_final && reporte.km_inicial) ? `${(reporte.km_final - reporte.km_inicial).toLocaleString("es-CL")} km` : "—" },
+            { label: "Combustible", value: reporte.petroleo_litros ? `${reporte.petroleo_litros} L` : "—" },
+          ]
+        : [
+            { label: "Hr. Inicio", value: reporte.horometro_inicio?.toLocaleString("es-CL") || "—" },
+            { label: "Hr. Final", value: reporte.horometro_final?.toLocaleString("es-CL") || "—" },
+            { label: "Horas Trabajadas", value: reporte.horas_trabajadas ? `${reporte.horas_trabajadas} hrs` : "—" },
+            { label: "Combustible", value: reporte.petroleo_litros ? `${reporte.petroleo_litros} L` : "—" },
+          ];
 
       metricas.forEach((m, i) => {
         const bx = 50 + i * (boxW + 6);
@@ -193,7 +201,7 @@ export async function generarReportePDF({
         doc.fontSize(9).font("Helvetica-Bold").fillColor("white");
         doc.text("HORA", 58, y + 6);
         doc.text("ESTADO", 158, y + 6);
-        doc.text("ESPECIALIDAD", 308, y + 6);
+        doc.text(esVehiculo ? "INFO ADICIONAL" : "ESPECIALIDAD", 308, y + 6);
         doc.text("NOTA", 458, y + 6);
         y += 20;
 
@@ -204,7 +212,7 @@ export async function generarReportePDF({
 
           doc.fontSize(9).font("Helvetica").fillColor(AZUL_OSCURO).text(hora, 58, y + 7);
           doc.fillColor(colorEstado(ev.estado_hito)).font("Helvetica-Bold").text(ev.estado_hito, 158, y + 7);
-          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(ev.especialidad_nombre || "—", 308, y + 7);
+          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(esVehiculo ? "—" : (ev.especialidad_nombre || "—"), 308, y + 7);
           doc.text((ev.nota_transcripcion || "").slice(0, 40) + (ev.nota_transcripcion?.length > 40 ? "…" : ""), 458, y + 7);
           y += 22;
 

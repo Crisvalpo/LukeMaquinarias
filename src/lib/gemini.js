@@ -315,8 +315,85 @@ Respuesta ÚNICAMENTE en JSON válido:
 }
 
 // ================================================================
+// FUNCIÓN: Procesar texto de VEHÍCULO (camionetas, furgones, minibuses)
+// Extrae kilometraje (odómetro) y destino/ruta en lugar de horómetro
+// ================================================================
+export async function procesarTextoVehiculo(texto, contexto = {}) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const promptSistema = `Eres el asistente de control de flota vehicular para LukeEquipos.
+Procesas el mensaje de texto del CONDUCTOR o SUPERVISOR que toma un vehículo (camioneta, furgón o minibús) en faena.
+Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
+
+Contexto actual:
+${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
+${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
+
+Reglas de extracción:
+- Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
+- Detecta destino o ruta mencionada ("voy a Caspana", "sector norte", "faena Atacama")
+- Check-in: extrae km_inicial y destino
+- Cierre: extrae km_final
+- "colación" → estado 'En Colacion'
+- "disponible" → estado 'Disponible'
+- "falla/problema/accidente" → estado 'Detenido por Falla'
+- "cierre/terminé/devolví" → tipo_evento 'CIERRE'
+- Si no menciona km en check-in, solicítalo de forma directa y cordial
+- Tono formal y respetuoso. Sin "compadre".
+
+Respuesta ÚNICAMENTE en JSON válido:
+{
+  "tipo_evento": "CHECKIN | En Ruta | En Colacion | Disponible | Detenido por Falla | CIERRE",
+  "km_inicial": numero_o_null,
+  "km_final": numero_o_null,
+  "destino_ruta": "texto_o_null",
+  "es_falla_critica": true_o_false,
+  "detalles_texto": "Transcripción resumida",
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+}`;
+
+  const payload = {
+    contents: [{
+      parts: [
+        { text: promptSistema },
+        { text: texto }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 512,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error procesando texto vehículo: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!rawText) throw new Error("[Gemini] Respuesta vacía en procesarTextoVehiculo");
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error(`[Gemini] JSON inválido vehículo: ${rawText.slice(0, 200)}`);
+  }
+}
+
+// ================================================================
 // FUNCIÓN: Analizar imagen de evidencia con Gemini Vision
 // ================================================================
+
 export async function analizarImagenEvidencia(imageBase64, mimeType, contextoEquipo = "") {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");

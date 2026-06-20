@@ -1,5 +1,5 @@
 import { createAdminClient } from "../../lib/supabase-server";
-import { procesarAudioOperador, procesarAudioVehiculo, analizarImagenEvidencia, analizarIntencionHistorica, procesarMensajeConContexto } from "../../lib/gemini";
+import { procesarAudioOperador, procesarAudioVehiculo, procesarTextoVehiculo, analizarImagenEvidencia, analizarIntencionHistorica, procesarMensajeConContexto } from "../../lib/gemini";
 import { generarReportePDF } from "../../lib/pdf-generator";
 import crypto from "crypto";
 
@@ -365,6 +365,16 @@ export default async function handler(req, res) {
     }
 
     // ================================================================
+    // 2. BUSCAR SESIÓN ACTIVA — debe ir antes del bloque admin
+    // para evitar TDZ al evaluar `!sesion` en el guard de supervisor
+    // ================================================================
+    const { data: sesion } = await supabase
+      .from("sesiones_whatsapp")
+      .select("*, reportes_diarios(*)")
+      .eq("whatsapp_remitente", phoneClean)
+      .maybeSingle();
+
+    // ================================================================
     // DESVÍO CONVERSACIONAL PARA SUPERVISORES / JEFES DE ÁREA
     // Si el supervisor/jefe tiene sesión de jornada activa, sigue el
     // flujo normal de operador (checkin audio, hitos, cierre).
@@ -630,7 +640,13 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
                         ${targetTool.codigo_javascript}
                       })();
                     `);
-                    const resFn = await fn(supabase, args);
+                    const timeoutPromise = new Promise((_, reject) =>
+                      setTimeout(() => reject(new Error("Timeout de ejecución excedido (5s)")), 5000)
+                    );
+                    const resFn = await Promise.race([
+                      fn(supabase, args),
+                      timeoutPromise
+                    ]);
                     dbResult = JSON.stringify(resFn);
                   } catch (execErr) {
                     dbResult = `Error de ejecución: ${execErr.message}`;
@@ -692,15 +708,6 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         return res.status(500).json({ success: false, error: geminiErr.message });
       }
     }
-
-    // ================================================================
-    // 2. BUSCAR SESIÓN ACTIVA
-    // ================================================================
-    const { data: sesion } = await supabase
-      .from("sesiones_whatsapp")
-      .select("*, reportes_diarios(*)")
-      .eq("whatsapp_remitente", phoneClean)
-      .maybeSingle();
 
     // --- Procesamiento de Geolocalización ---
     const { location } = req.body;
@@ -968,22 +975,10 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             { estado_sesion: "CHECKIN", km_inicio: null }
           );
         } else {
-          // Texto: usar procesarMensajeConContexto con contexto de vehículo
-          const historialTexto = [{ role: "user", parts: [{ text: message.trim() }] }];
-          resultado = await procesarMensajeConContexto(
-            historialTexto, [],
-            { estado_sesion: "CHECKIN", tipo_seguimiento: "vehiculo" }
+          resultado = await procesarTextoVehiculo(
+            message.trim(),
+            { estado_sesion: "CHECKIN", km_inicio: null }
           );
-          // Mapear campos de texto al esquema de vehículo
-          resultado = {
-            tipo_evento: resultado.tipo_evento || "CHECKIN",
-            km_inicial: resultado.horometro_inicial || null,  // Gemini a veces mapea km como horometro
-            km_final: resultado.horometro_final || null,
-            destino_ruta: resultado.detalles_texto || null,
-            es_falla_critica: resultado.es_falla_critica || false,
-            detalles_texto: resultado.detalles_texto || message.trim(),
-            mensaje_conversacional_bot: resultado.mensaje_conversacional_bot || null,
-          };
         }
 
         console.log("[whatsapp-incoming] Gemini vehiculo checkin:", JSON.stringify(resultado));
@@ -1185,11 +1180,12 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const { data: especialidades } = await supabase.from("especialidades").select("*");
       const { data: reporteActual } = await supabase
         .from("reportes_diarios")
-        .select("horometro_inicio, equipos(pauta_preventiva_activa, seguimiento_completo)")
+        .select("horometro_inicio, km_inicial, equipos(pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
 
       const seguimientoCompleto = reporteActual?.equipos?.seguimiento_completo !== false;
+      const tipoSeguimiento = reporteActual?.equipos?.tipo_seguimiento || 'estandar';
 
       // === MEMORIA CONVERSACIONAL (Caso C: Hitos Intermedios) ===
       const contenidoUsuario = audio ? "Audio de terreno del operador" : (message || "");
@@ -1202,49 +1198,63 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const historialC = await cargarHistorialGemini(supabase, phoneClean);
 
       let resultado;
-      if (audio) {
-        if (historialC.length > 0) {
-          // Reemplazar el último mensaje del historial con audio real
-          const historialConAudio = [
-            ...historialC.slice(0, -1),
-            {
-              role: "user",
-              parts: [
-                { text: contenidoUsuario },
-                { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
-              ]
-            }
-          ];
-          resultado = await procesarMensajeConContexto(
-            historialConAudio,
-            especialidades || [],
-            {
-              estado_sesion: "INTERMEDIO",
-              horometro_inicio: reporteActual?.horometro_inicio,
-              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
-              seguimiento_completo: seguimientoCompleto
-            }
+      if (tipoSeguimiento === 'vehiculo') {
+        if (audio) {
+          resultado = await procesarAudioVehiculo(
+            audio.data, audio.mimeType,
+            { estado_sesion: "INTERMEDIO", km_inicio: reporteActual?.km_inicial }
           );
         } else {
-          resultado = await procesarAudioOperador(
-            audio.data, audio.mimeType, especialidades || [],
-            {
-              estado_sesion: "INTERMEDIO",
-              horometro_inicio: reporteActual?.horometro_inicio,
-              seguimiento_completo: seguimientoCompleto
-            }
+          resultado = await procesarTextoVehiculo(
+            message.trim(),
+            { estado_sesion: "INTERMEDIO", km_inicio: reporteActual?.km_inicial }
           );
         }
       } else {
-        // Procesar texto como fallback
-        resultado = {
-          tipo_evento: "Trabajando",
-          especialidad_id: null,
-          detalles_texto: message,
-          horometro_final: null,
-          petroleo_litros: null,
-          mensaje_conversacional_bot: null,
-        };
+        if (audio) {
+          if (historialC.length > 0) {
+            // Reemplazar el último mensaje del historial con audio real
+            const historialConAudio = [
+              ...historialC.slice(0, -1),
+              {
+                role: "user",
+                parts: [
+                  { text: contenidoUsuario },
+                  { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
+                ]
+              }
+            ];
+            resultado = await procesarMensajeConContexto(
+              historialConAudio,
+              especialidades || [],
+              {
+                estado_sesion: "INTERMEDIO",
+                horometro_inicio: reporteActual?.horometro_inicio,
+                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
+                seguimiento_completo: seguimientoCompleto
+              }
+            );
+          } else {
+            resultado = await procesarAudioOperador(
+              audio.data, audio.mimeType, especialidades || [],
+              {
+                estado_sesion: "INTERMEDIO",
+                horometro_inicio: reporteActual?.horometro_inicio,
+                seguimiento_completo: seguimientoCompleto
+              }
+            );
+          }
+        } else {
+          // Procesar texto como fallback
+          resultado = {
+            tipo_evento: "Trabajando",
+            especialidad_id: null,
+            detalles_texto: message,
+            horometro_final: null,
+            petroleo_litros: null,
+            mensaje_conversacional_bot: null,
+          };
+        }
       }
 
       console.log("[whatsapp-incoming] Gemini hito:", JSON.stringify(resultado));
@@ -1252,15 +1262,18 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // ¿Es cierre de jornada?
       const esCierre =
         resultado.tipo_evento === "CIERRE" ||
-        resultado.horometro_final !== null;
+        resultado.horometro_final !== null ||
+        resultado.km_final !== null;
 
       if (esCierre) {
         // === CIERRE DE JORNADA ===
         const horometroFinal = resultado.horometro_final;
+        const kmFinal = resultado.km_final;
 
         // Actualizar reporte con datos de cierre
         const updateData = { estado_final: "Equipo Operativo" };
         if (horometroFinal) updateData.horometro_final = horometroFinal;
+        if (kmFinal) updateData.km_final = kmFinal;
         if (resultado.petroleo_litros) updateData.petroleo_litros = resultado.petroleo_litros;
         if (resultado.horometro_carga_combustible)
           updateData.horometro_carga_combustible = resultado.horometro_carga_combustible;
@@ -1275,7 +1288,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           reporte_id: sesion.reporte_activo_id,
           estado_hito: "Disponible",
           hora_evento: new Date().toISOString(),
-          nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}`,
+          nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}`,
         });
 
         await enviarMensaje(jid, phoneClean,
@@ -1342,9 +1355,17 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
               .eq("id", sesion.id);
 
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
-            await enviarMensaje(jid, phoneClean,
-              `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`
-            );
+            if (equipo?.tipo_seguimiento === 'vehiculo') {
+              const kmFinalCalculado = kmFinal || reporteCompleto.km_final;
+              const kmRecorridos = kmFinalCalculado && reporteCompleto.km_inicial ? (kmFinalCalculado - reporteCompleto.km_inicial) : null;
+              await enviarMensaje(jid, phoneClean,
+                `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n🚗 Odómetro: ${reporteCompleto.km_inicial?.toLocaleString("es-CL") || "—"} → ${kmFinalCalculado?.toLocaleString("es-CL") || "—"} km\n${kmRecorridos !== null ? `⏱ Kilómetros recorridos: ${kmRecorridos.toLocaleString("es-CL")} km\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`
+              );
+            } else {
+              await enviarMensaje(jid, phoneClean,
+                `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`
+              );
+            }
           } catch (pdfErr) {
             console.error("[whatsapp-incoming] Error generando PDF en segundo plano:", pdfErr.message);
             await supabase.from("sesiones_whatsapp").delete().eq("id", sesion.id);
