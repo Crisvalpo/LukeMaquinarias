@@ -1212,63 +1212,25 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         }
       } else {
         if (audio) {
-          if (historialC.length > 0) {
-            // Reemplazar el último mensaje del historial con audio real
-            const historialConAudio = [
-              ...historialC.slice(0, -1),
-              {
-                role: "user",
-                parts: [
-                  { text: contenidoUsuario },
-                  { inlineData: { mimeType: audio.mimeType || "audio/ogg", data: audio.data } }
-                ]
-              }
-            ];
-            resultado = await procesarMensajeConContexto(
-              historialConAudio,
-              especialidades || [],
-              {
-                estado_sesion: "INTERMEDIO",
-                horometro_inicio: reporteActual?.horometro_inicio,
-                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
-                seguimiento_completo: seguimientoCompleto
-              }
-            );
-          } else {
-            resultado = await procesarAudioOperador(
-              audio.data, audio.mimeType, especialidades || [],
-              {
-                estado_sesion: "INTERMEDIO",
-                horometro_inicio: reporteActual?.horometro_inicio,
-                seguimiento_completo: seguimientoCompleto
-              }
-            );
-          }
+          resultado = await procesarAudioOperador(
+            audio.data, audio.mimeType, especialidades || [],
+            {
+              estado_sesion: "INTERMEDIO",
+              horometro_inicio: reporteActual?.horometro_inicio,
+              seguimiento_completo: seguimientoCompleto
+            }
+          );
         } else {
-          // Procesar texto mediante Gemini con memoria
-          if (historialC.length > 0) {
-            resultado = await procesarMensajeConContexto(
-              historialC,
-              especialidades || [],
-              {
-                estado_sesion: "INTERMEDIO",
-                horometro_inicio: reporteActual?.horometro_inicio,
-                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
-                seguimiento_completo: seguimientoCompleto
-              }
-            );
-          } else {
-            resultado = await procesarMensajeConContexto(
-              [{ role: "user", parts: [{ text: message.trim() }] }],
-              especialidades || [],
-              {
-                estado_sesion: "INTERMEDIO",
-                horometro_inicio: reporteActual?.horometro_inicio,
-                pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
-                seguimiento_completo: seguimientoCompleto
-              }
-            );
-          }
+          resultado = await procesarMensajeConContexto(
+            [{ role: "user", parts: [{ text: message.trim() }] }],
+            especialidades || [],
+            {
+              estado_sesion: "INTERMEDIO",
+              horometro_inicio: reporteActual?.horometro_inicio,
+              pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
+              seguimiento_completo: seguimientoCompleto
+            }
+          );
         }
       }
 
