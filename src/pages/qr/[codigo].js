@@ -25,7 +25,6 @@ export default function QrLanding() {
   const [isIdentified, setIsIdentified] = useState(false);
   const [identifying, setIdentifying] = useState(false);
   const [authError, setAuthError] = useState("");
-  const [nombreNuevoOperador, setNombreNuevoOperador] = useState("");
 
   // Datos obtenidos del servidor
   const [loadingData, setLoadingData] = useState(true);
@@ -344,44 +343,14 @@ export default function QrLanding() {
                   </div>
                   <div className="registro-nuevo-box">
                     <p>¿Eres un operador nuevo en LukeEquipos?</p>
-                    <div className="input-group" style={{ marginBottom: "12px" }}>
-                      <label htmlFor="nombre-nuevo" style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8" }}>Ingresa tu Nombre Completo para registrarte:</label>
-                      <input
-                        id="nombre-nuevo"
-                        type="text"
-                        placeholder="Ej: Juan Pérez"
-                        value={nombreNuevoOperador}
-                        onChange={(e) => setNombreNuevoOperador(e.target.value)}
-                        style={{
-                          background: "#0f172a",
-                          border: "1px solid #1c2e52",
-                          borderRadius: "8px",
-                          color: "white",
-                          padding: "10px 12px",
-                          fontSize: "13px",
-                          outline: "none",
-                          width: "100%",
-                          boxSizing: "border-box",
-                          fontFamily: "inherit"
-                        }}
-                      />
-                    </div>
                     <a 
-                      href={nombreNuevoOperador.trim().length >= 4 
-                        ? `https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("REGISTRO: " + nombreNuevoOperador.trim())}` 
-                        : "#"}
-                      className={`registro-link ${nombreNuevoOperador.trim().length < 4 ? "disabled" : ""}`}
-                      onClick={(e) => {
-                        if (nombreNuevoOperador.trim().length < 4) {
-                          e.preventDefault();
-                          alert("Por favor, ingresa tu nombre completo antes de solicitar el registro.");
-                        }
-                      }}
+                      href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("Hola, quiero registrarme")}`}
+                      className="registro-link"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
                       <MessageSquare size={14} className="mr-2" />
-                      <span>Solicitar Registro por WhatsApp</span>
+                      <span>Registrarse por WhatsApp</span>
                     </a>
                   </div>
                 </div>
