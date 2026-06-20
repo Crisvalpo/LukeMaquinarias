@@ -1067,6 +1067,22 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       sesion.estado_espera === "SESION_ABIERTA_INTERMEDIA" ||
       sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO"
     ) {
+      // Guard: si envía REPORTE:CODIGO con sesión activa → avisar y bloquear
+      // (no dejar que Gemini lo procese como hito de texto)
+      const msgUpperC = (message || "").trim().toUpperCase();
+      if (msgUpperC.startsWith("REPORTE:")) {
+        const { data: reporteActivo } = await supabase
+          .from("reportes_diarios")
+          .select("*, equipos(descripcion_equipo, codigo_interno)")
+          .eq("id", sesion.reporte_activo_id)
+          .maybeSingle();
+        const equipoActivo = reporteActivo?.equipos;
+        await enviarMensaje(jid, phoneClean,
+          `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo?.codigo_interno || ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`
+        );
+        return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA" });
+      }
+
       // --- Manejo de IMAGEN → Supabase Storage ---
       if (image && !audio) {
         const { data: equipoData } = await supabase
