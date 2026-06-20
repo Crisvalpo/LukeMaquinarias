@@ -1,0 +1,977 @@
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import { 
+  User, 
+  Camera, 
+  FileText, 
+  MapPin, 
+  ArrowRight, 
+  Loader2, 
+  MessageSquare, 
+  CheckCircle, 
+  AlertCircle, 
+  Download, 
+  RefreshCw, 
+  Cpu
+} from "lucide-react";
+
+export default function QrLanding() {
+  const router = useRouter();
+  const { codigo } = router.query;
+
+  // Estados de control de flujo
+  const [identificador, setIdentificador] = useState("");
+  const [isIdentified, setIsIdentified] = useState(false);
+  const [identifying, setIdentifying] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  // Datos obtenidos del servidor
+  const [loadingData, setLoadingData] = useState(true);
+  const [equipo, setEquipo] = useState(null);
+  const [operador, setOperador] = useState(null);
+  const [reportes, setReportes] = useState([]);
+  const [botPhone, setBotPhone] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Estados de interacción
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [ubicacionCargando, setUbicacionCargando] = useState(false);
+  const [ubicacionOk, setUbicacionOk] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const fileInputRef = useRef(null);
+
+  // Intentar cargar la identificación de localStorage al montar
+  useEffect(() => {
+    if (!router.isReady || !codigo) return;
+
+    const storedId = localStorage.getItem("luke_operador_identificador");
+    if (storedId) {
+      setIdentificador(storedId);
+      setIsIdentified(true);
+      fetchLandingData(storedId);
+    } else {
+      setLoadingData(false);
+    }
+  }, [router.isReady, codigo]);
+
+  // Consultar datos de la landing page
+  const fetchLandingData = async (userId) => {
+    setLoadingData(true);
+    setErrorMsg("");
+    try {
+      const res = await fetch(`/api/qr-landing-data?codigo=${codigo}&identificador=${userId}`);
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setEquipo(data.equipo);
+        setBotPhone(data.botPhone);
+        
+        if (data.operador) {
+          setOperador(data.operador);
+          setReportes(data.reportes || []);
+          setIsIdentified(true);
+          localStorage.setItem("luke_operador_identificador", userId);
+        } else {
+          // El operador no fue encontrado
+          setAuthError("Operador no registrado o inactivo en la base de datos.");
+          setIsIdentified(false);
+          localStorage.removeItem("luke_operador_identificador");
+        }
+      } else {
+        setErrorMsg(data.message || "Error al obtener datos del equipo");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Error de red al conectar con el servidor.");
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  // Manejar el submit del login
+  const handleIdentify = async (e) => {
+    e.preventDefault();
+    if (!identificador.trim()) return;
+
+    setIdentifying(true);
+    setAuthError("");
+    try {
+      // Intentar cargar los datos para validar al operador
+      await fetchLandingData(identificador.trim());
+    } catch (err) {
+      setAuthError("Error al validar tus credenciales.");
+    } finally {
+      setIdentifying(false);
+    }
+  };
+
+  // Desvincular operador en este dispositivo (Cerrar sesión en localStorage)
+  const handleLogout = () => {
+    localStorage.removeItem("luke_operador_identificador");
+    setOperador(null);
+    setReportes([]);
+    setIsIdentified(false);
+    setIdentificador("");
+    setUbicacionOk(false);
+    setCoords(null);
+  };
+
+  // Activar captura de foto (Cámara frontal)
+  const triggerCamera = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Procesar subida de foto
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !operador) return;
+
+    setSubiendoFoto(true);
+    const reader = new FileReader();
+
+    reader.onload = async (event) => {
+      const base64String = event.target?.result;
+      if (!base64String) {
+        setSubiendoFoto(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/personal/upload-foto", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personalId: operador.id,
+            imageBase64: base64String
+          })
+        });
+
+        const json = await res.json();
+        if (json.success && json.foto_url) {
+          // Actualización optimista de la UI
+          setOperador(prev => ({ ...prev, foto_url: json.foto_url }));
+        } else {
+          alert("Error al subir foto: " + (json.error || json.message));
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Ocurrió un error al subir la fotografía.");
+      } finally {
+        setSubiendoFoto(false);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  // Obtener geolocalización mediante API HTML5 del navegador
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Tu dispositivo o navegador no soporta geolocalización.");
+      return;
+    }
+
+    setUbicacionCargando(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setCoords({ latitude, longitude });
+
+        try {
+          // Enviar las coordenadas al servidor para guardarlas de inmediato en el equipo
+          const res = await fetch("/api/equipos/update-ubicacion", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              equipoId: equipo.id,
+              latitude,
+              longitude
+            })
+          });
+
+          const json = await res.json();
+          if (json.success) {
+            setUbicacionOk(true);
+          } else {
+            alert("Error al guardar ubicación: " + (json.error || json.message));
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Error al comunicar la ubicación al servidor.");
+        } finally {
+          setUbicacionCargando(false);
+        }
+      },
+      (error) => {
+        console.error("Geolocation error:", error);
+        setUbicacionCargando(false);
+        let errorTxt = "No se pudo obtener la geolocalización.";
+        if (error.code === error.PERMISSION_DENIED) {
+          errorTxt = "Permiso denegado. Por favor, activa el GPS de tu celular y concede permisos de ubicación en tu navegador para continuar.";
+        }
+        alert(errorTxt);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
+  // Redirigir a WhatsApp
+  const handleStartJornada = () => {
+    if (!ubicacionOk || !equipo) return;
+    const messageText = `REPORTE:${equipo.codigo_interno}`;
+    const cleanPhone = botPhone.replace(/[^0-9]/g, "");
+    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+  };
+
+  // Spinner de carga inicial
+  if (loadingData && !equipo) {
+    return (
+      <div className="main-loading animate-fade-in">
+        <Loader2 className="spinner" size={40} />
+        <p>Cargando datos del equipo...</p>
+        <style jsx>{`
+          .main-loading {
+            min-height: 100vh;
+            background: #0a1120;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-family: sans-serif;
+            gap: 16px;
+          }
+          .spinner { animation: spin 1s linear infinite; color: #ff303e; }
+          @keyframes spin { 100% { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Si hay error en la carga de datos del equipo
+  if (errorMsg) {
+    return (
+      <div className="main-error">
+        <AlertCircle size={48} color="#ef4444" />
+        <h2>Error al escanear QR</h2>
+        <p>{errorMsg}</p>
+        <style jsx>{`
+          .main-error {
+            min-height: 100vh;
+            background: #0a1120;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #f8fafc;
+            text-align: center;
+            padding: 24px;
+            gap: 16px;
+            font-family: sans-serif;
+          }
+          p { color: #94a3b8; max-width: 400px; }
+        `}</style>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>{equipo ? `${equipo.codigo_interno} — LukeEquipos` : "LukeEquipos"}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+      </Head>
+
+      <div className="landing-layout">
+        {/* Orbes decorativos */}
+        <div className="orb orb-1"></div>
+        <div className="orb orb-2"></div>
+
+        <div className="landing-card">
+          {/* Header */}
+          <header className="app-header">
+            <div className="brand-badge">
+              <Cpu size={14} color="#ff303e" />
+              <span>LukeEquipos</span>
+            </div>
+            {isIdentified && operador && (
+              <button className="logout-btn" onClick={handleLogout}>
+                Cerrar Sesión
+              </button>
+            )}
+          </header>
+
+          {/* ========================================================== */}
+          {/* PASO A: IDENTIFICACIÓN DEL OPERADOR */}
+          {/* ========================================================== */}
+          {!isIdentified ? (
+            <div className="form-section animate-fade-in">
+              <h2>Validación de Operador</h2>
+              <p className="section-desc">
+                Antes de iniciar turno en <strong>{equipo?.descripcion_equipo} ({equipo?.codigo_interno})</strong>, por favor identifícate.
+              </p>
+
+              {authError && (
+                <div className="alert alert-error">
+                  <AlertCircle size={16} />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleIdentify}>
+                <div className="input-group">
+                  <label htmlFor="operador-id">Ingresa tu RUT o número de WhatsApp</label>
+                  <input
+                    id="operador-id"
+                    type="text"
+                    placeholder="Ej: 12.345.678-K o +56912345678"
+                    value={identificador}
+                    onChange={(e) => setIdentificador(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <button type="submit" className="submit-btn" disabled={identifying}>
+                  {identifying ? (
+                    <>
+                      <Loader2 className="spinner" size={16} />
+                      <span>Validando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continuar</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          ) : (
+            /* ========================================================== */
+            /* PASO B: PANTALLA PRINCIPAL CON GEOLOCALIZACIÓN Y FOTO */
+            /* ========================================================== */
+            <div className="dashboard-section animate-fade-in">
+              {/* Tarjeta de Operador */}
+              <div className="user-profile-box">
+                <div className="avatar-wrapper">
+                  {operador.foto_url ? (
+                    <img src={operador.foto_url} alt={operador.nombre_completo} className="avatar-img" />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      <User size={36} color="#64748b" />
+                    </div>
+                  )}
+                  <button 
+                    className={`edit-photo-badge ${subiendoFoto ? "loading" : ""}`}
+                    onClick={triggerCamera}
+                    disabled={subiendoFoto}
+                  >
+                    {subiendoFoto ? <Loader2 className="spinner" size={14} /> : <Camera size={14} />}
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    style={{ display: "none" }} 
+                    accept="image/*" 
+                    capture="user"
+                    onChange={handlePhotoUpload} 
+                  />
+                </div>
+                <div className="user-info">
+                  <h3>{operador.nombre_completo}</h3>
+                  <p>{operador.rol || "Operador de Maquinaria"}</p>
+                  {!operador.foto_url && (
+                    <span className="photo-warning">⚠️ Falta registrar foto de perfil</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Tarjeta de Equipo */}
+              <div className="item-detail-box">
+                <div className="item-icon-wrapper">
+                  <Cpu size={20} color="#ff303e" />
+                </div>
+                <div className="item-metadata">
+                  <div className="item-code">{equipo.codigo_interno}</div>
+                  <div className="item-title">{equipo.descripcion_equipo}</div>
+                  <div className="item-project">📍 CC: {equipo.proyectos?.codigo_cc} — {equipo.proyectos?.nombre_proyecto || "En Taller"}</div>
+                </div>
+              </div>
+
+              {/* Historial de Reportes en PDF */}
+              <div className="pdf-history-section">
+                <h4>📄 Tus Reportes PDF de Días Anteriores</h4>
+                {reportes.length > 0 ? (
+                  <div className="pdf-list">
+                    {reportes.map((rep) => (
+                      <a 
+                        key={rep.id} 
+                        href={`${process.env.NEXT_PUBLIC_BASE_URL || ""}${rep.pdf_url}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="pdf-item-link"
+                      >
+                        <div className="pdf-info">
+                          <span className="pdf-date">
+                            {new Date(rep.fecha).toLocaleDateString("es-CL", { timeZone: "UTC" })}
+                          </span>
+                          <span className="pdf-machine">{rep.equipos?.codigo_interno}</span>
+                        </div>
+                        <Download size={14} className="download-icon" />
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="no-pdf-txt">No se encontraron reportes PDF consolidados de tus turnos anteriores.</p>
+                )}
+              </div>
+
+              {/* Acciones principales (Los dos botones grandes obligatorios) */}
+              <div className="actions-section">
+                {/* BOTÓN 1: Obtener ubicación */}
+                <button 
+                  className={`action-button geo-btn ${ubicacionOk ? "success" : ""}`}
+                  onClick={handleGetLocation}
+                  disabled={ubicacionCargando || ubicacionOk}
+                >
+                  {ubicacionCargando ? (
+                    <>
+                      <Loader2 className="spinner animate-spin" size={20} />
+                      <div className="btn-text-wrapper">
+                        <span className="btn-title">Determinando Ubicación...</span>
+                        <span className="btn-subtitle">Espera unos segundos</span>
+                      </div>
+                    </>
+                  ) : ubicacionOk ? (
+                    <>
+                      <CheckCircle size={20} />
+                      <div className="btn-text-wrapper">
+                        <span className="btn-title">Ubicación Registrada ✅</span>
+                        <span className="btn-subtitle">
+                          Lat: {coords?.latitude.toFixed(5)}, Lng: {coords?.longitude.toFixed(5)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin size={20} />
+                      <div className="btn-text-wrapper">
+                        <span className="btn-title">1. Registrar Ubicación GPS</span>
+                        <span className="btn-subtitle">Presiona para validar ubicación</span>
+                      </div>
+                    </>
+                  )}
+                </button>
+
+                {/* BOTÓN 2: Iniciar jornada en WhatsApp */}
+                <button 
+                  className={`action-button start-btn ${ubicacionOk ? "active" : "disabled"}`}
+                  onClick={handleStartJornada}
+                  disabled={!ubicacionOk}
+                >
+                  <MessageSquare size={20} />
+                  <div className="btn-text-wrapper">
+                    <span className="btn-title">2. Iniciar Turno en WhatsApp</span>
+                    <span className="btn-subtitle">Continúa la jornada con el bot</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+        }
+
+        body {
+          font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          background: #0a1120;
+          color: #f8fafc;
+          min-height: 100vh;
+          overflow-x: hidden;
+        }
+
+        .landing-layout {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          position: relative;
+          background: radial-gradient(circle at top, #101c33, #0a1120);
+        }
+
+        /* Orbes degradados en background */
+        .orb {
+          position: absolute;
+          width: 280px;
+          height: 280px;
+          border-radius: 50%;
+          filter: blur(80px);
+          opacity: 0.12;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .orb-1 {
+          top: -20px;
+          left: -20px;
+          background: #ff303e;
+        }
+        .orb-2 {
+          bottom: -20px;
+          right: -20px;
+          background: #38bdf8;
+        }
+
+        /* Tarjeta principal Glassmorphism */
+        .landing-card {
+          position: relative;
+          z-index: 10;
+          max-width: 440px;
+          width: 100%;
+          background: rgba(30, 41, 59, 0.65);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          padding: 24px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Header */
+        .app-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 24px;
+        }
+
+        .brand-badge {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255, 48, 62, 0.08);
+          border: 1px solid rgba(255, 48, 62, 0.2);
+          border-radius: 8px;
+          padding: 4px 10px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          color: #ff303e;
+        }
+
+        .logout-btn {
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: color 0.2s;
+          padding: 4px 8px;
+        }
+        .logout-btn:hover {
+          color: #f8fafc;
+        }
+
+        /* Títulos */
+        h2 {
+          font-size: 20px;
+          font-weight: 800;
+          color: white;
+          margin-bottom: 8px;
+          letter-spacing: -0.5px;
+        }
+
+        .section-desc {
+          font-size: 13px;
+          color: #94a3b8;
+          line-height: 1.5;
+          margin-bottom: 20px;
+        }
+
+        /* Alertas */
+        .alert {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-bottom: 16px;
+        }
+
+        .alert-error {
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+        }
+
+        /* Formularios */
+        .input-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 18px;
+          text-align: left;
+        }
+
+        .input-group label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #94a3b8;
+        }
+
+        .input-group input {
+          background: #0f172a;
+          border: 1px solid #1c2e52;
+          border-radius: 8px;
+          color: white;
+          padding: 12px 14px;
+          font-size: 14px;
+          outline: none;
+          transition: border-color 0.2s;
+          font-family: inherit;
+        }
+
+        .input-group input:focus {
+          border-color: #ff303e;
+        }
+
+        .submit-btn {
+          width: 100%;
+          background: linear-gradient(135deg, #ff303e, #c21a25);
+          color: white;
+          border: none;
+          border-radius: 10px;
+          padding: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(255, 48, 62, 0.3);
+        }
+
+        /* Perfil de Operador Dashboard */
+        .user-profile-box {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          background: rgba(15, 23, 42, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+          text-align: left;
+        }
+
+        .avatar-wrapper {
+          position: relative;
+          width: 60px;
+          height: 60px;
+          flex-shrink: 0;
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 2px solid #2563eb;
+          box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+        }
+
+        .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: #1e293b;
+          border: 2px dashed #475569;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .edit-photo-badge {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #2563eb;
+          color: white;
+          border: 2px solid #0f172a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.2s;
+        }
+        .edit-photo-badge:hover {
+          background: #1d4ed8;
+          transform: scale(1.05);
+        }
+
+        .user-info h3 {
+          font-size: 15px;
+          font-weight: 700;
+          color: white;
+          margin-bottom: 2px;
+        }
+
+        .user-info p {
+          font-size: 11px;
+          color: #94a3b8;
+          text-transform: uppercase;
+          font-weight: 600;
+          letter-spacing: 0.5px;
+        }
+
+        .photo-warning {
+          display: inline-block;
+          font-size: 10px;
+          color: #f59e0b;
+          font-weight: 700;
+          margin-top: 4px;
+        }
+
+        /* Detalle del Equipo Dashboard */
+        .item-detail-box {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          background: rgba(255, 48, 62, 0.04);
+          border: 1px solid rgba(255, 48, 62, 0.12);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 20px;
+          text-align: left;
+        }
+
+        .item-icon-wrapper {
+          width: 36px;
+          height: 36px;
+          background: rgba(255, 48, 62, 0.08);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .item-code {
+          font-size: 11px;
+          font-weight: 700;
+          color: #ff303e;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .item-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: white;
+          margin-top: 1px;
+        }
+
+        .item-project {
+          font-size: 11px;
+          color: #64748b;
+          margin-top: 3px;
+        }
+
+        /* Historial de reportes PDF */
+        .pdf-history-section {
+          text-align: left;
+          margin-bottom: 24px;
+        }
+
+        .pdf-history-section h4 {
+          font-size: 12px;
+          font-weight: 700;
+          color: #cbd5e1;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .pdf-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-height: 150px;
+          overflow-y: auto;
+          padding-right: 4px;
+        }
+
+        /* Personalización de scrollbar */
+        .pdf-list::-webkit-scrollbar {
+          width: 4px;
+        }
+        .pdf-list::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.1);
+          border-radius: 10px;
+        }
+
+        .pdf-item-link {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 8px;
+          padding: 10px 14px;
+          text-decoration: none;
+          transition: background 0.2s, border-color 0.2s;
+        }
+        .pdf-item-link:hover {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .pdf-date {
+          font-size: 13px;
+          font-weight: 600;
+          color: #cbd5e1;
+        }
+
+        .pdf-machine {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 700;
+          margin-left: 8px;
+          background: rgba(255,255,255,0.05);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        .download-icon {
+          color: #2563eb;
+        }
+
+        .no-pdf-txt {
+          font-size: 12px;
+          color: #64748b;
+          font-style: italic;
+          padding: 8px 0;
+        }
+
+        /* Sección de Acciones (Botones Grandes) */
+        .actions-section {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .action-button {
+          width: 100%;
+          border: none;
+          border-radius: 12px;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          color: white;
+          outline: none;
+        }
+
+        .btn-text-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .btn-title {
+          font-size: 14px;
+          font-weight: 700;
+          letter-spacing: -0.2px;
+        }
+
+        .btn-subtitle {
+          font-size: 11px;
+          opacity: 0.7;
+          margin-top: 2px;
+        }
+
+        /* Botón de Geolocalización */
+        .geo-btn {
+          background: #1e3a5f;
+          border: 1px solid #2563eb;
+          box-shadow: 0 4px 10px rgba(37, 99, 235, 0.15);
+        }
+        .geo-btn:hover:not(:disabled) {
+          background: #2563eb;
+          transform: translateY(-1.5px);
+          box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
+        }
+
+        .geo-btn.success {
+          background: rgba(16, 185, 129, 0.12);
+          border: 1px solid #10b981;
+          color: #34d399;
+          box-shadow: none;
+          cursor: not-allowed;
+        }
+
+        /* Botón de WhatsApp */
+        .start-btn.active {
+          background: linear-gradient(135deg, #ff303e, #c21a25);
+          box-shadow: 0 4px 12px rgba(255, 48, 62, 0.2);
+          cursor: pointer;
+        }
+        .start-btn.active:hover {
+          transform: translateY(-1.5px);
+          box-shadow: 0 6px 18px rgba(255, 48, 62, 0.4);
+        }
+
+        .start-btn.disabled {
+          background: #1e293b;
+          border: 1px solid rgba(255,255,255,0.05);
+          color: #475569;
+          cursor: not-allowed;
+          opacity: 0.65;
+        }
+
+        /* Animaciones */
+        .animate-fade-in {
+          animation: fadeIn 0.4s ease-out forwards;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .spinner {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
+    </>
+  );
+}

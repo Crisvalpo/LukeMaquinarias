@@ -368,12 +368,12 @@ function QrEquipoModal({ equipo, botPhone, onClose }) {
   const [downloading, setDownloading] = useState(false);
   if (!equipo) return null;
 
-  const messageText = `REPORTE:${equipo.codigo_interno}`;
-  const waLink = `https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(messageText)}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waLink)}`;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+  const landingLink = `${baseUrl}/qr/${equipo.codigo_interno}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(landingLink)}`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(waLink);
+    navigator.clipboard.writeText(landingLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -480,7 +480,7 @@ function QrEquipoModal({ equipo, botPhone, onClose }) {
         </div>
 
         <div style={{ color: "#64748b", fontSize: "11px", marginBottom: "20px", lineHeight: 1.4 }}>
-          Al escanear este QR con el móvil, el operador abrirá un chat con el bot prellenando el comando de inicio de turno.
+          Al escanear este QR con el móvil, el operador abrirá la landing page intermedia para registrar su ubicación y foto antes de ir a WhatsApp.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
@@ -677,7 +677,7 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     tipo: equipo?.tipo || "",
     categoria: equipo?.categoria || "MAQUINARIA PESADA",
     anio_fabricacion: equipo?.anio_fabricacion !== null && equipo?.anio_fabricacion !== undefined ? equipo.anio_fabricacion.toString() : "",
-    flujo_tipo: equipo?.flujo_tipo || "ESTANDAR",
+    seguimiento_completo: equipo?.seguimiento_completo !== false,
   });
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -705,7 +705,7 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         tipo: formData.tipo.trim() || null,
         categoria: formData.categoria,
         anio_fabricacion: formData.anio_fabricacion.trim() !== "" ? parseInt(formData.anio_fabricacion) : null,
-        flujo_tipo: formData.flujo_tipo,
+        seguimiento_completo: formData.seguimiento_completo,
       };
 
       const r = await fetch("/api/equipos", {
@@ -802,11 +802,11 @@ function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             <input style={inputStyle} value={formData.proveedor}
               onChange={e => setFormData(p => ({ ...p, proveedor: e.target.value }))} />
           </FormRow>
-          <FormRow label="Flujo de Operación">
-            <select style={selectStyle} value={formData.flujo_tipo}
-              onChange={e => setFormData(p => ({ ...p, flujo_tipo: e.target.value }))}>
-              <option value="ESTANDAR">Estándar (Con Especialidades y Rigger)</option>
-              <option value="TORRE_ILUMINACION">Torre de Iluminación (Sin Rigger ni Especialidad)</option>
+          <FormRow label="Seguimiento de Horas por Especialidad/Operador">
+            <select style={selectStyle} value={formData.seguimiento_completo.toString()}
+              onChange={e => setFormData(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
+              <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
+              <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
             </select>
           </FormRow>
           <FormRow label="Proyecto / Obra Asociada">
@@ -1064,7 +1064,7 @@ export default function AdminMaquinaria() {
   }, [tab]);
 
   // ---- Formularios ----
-  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", flujo_tipo: "ESTANDAR" });
+  const [formEquipo, setFormEquipo] = useState({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true });
   const [formProyecto, setFormProyecto] = useState({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" });
   const [formPersonal, setFormPersonal] = useState({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" });
   const [editingProyectoId, setEditingProyectoId] = useState(null);
@@ -1959,17 +1959,17 @@ export default function AdminMaquinaria() {
                       {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
                     </select>
                   </FormRow>
-                  <FormRow label="Flujo de Operación">
+                  <FormRow label="Seguimiento de Horas por Especialidad/Operador">
                     <select style={selectStyle}
-                      value={formEquipo.flujo_tipo || "ESTANDAR"}
-                      onChange={e => setFormEquipo(p => ({ ...p, flujo_tipo: e.target.value }))}>
-                      <option value="ESTANDAR">Estándar (Con Especialidades y Rigger)</option>
-                      <option value="TORRE_ILUMINACION">Torre de Iluminación (Sin Rigger ni Especialidad)</option>
+                      value={(formEquipo.seguimiento_completo !== false).toString()}
+                      onChange={e => setFormEquipo(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
+                      <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
+                      <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
                     </select>
                   </FormRow>
                 </div>
                 <button
-                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", flujo_tipo: "ESTANDAR" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+                  onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
                   disabled={saving}
                   style={{
                     background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",

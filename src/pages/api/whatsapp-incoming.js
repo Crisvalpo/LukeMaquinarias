@@ -789,6 +789,14 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         return res.status(200).json({ success: true });
       }
 
+      // Validar si el equipo tiene el seguimiento de jornada deshabilitado
+      if (equipo.seguimiento_completo === false) {
+        await enviarMensaje(jid, phoneClean,
+          `ℹ️ Estimado(a) *${personal.nombre_completo}*.\n\nEl equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) no requiere asignación de operador ni seguimiento de jornada.`
+        );
+        return res.status(200).json({ success: true, message: "Equipo sin seguimiento completo" });
+      }
+
       // Validar coincidencia de proyecto (proyecto_actual_id)
       if (personal.proyecto_actual_id !== equipo.proyecto_actual_id) {
         let obraPersonalNombre = "Sin asignar";
@@ -886,13 +894,13 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       // Obtener especialidades para el prompt
       const { data: especialidades } = await supabase.from("especialidades").select("*");
 
-      // Obtener el flujo_tipo del equipo asociado al reporte activo
+      // Obtener el seguimiento_completo del equipo asociado al reporte activo
       const { data: reporteCheckin } = await supabase
         .from("reportes_diarios")
         .select("*, equipos(*)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
-      const flujoTipo = reporteCheckin?.equipos?.flujo_tipo || "ESTANDAR";
+      const seguimientoCompleto = reporteCheckin?.equipos?.seguimiento_completo !== false;
 
       // === MEMORIA CONVERSACIONAL ===
       const transcripcionAudio = `Audio de check-in: horómetro inicial declarado por el operador.`;
@@ -920,12 +928,12 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         resultado = await procesarMensajeConContexto(
           historialConAudio,
           especialidades || [],
-          { estado_sesion: "CHECKIN", flujo_tipo: flujoTipo }
+          { estado_sesion: "CHECKIN", seguimiento_completo: seguimientoCompleto }
         );
       } else {
         resultado = await procesarAudioOperador(
           audio.data, audio.mimeType, especialidades || [],
-          { estado_sesion: "CHECKIN", flujo_tipo: flujoTipo }
+          { estado_sesion: "CHECKIN", seguimiento_completo: seguimientoCompleto }
         );
       }
 
@@ -1047,13 +1055,13 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
 
       const { data: especialidades } = await supabase.from("especialidades").select("*");
-       const { data: reporteActual } = await supabase
+      const { data: reporteActual } = await supabase
         .from("reportes_diarios")
-        .select("horometro_inicio, equipos(pauta_preventiva_activa, flujo_tipo)")
+        .select("horometro_inicio, equipos(pauta_preventiva_activa, seguimiento_completo)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
 
-      const flujoTipo = reporteActual?.equipos?.flujo_tipo || "ESTANDAR";
+      const seguimientoCompleto = reporteActual?.equipos?.seguimiento_completo !== false;
 
       // === MEMORIA CONVERSACIONAL (Caso C: Hitos Intermedios) ===
       const contenidoUsuario = audio ? "Audio de terreno del operador" : (message || "");
@@ -1086,7 +1094,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
               estado_sesion: "INTERMEDIO",
               horometro_inicio: reporteActual?.horometro_inicio,
               pauta_del_dia: reporteActual?.equipos?.pauta_preventiva_activa,
-              flujo_tipo: flujoTipo
+              seguimiento_completo: seguimientoCompleto
             }
           );
         } else {
@@ -1095,7 +1103,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
             {
               estado_sesion: "INTERMEDIO",
               horometro_inicio: reporteActual?.horometro_inicio,
-              flujo_tipo: flujoTipo
+              seguimiento_completo: seguimientoCompleto
             }
           );
         }
