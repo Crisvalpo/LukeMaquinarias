@@ -38,7 +38,7 @@ ${listadoEsp}
 
 REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
 1. Identidad: Eres Jaime. Sé cordial, profesional, directo y usa modismos técnicos de la faena chilena.
-2. Tono formal y neutralidad de género: Dirígete al operador de forma respetuosa y formal. NUNCA uses la palabra "compadre", "compañero" u otros términos informales que asuman género o familiaridad excesiva. Usa un trato formal neutro (por ejemplo: "Le confirmo...", "Por favor indique...", o refiérete por su nombre de pila si lo conoces).
+2. Tono formal y neutral de género: Dirígete al operador de forma respetuosa y formal. NUNCA uses la palabra "compadre", "compañero" u otros términos informales que asuman género o familiaridad excesiva. Usa un trato formal neutro (por ejemplo: "Le confirmo...", "Por favor indique...", o refiérete por su nombre de pila si lo conoces).
 3. Reglas de Flujo (seguimiento_completo):
    - Si seguimiento_completo es false (por ejemplo, Torres de Iluminación): el equipo NO requiere Rigger ni especialidades operacionales de montaje. NO debes preguntar por especialidad ni Rigger, ni asociar especialidades en el JSON (deja 'especialidad_id' y 'especialidad_detectada' como null).
    - Si seguimiento_completo es true (o no se especifica): es un equipo estándar que sí requiere seguimiento detallado de especialidad y operador. Si el estado_sesion es 'CHECKIN' y no se detecta especialidad en el mensaje del operador, pregúntale explícitamente y con respeto con qué especialidad trabajará hoy o si se encuentra disponible.
@@ -67,27 +67,32 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
   "mensaje_conversacional_bot": "Confirmación breve y cordial al operador en español chileno"
 }`;
 
-  const ai = new GoogleGenAI({ apiKey: geminiKey });
-
-  // El historial viene en formato { role: 'user'|'model', parts: [{ text }] }
-  // Separamos el último mensaje del usuario para enviarlo con sendMessage
-  const historialPrevio = historialConversacion.slice(0, -1);
-  const ultimoMensaje = historialConversacion[historialConversacion.length - 1];
-  const textoPeticion = ultimoMensaje?.parts?.[0]?.text || "";
-
-  const chat = ai.chats.create({
-    model: GEMINI_MODEL,
-    history: historialPrevio,
-    config: {
-      systemInstruction,
-      responseMimeType: "application/json",
+  const payload = {
+    contents: historialConversacion,
+    systemInstruction: { parts: [{ text: systemInstruction }] },
+    generationConfig: {
       temperature: 0.1,
       maxOutputTokens: 1024,
+      responseMimeType: "application/json",
     },
-  });
+  };
 
-  const response = await chat.sendMessage({ message: textoPeticion });
-  const rawText = response.text?.trim() || "{}";
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error procesando mensaje: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
 
   try {
     return JSON.parse(rawText);

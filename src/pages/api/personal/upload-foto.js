@@ -36,11 +36,11 @@ export default async function handler(req, res) {
     }
 
     const buffer = Buffer.from(base64Data, "base64");
-    const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
+    const BUCKET = "avatares-personal";
     const ext = mimeType.includes("png") ? "png" : "jpg";
-    const fileName = `avatars/${personalId}/${crypto.randomUUID()}.${ext}`;
+    const fileName = `${personalId}/avatar.${ext}`;
 
-    // 2. Subir el buffer de imagen a Supabase Storage
+    // 2. Subir el buffer de imagen a Supabase Storage (upsert para sobrescribir)
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(BUCKET)
       .upload(fileName, buffer, {
@@ -53,12 +53,14 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: uploadError.message });
     }
 
-    // 3. Obtener la URL pública de la imagen
-    const { data: publicUrlData } = supabase.storage
+    // 3. Obtener URL firmada (1 año = 31536000 segundos)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(BUCKET)
-      .getPublicUrl(fileName);
+      .createSignedUrl(fileName, 31536000);
 
-    const publicUrl = publicUrlData.publicUrl;
+    const publicUrl = signedUrlError 
+      ? supabase.storage.from(BUCKET).getPublicUrl(fileName).data.publicUrl 
+      : signedUrlData.signedUrl;
 
     // 4. Actualizar la columna foto_url del personal en la base de datos
     const { error: updateError } = await supabase
