@@ -843,7 +843,31 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         .maybeSingle();
 
       if (reporteExistente) {
-        // Reabrir sesión si existía reporte pero no sesión
+        // Verificar estado actual de la sesión para no pisar un checkin pendiente
+        const { data: sesionExistente } = await supabase
+          .from("sesiones_whatsapp")
+          .select("id, estado_espera")
+          .eq("whatsapp_remitente", phoneClean)
+          .maybeSingle();
+
+        if (sesionExistente?.estado_espera === "ESPERANDO_CHECKIN_AUDIO") {
+          // Aún no envió el audio de check-in → recordar sin pisar estado
+          const { data: eqData } = await supabase
+            .from("equipos")
+            .select("descripcion_equipo, codigo_interno, tipo_seguimiento")
+            .eq("id", equipo.id)
+            .maybeSingle();
+          const esVehiculo = eqData?.tipo_seguimiento === 'vehiculo';
+          const ejemploAudio = esVehiculo
+            ? `_"Odómetro 84.320, voy al sector norte"_`
+            : `_"Horómetro inicial dos mil trescientos, equipo operativo"_`;
+          await enviarMensaje(jid, phoneClean,
+            `⏳ *${personal.nombre_completo}*, tienes un check-in pendiente para *${eqData?.descripcion_equipo || equipo.descripcion_equipo}* (${equipo.codigo_interno}).\n\n🎤 Aún no he recibido tu audio de inicio. Por favor envíalo ahora.\nEjemplo: ${ejemploAudio}`
+          );
+          return res.status(200).json({ success: true, action: "RECORDATORIO_AUDIO_CHECKIN" });
+        }
+
+        // Sesión intermedia o sin sesión → reabrir normalmente
         await supabase.from("sesiones_whatsapp").upsert({
           whatsapp_remitente: phoneClean,
           reporte_activo_id: reporteExistente.id,
@@ -854,7 +878,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
         await enviarMensaje(jid, phoneClean,
           `✅ *${personal.nombre_completo}*, ya tienes un reporte abierto para *${equipo.descripcion_equipo}* hoy.\nPuedes continuar enviando audios de actualización o envía el cierre de jornada.`
         );
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, action: "SESION_REABIERTA" });
       }
 
       // Crear nuevo reporte (sin horómetro aún)
@@ -919,14 +943,16 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       const seguimientoCompleto = reporteCheckin?.equipos?.seguimiento_completo !== false;
 
       if (!audio) {
-        // Mensaje de espera adaptado al tipo
+        // Mensaje de recordatorio adaptado al tipo + nombre del equipo
+        const nombreEquipo = reporteCheckin?.equipos?.descripcion_equipo || "el equipo";
+        const codigoEquipo = reporteCheckin?.equipos?.codigo_interno || "";
         const ejemploAudio = tipoSeguimiento === 'vehiculo'
           ? `_"Odómetro 84.320, voy al sector norte"_`
           : `_"Horómetro inicial dos mil trescientos, equipo operativo"_`;
         await enviarMensaje(jid, phoneClean,
-          `🎤 Necesito que envíes un *audio* para registrar tu check-in.\nEjemplo: ${ejemploAudio}`
+          `⏳ *${personal.nombre_completo}*, tu check-in para *${nombreEquipo}* (${codigoEquipo}) está pendiente.\n\n🎤 Envía un *audio* para registrarlo.\nEjemplo: ${ejemploAudio}`
         );
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, action: "ESPERANDO_AUDIO" });
       }
 
       let resultado;
