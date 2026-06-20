@@ -1,0 +1,557 @@
+import { enviarMensajeWhatsApp, guardarMensajeChat, cargarHistorialGemini, notificarSupervisor } from "../services/messageService";
+import { uploadImagenStorage } from "../services/storageService";
+import { handleCierreFlow } from "./cierreHandler";
+import { 
+  analizarIntencionHistorica, 
+  analizarImagenEvidencia, 
+  procesarAudioOperador, 
+  procesarAudioVehiculo, 
+  procesarTextoVehiculo, 
+  procesarMensajeConContexto 
+} from "../../gemini";
+
+export async function handleJornadaFlow(ctx, res) {
+  const { supabase, personal, phoneClean, jid, message, audio, image, location, geminiKey } = ctx;
+  const sesion = ctx.sesion;
+
+  // ================================================================
+  // 1. PROCESAR GEOLOCALIZACIÓN (GPS) SI VIENE EN EL BODY
+  // ================================================================
+  if (location && sesion && sesion.reporte_activo_id) {
+    const { latitude, longitude } = location;
+
+    const { data: reporte } = await supabase
+      .from("reportes_diarios")
+      .select("equipo_id, equipos(codigo_interno, descripcion_equipo)")
+      .eq("id", sesion.reporte_activo_id)
+      .maybeSingle();
+
+    if (reporte?.equipo_id) {
+      const { error: errEq } = await supabase
+        .from("equipos")
+        .update({
+          latitud_actual: latitude,
+          longitud_actual: longitude,
+          ultima_ubicacion_fecha: new Date().toISOString()
+        })
+        .eq("id", reporte.equipo_id);
+
+      if (errEq) {
+        console.error("[jornadaHandler] Error actualizando coordenadas del equipo:", errEq.message);
+      } else {
+        console.log(`[jornadaHandler] Coordenadas del equipo ${reporte.equipos?.codigo_interno} actualizadas: ${latitude}, ${longitude}`);
+      }
+
+      await supabase
+        .from("eventos_jornada")
+        .insert({
+          reporte_id: sesion.reporte_activo_id,
+          estado_hito: "Disponible",
+          hora_evento: new Date().toISOString(),
+          nota_transcripcion: `📍 Actualización de ubicación GPS: Lat ${latitude.toFixed(5)}, Lng ${longitude.toFixed(5)}`
+        });
+
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `📍 *Ubicación Registrada*\n\nCoordenadas de *${reporte.equipos?.descripcion_equipo || "Equipo"}* (${reporte.equipos?.codigo_interno}) actualizadas con éxito.\n(Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)})`,
+        !!audio,
+        geminiKey
+      );
+    }
+
+    return res.status(200).json({ success: true, action: "UBICACION_REGISTRADA" });
+  }
+
+  // ================================================================
+  // 2. CASO SIN SESIÓN → INICIAR CHECK-IN O CONSULTA HISTÓRICA
+  // ================================================================
+  if (!sesion) {
+    const msgUpper = (message || "").trim().toUpperCase();
+
+    // Si NO es un comando de inicio (REPORTE:), evaluar intenciones históricas
+    if (!msgUpper.startsWith("REPORTE:")) {
+      const entradaParaAnalizar = audio || (message || "Audio entrante");
+      const intencion = await analizarIntencionHistorica(entradaParaAnalizar);
+
+      if (intencion.es_consulta_pdf && intencion.fecha_solicitada) {
+        const { data: reporteHisto } = await supabase
+          .from("reportes_diarios")
+          .select("pdf_url, fecha")
+          .eq("operador_id", personal.id)
+          .eq("fecha", intencion.fecha_solicitada)
+          .maybeSingle();
+
+        if (reporteHisto?.pdf_url) {
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
+          await enviarMensajeWhatsApp(jid, phoneClean, 
+            `📄 *Reporte Histórico Encontrado*\n\nHola ${personal.nombre_completo}, aquí tienes el PDF de tu jornada del día *${intencion.fecha_solicitada}*:\n👉 ${baseUrl}${reporteHisto.pdf_url}`,
+            !!audio,
+            geminiKey
+          );
+        } else {
+          await enviarMensajeWhatsApp(jid, phoneClean, 
+            `🤷‍♂️ No encontré ningún reporte registrado para ti en la fecha *${intencion.fecha_solicitada}*. Verifica el día e intenta nuevamente.`,
+            !!audio,
+            geminiKey
+          );
+        }
+        return res.status(200).json({ success: true, action: "CONSULTA_HISTORICA_PROCESADA" });
+      }
+
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `👋 Hola *${personal.nombre_completo}*.\n\nPara iniciar tu jornada, escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    const codigoEquipo = msgUpper.replace("REPORTE:", "").trim();
+
+    // Buscar equipo
+    const { data: equipo } = await supabase
+      .from("equipos")
+      .select("*, proyectos(*)")
+      .eq("codigo_interno", codigoEquipo)
+      .maybeSingle();
+
+    if (!equipo) {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `❌ No encontré el equipo *${codigoEquipo}*.\nVerifica el código e intenta nuevamente.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true });
+    }
+
+    if (equipo.seguimiento_completo === false) {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `ℹ️ Estimado(a) *${personal.nombre_completo}*.\n\nEl equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) no requiere asignación de operador ni seguimiento de jornada.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, message: "Equipo sin seguimiento completo" });
+    }
+
+    if (personal.proyecto_actual_id !== equipo.proyecto_actual_id) {
+      let obraPersonalNombre = "Sin asignar";
+      if (personal.proyecto_actual_id) {
+        const { data: opObra } = await supabase
+          .from("proyectos")
+          .select("nombre_proyecto")
+          .eq("id", personal.proyecto_actual_id)
+          .maybeSingle();
+        if (opObra) obraPersonalNombre = opObra.nombre_proyecto;
+      }
+      const obraEquipoNombre = equipo.proyectos ? equipo.proyectos.nombre_proyecto : "Sin asignar";
+
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `❌ *Proyecto No Coincide*\n\nHola *${personal.nombre_completo}*, no puedes registrar tu jornada en el equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) porque pertenece al proyecto *"${obraEquipoNombre}"*, y tú estás asignado al proyecto *"${obraPersonalNombre}"*.\n\nPor favor, contacta a tu supervisor para regularizar tu asignación.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, message: "Proyecto no coincide" });
+    }
+
+    // Verificar si ya hay reporte hoy
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+    const { data: reporteExistente } = await supabase
+      .from("reportes_diarios")
+      .select("id, horometro_inicio, km_inicial")
+      .eq("equipo_id", equipo.id)
+      .eq("operador_id", personal.id)
+      .eq("fecha", hoy)
+      .maybeSingle();
+
+    if (reporteExistente) {
+      const { data: sesionExistente } = await supabase
+        .from("sesiones_whatsapp")
+        .select("id, estado_espera")
+        .eq("whatsapp_remitente", phoneClean)
+        .maybeSingle();
+
+      if (sesionExistente?.estado_espera === "ESPERANDO_CHECKIN_AUDIO") {
+        const { data: eqData } = await supabase
+          .from("equipos")
+          .select("descripcion_equipo, codigo_interno, tipo_seguimiento")
+          .eq("id", equipo.id)
+          .maybeSingle();
+        const esVehiculo = eqData?.tipo_seguimiento === 'vehiculo';
+        const ejemploAudio = esVehiculo
+          ? `_"Odómetro 84.320, voy al sector norte"_`
+          : `_"Horómetro inicial dos mil trescientos, equipo operativo"_`;
+        await enviarMensajeWhatsApp(jid, phoneClean,
+          `⏳ *${personal.nombre_completo}*, tienes un check-in pendiente para *${eqData?.descripcion_equipo || equipo.descripcion_equipo}* (${equipo.codigo_interno}).\n\n🎤 Aún no he recibido tu audio de inicio. Por favor envíalo ahora.\nEjemplo: ${ejemploAudio}`,
+          !!audio,
+          geminiKey
+        );
+        return res.status(200).json({ success: true, action: "RECORDATORIO_AUDIO_CHECKIN" });
+      }
+
+      await supabase.from("sesiones_whatsapp").upsert({
+        whatsapp_remitente: phoneClean,
+        reporte_activo_id: reporteExistente.id,
+        estado_espera: "SESION_ABIERTA_INTERMEDIA",
+        updated_at: new Date().toISOString(),
+      });
+
+      const lecturaReg = reporteExistente.horometro_inicio || reporteExistente.km_inicial || 0;
+      if (lecturaReg > 0) {
+        const sufijoMedida = equipo.tipo_seguimiento === 'vehiculo' ? 'km' : 'hrs';
+        await enviarMensajeWhatsApp(jid, phoneClean,
+          `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos el inicio de tu jornada en *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) con un valor inicial de *${lecturaReg.toLocaleString("es-CL")} ${sufijoMedida}*.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
+          !!audio,
+          geminiKey
+        );
+        return res.status(200).json({ success: true, action: "SESION_INICIADA_WEB" });
+      }
+
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `✅ *${personal.nombre_completo}*, ya tienes un reporte abierto para *${equipo.descripcion_equipo}* hoy.\nPuedes continuar enviando audios de actualización o envía el cierre de jornada.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, action: "SESION_REABIERTA" });
+    }
+
+    const { data: nuevoReporte, error: errReporte } = await supabase
+      .from("reportes_diarios")
+      .insert({
+        equipo_id: equipo.id,
+        operador_id: personal.id,
+        fecha: hoy,
+        horometro_inicio: 0,
+      })
+      .select()
+      .single();
+
+    if (errReporte) {
+      console.error("[jornadaHandler] Error creando reporte:", errReporte.message);
+      await enviarMensajeWhatsApp(jid, phoneClean, `❌ Error creando el reporte. Intenta nuevamente.`, !!audio, geminiKey);
+      return res.status(500).json({ success: false });
+    }
+
+    await supabase.from("sesiones_whatsapp").insert({
+      whatsapp_remitente: phoneClean,
+      reporte_activo_id: nuevoReporte.id,
+      estado_espera: "ESPERANDO_CHECKIN_AUDIO",
+      updated_at: new Date().toISOString(),
+    });
+
+    let mensajePauta = "";
+    if (equipo.pauta_preventiva_activa) {
+      mensajePauta = `\n\n📋 *Instrucción del Jefe de Área para hoy:*\n_${equipo.pauta_preventiva_activa}_`;
+    }
+
+    const tipoSeguimientoEquipo = equipo.tipo_seguimiento || 'estandar';
+    let mensajeInstruccion;
+    if (tipoSeguimientoEquipo === 'vehiculo') {
+      mensajeInstruccion = `🚗 *${personal.nombre_completo}*, vehículo registrado:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica el *kilometraje (odómetro)* y tu destino por *audio o texto*.\n_Ejemplo: "Odómetro 84.320, voy al sector norte"_`;
+    } else if (tipoSeguimientoEquipo === 'camion') {
+      mensajeInstruccion = `🚛 *${personal.nombre_completo}*, inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del camión por *audio o texto*.\n_Ejemplo: "Horómetro 15.200, camión operativo"_`;
+    } else {
+      mensajeInstruccion = `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del equipo por *audio o texto*.\n_Ejemplo: "Horómetro 2.300, equipo operativo, trabajando con Piping"_`;
+    }
+
+    await enviarMensajeWhatsApp(jid, phoneClean, mensajeInstruccion, !!audio, geminiKey);
+    return res.status(200).json({ success: true, action: "SESION_CREADA" });
+  }
+
+  // ================================================================
+  // 3. CASO CON SESIÓN INTERMEDIA (Hitos ordinarios y solicitudes de Cierre)
+  // ================================================================
+  const msgUpperC = (message || "").trim().toUpperCase();
+
+  // Guard: Evitar pisar la sesión con un código escaneado diferente
+  if (msgUpperC.startsWith("REPORTE:")) {
+    const codigoScan = msgUpperC.replace("REPORTE:", "").trim();
+    const { data: reporteActivo } = await supabase
+      .from("reportes_diarios")
+      .select("*, equipos(descripcion_equipo, codigo_interno)")
+      .eq("id", sesion.reporte_activo_id)
+      .maybeSingle();
+    const equipoActivo = reporteActivo?.equipos;
+
+    if (equipoActivo && equipoActivo.codigo_interno.toUpperCase() === codigoScan) {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos que tu jornada para *${equipoActivo.descripcion_equipo}* (${equipoActivo.codigo_interno}) se encuentra activa y registrada con éxito.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA_MISMO_EQUIPO" });
+    } else {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo?.codigo_interno || ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA_OTRO_EQUIPO" });
+    }
+  }
+
+  // --- Manejo de IMAGEN (Evidencia) ---
+  if (image && !audio) {
+    const { data: equipoData } = await supabase
+      .from("equipos")
+      .select("descripcion_equipo, codigo_interno")
+      .eq("id", sesion.reportes_diarios?.equipo_id)
+      .maybeSingle();
+
+    const storagePath = await uploadImagenStorage(supabase, image.data, image.mimeType);
+
+    const { analisis, esCritico } = await analizarImagenEvidencia(
+      image.data,
+      image.mimeType,
+      equipoData?.descripcion_equipo
+    );
+
+    await supabase.from("evidencias").insert({
+      reporte_id: sesion.reporte_activo_id,
+      local_storage_path: storagePath || "upload-error",
+      descripcion_analisis_ia: analisis,
+    });
+
+    if (esCritico) {
+      await supabase.from("eventos_jornada").insert({
+        reporte_id: sesion.reporte_activo_id,
+        estado_hito: "Detenido por Falla",
+        hora_evento: new Date().toISOString(),
+        nota_transcripcion: `FALLA DETECTADA POR IA: ${analisis.slice(0, 200)}`,
+      });
+
+      const { data: reporte } = await supabase
+        .from("reportes_diarios")
+        .select("supervisor_id, equipos(codigo_interno, descripcion_equipo)")
+        .eq("id", sesion.reporte_activo_id)
+        .maybeSingle();
+
+      if (reporte?.supervisor_id) {
+        await notificarSupervisor(
+          supabase,
+          reporte.supervisor_id,
+          `🔴 Equipo ${reporte.equipos?.codigo_interno} - ${reporte.equipos?.descripcion_equipo}\nOperador: ${personal.nombre_completo}\n\nAnálisis IA: ${analisis}`
+        );
+      }
+
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `🚨 *ALERTA CRÍTICA DETECTADA*\n\nAnálisis IA:\n_${analisis}_\n\nSe ha notificado automáticamente a tu supervisor. Equipo marcado como *Detenido por Falla*.`,
+        false,
+        geminiKey
+      );
+    } else {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `📷 Evidencia registrada.\n\n🔍 *Análisis IA:*\n_${analisis}_`,
+        false,
+        geminiKey
+      );
+    }
+
+    return res.status(200).json({ success: true, action: "EVIDENCIA_REGISTRADA" });
+  }
+
+  // --- Manejo de AUDIO y TEXTO ---
+  if (!audio && !message) {
+    return res.status(200).json({ success: true });
+  }
+
+  const { data: especialidades } = await supabase.from("especialidades").select("*");
+  const { data: reporteActual } = await supabase
+    .from("reportes_diarios")
+    .select("equipo_id, horometro_inicio, km_inicial, equipos(id, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+    .eq("id", sesion.reporte_activo_id)
+    .maybeSingle();
+
+  const seguimientoCompleto = reporteActual?.equipos?.seguimiento_completo !== false;
+  const tipoSeguimiento = reporteActual?.equipos?.tipo_seguimiento || 'estandar';
+
+  const contenidoUsuario = audio ? "Audio de terreno del operador" : (message || "");
+  const tipoMsgC = audio ? "audio" : "texto";
+
+  const msgUsuarioC = await guardarMensajeChat(supabase, phoneClean, "user", contenidoUsuario, tipoMsgC, sesion.reporte_activo_id);
+  const historialC = await cargarHistorialGemini(supabase, phoneClean);
+
+  let resultado;
+  const estadoSesionEnv = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" ? "CIERRE" : "INTERMEDIO";
+
+  if (tipoSeguimiento === 'vehiculo') {
+    if (audio) {
+      resultado = await procesarAudioVehiculo(
+        audio.data, audio.mimeType,
+        { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
+      );
+    } else {
+      resultado = await procesarTextoVehiculo(
+        message.trim(),
+        { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
+      );
+    }
+  } else {
+    if (audio) {
+      resultado = await procesarAudioOperador(
+        audio.data, audio.mimeType, especialidades || [],
+        {
+          estado_sesion: estadoSesionEnv,
+          horometro_inicio: reporteActual?.horometro_inicio,
+          seguimiento_completo: seguimientoCompleto
+        }
+      );
+    } else {
+      resultado = await procesarMensajeConContexto(
+        historialC.length > 0 ? historialC : [{ role: "user", parts: [{ text: message.trim() }] }],
+        especialidades || [],
+        {
+          estado_sesion: estadoSesionEnv,
+          horometro_inicio: reporteActual?.horometro_inicio,
+          seguimiento_completo: seguimientoCompleto
+        }
+      );
+    }
+  }
+
+  console.log("[jornadaHandler] Gemini hito:", JSON.stringify(resultado));
+
+  // Guardrail por software para combustible
+  if (resultado) {
+    const textoEntrante = (message || resultado.detalles_texto || "").toLowerCase();
+    const tieneCombustible = textoEntrante.includes("combustible") || textoEntrante.includes("petroleo") || textoEntrante.includes("petróleo") || textoEntrante.includes("carga");
+    const tieneFallaReal = textoEntrante.includes("pana") || textoEntrante.includes("roto") || textoEntrante.includes("averia") || textoEntrante.includes("falla mecanica") || textoEntrante.includes("falla eléctrica") || textoEntrante.includes("daño") || textoEntrante.includes("fuga") || textoEntrante.includes("malo") || textoEntrante.includes("desperfecto") || textoEntrante.includes("pinchado");
+    
+    if (tieneCombustible && !tieneFallaReal) {
+      if (resultado.es_falla_critica) {
+        console.log("[jornadaHandler] 🛡️ Guardrail: Desactivando es_falla_critica de Gemini (combustible).");
+        resultado.es_falla_critica = false;
+      }
+      if (resultado.tipo_evento === "Detenido por Falla") {
+        const esCierreJornada = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || resultado.horometro_final != null || resultado.km_final != null;
+        console.log(`[jornadaHandler] 🛡️ Guardrail: Cambiando tipo_evento a ${esCierreJornada ? "CIERRE" : "Disponible"}.`);
+        resultado.tipo_evento = esCierreJornada ? "CIERRE" : "Disponible";
+      }
+      if (resultado.petroleo_litros === null || resultado.petroleo_litros === undefined) {
+        resultado.petroleo_litros = 0;
+      }
+      if (resultado.mensaje_conversacional_bot && (resultado.mensaje_conversacional_bot.includes("falla") || resultado.mensaje_conversacional_bot.includes("pana") || resultado.mensaje_conversacional_bot.includes("operativo nuevamente"))) {
+        resultado.mensaje_conversacional_bot = null;
+      }
+      // Corregir lectura asignada por error a final en lugar de combustible
+      const esCierreExplicit = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || resultado.tipo_evento === "CIERRE";
+      if (!esCierreExplicit) {
+        if (resultado.horometro_final && !resultado.horometro_carga_combustible) {
+          resultado.horometro_carga_combustible = resultado.horometro_final;
+        }
+        if (resultado.km_final && !resultado.km_carga_combustible) {
+          resultado.km_carga_combustible = resultado.km_final;
+        }
+        resultado.horometro_final = null;
+        resultado.km_final = null;
+      }
+    }
+  }
+
+  if (audio && resultado.detalles_texto && msgUsuarioC?.id) {
+    await supabase
+      .from("mensajes_chat")
+      .update({ contenido: resultado.detalles_texto })
+      .eq("id", msgUsuarioC.id);
+  }
+
+  // ¿Es cierre de jornada?
+  const intentoCierre =
+    resultado.tipo_evento === "CIERRE" ||
+    resultado.horometro_final != null ||
+    resultado.km_final != null;
+
+  if (intentoCierre) {
+    const esVehiculo = tipoSeguimiento === 'vehiculo';
+    const lecturaFinal = esVehiculo ? resultado.km_final : resultado.horometro_final;
+
+    if (lecturaFinal == null && sesion.estado_espera !== "ESPERANDO_CHECKOUT_AUDIO") {
+      await supabase.from("sesiones_whatsapp")
+        .update({ estado_espera: "ESPERANDO_CHECKOUT_AUDIO", updated_at: new Date().toISOString() })
+        .eq("id", sesion.id);
+
+      const ejemploCierre = esVehiculo
+        ? `_"Cierre, kilometraje final ochenta y cuatro mil quinientos, sin carga de combustible"_`
+        : `_"Cierre, horómetro final dos mil trescientos diez, sin combustible"_`;
+
+      const msgPedirLectura = resultado.mensaje_conversacional_bot
+        || `🏁 *Entendido, cierre de jornada solicitado.*\n\nPara consolidar tu reporte, por favor indica por *audio o texto* el **${esVehiculo ? 'odómetro (kilometraje) final' : 'horómetro final'}** y si realizaste carga de combustible.\n\n_Ejemplo: ${ejemploCierre}_`;
+
+      await guardarMensajeChat(supabase, phoneClean, "model", msgPedirLectura, "texto", sesion.reporte_activo_id);
+      await enviarMensajeWhatsApp(jid, phoneClean, msgPedirLectura, !!audio, geminiKey);
+      return res.status(200).json({ success: true, action: "ESPERANDO_LECTURA_FINAL" });
+    }
+  }
+
+  // Si ya tenemos el horómetro final o estamos en checkout confirmado, llamamos a cierreHandler
+  if (intentoCierre || sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO") {
+    const contextCierre = {
+      ...ctx,
+      resultadoIA: resultado,
+      tipoSeguimiento,
+      reporteActual
+    };
+    return await handleCierreFlow(contextCierre, res);
+  }
+
+  // === HITO INTERMEDIO ===
+  const estadoHito = resultado.tipo_evento === "CHECKIN" ? "Disponible" : resultado.tipo_evento || "Trabajando";
+
+  await supabase.from("eventos_jornada").insert({
+    reporte_id: sesion.reporte_activo_id,
+    estado_hito: estadoHito,
+    especialidad_id: resultado.especialidad_id || null,
+    hora_evento: new Date().toISOString(),
+    nota_transcripcion: resultado.detalles_texto || "",
+  });
+
+  // Actualizar combustible si se mencionó
+  if (resultado.petroleo_litros || resultado.horometro_carga_combustible) {
+    await supabase
+      .from("reportes_diarios")
+      .update({
+        ...(resultado.petroleo_litros && { petroleo_litros: resultado.petroleo_litros }),
+        ...(resultado.horometro_carga_combustible && {
+          horometro_carga_combustible: resultado.horometro_carga_combustible,
+        }),
+      })
+      .eq("id", sesion.reporte_activo_id);
+
+    if (resultado.horometro_carga_combustible) {
+      await supabase.from("equipos")
+        .update({ ultimo_horometro: resultado.horometro_carga_combustible })
+        .eq("id", reporteActual.equipo_id);
+    }
+  }
+
+  const iconosEstado = {
+    Trabajando: "🟢",
+    Disponible: "🔵",
+    "En Colacion": "🟡",
+    "Detenido por Falla": "🔴",
+  };
+
+  const tagEspecialidad = resultado.especialidad_detectada ? ` — *${resultado.especialidad_detectada}*` : "";
+  const confirmacion = resultado.mensaje_conversacional_bot
+    || `${iconosEstado[estadoHito] || "⚪"} *Estado Actualizado: ${estadoHito}*${tagEspecialidad}\n\n📝 _"${resultado.detalles_texto || "Hito registrado con éxito."}"_`;
+
+  await guardarMensajeChat(supabase, phoneClean, "model", confirmacion, "texto", sesion.reporte_activo_id);
+  await enviarMensajeWhatsApp(jid, phoneClean, confirmacion, !!audio, geminiKey);
+
+  // Alerta si es falla
+  if (estadoHito === "Detenido por Falla" || resultado.es_falla_critica) {
+    const { data: rpt } = await supabase
+      .from("reportes_diarios")
+      .select("supervisor_id, equipos(codigo_interno)")
+      .eq("id", sesion.reporte_activo_id)
+      .maybeSingle();
+
+    if (rpt?.supervisor_id) {
+      await notificarSupervisor(
+        supabase,
+        rpt.supervisor_id,
+        `🔴 Alerta de Terreno - Equipo ${rpt.equipos?.codigo_interno}\nOperador: ${personal.nombre_completo}\n\nReportó: ${resultado.detalles_texto || "Falla técnica"}`
+      );
+    }
+  }
+
+  return res.status(200).json({ success: true, action: "HITO_REGISTRADO" });
+}
