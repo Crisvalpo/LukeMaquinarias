@@ -25,6 +25,7 @@ export default function QrLanding() {
   const [isIdentified, setIsIdentified] = useState(false);
   const [identifying, setIdentifying] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [nombreNuevoOperador, setNombreNuevoOperador] = useState("");
 
   // Datos obtenidos del servidor
   const [loadingData, setLoadingData] = useState(true);
@@ -343,9 +344,39 @@ export default function QrLanding() {
                   </div>
                   <div className="registro-nuevo-box">
                     <p>¿Eres un operador nuevo en LukeEquipos?</p>
+                    <div className="input-group" style={{ marginBottom: "12px" }}>
+                      <label htmlFor="nombre-nuevo" style={{ fontSize: "11px", fontWeight: 700, color: "#94a3b8" }}>Ingresa tu Nombre Completo para registrarte:</label>
+                      <input
+                        id="nombre-nuevo"
+                        type="text"
+                        placeholder="Ej: Juan Pérez"
+                        value={nombreNuevoOperador}
+                        onChange={(e) => setNombreNuevoOperador(e.target.value)}
+                        style={{
+                          background: "#0f172a",
+                          border: "1px solid #1c2e52",
+                          borderRadius: "8px",
+                          color: "white",
+                          padding: "10px 12px",
+                          fontSize: "13px",
+                          outline: "none",
+                          width: "100%",
+                          boxSizing: "border-box",
+                          fontFamily: "inherit"
+                        }}
+                      />
+                    </div>
                     <a 
-                      href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("REGISTRO: " + identificador)}`}
-                      className="registro-link"
+                      href={nombreNuevoOperador.trim().length >= 4 
+                        ? `https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("REGISTRO: " + nombreNuevoOperador.trim())}` 
+                        : "#"}
+                      className={`registro-link ${nombreNuevoOperador.trim().length < 4 ? "disabled" : ""}`}
+                      onClick={(e) => {
+                        if (nombreNuevoOperador.trim().length < 4) {
+                          e.preventDefault();
+                          alert("Por favor, ingresa tu nombre completo antes de solicitar el registro.");
+                        }
+                      }}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
@@ -689,6 +720,15 @@ export default function QrLanding() {
         .registro-link:hover {
           background: #1d4ed8;
           transform: translateY(-0.5px);
+        }
+
+        .registro-link.disabled {
+          background: #1e293b !important;
+          border: 1px solid rgba(255,255,255,0.05) !important;
+          color: #475569 !important;
+          cursor: not-allowed !important;
+          opacity: 0.65;
+          transform: none !important;
         }
 
         .mr-2 {
