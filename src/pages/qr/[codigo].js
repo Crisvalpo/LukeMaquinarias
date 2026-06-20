@@ -16,6 +16,33 @@ import {
   Cpu
 } from "lucide-react";
 
+// Función para formatear el RUT chileno dinámicamente (ej: 12.345.678-K)
+function formatRut(value) {
+  if (!value) return "";
+  // Limpiar caracteres que no sean números ni la letra K, limitado a 9 caracteres de largo
+  const clean = value.replace(/[^0-9kK]/g, "").slice(0, 9);
+  
+  if (clean.length <= 1) {
+    return clean;
+  }
+  
+  const body = clean.slice(0, -1);
+  const dv = clean.slice(-1).toUpperCase();
+  
+  let formattedBody = "";
+  let count = 0;
+  for (let i = body.length - 1; i >= 0; i--) {
+    formattedBody = body.charAt(i) + formattedBody;
+    count++;
+    if (count === 3 && i > 0) {
+      formattedBody = "." + formattedBody;
+      count = 0;
+    }
+  }
+  
+  return `${formattedBody}-${dv}`;
+}
+
 export default function QrLanding() {
   const router = useRouter();
   const { codigo } = router.query;
@@ -400,13 +427,13 @@ export default function QrLanding() {
 
               <form onSubmit={handleIdentify}>
                 <div className="input-group">
-                  <label htmlFor="operador-id">Ingresa tu RUT o número de WhatsApp</label>
+                  <label htmlFor="operador-id">Ingresa tu RUT</label>
                   <input
                     id="operador-id"
                     type="text"
-                    placeholder="Ej: 12.345.678-K o +56912345678"
+                    placeholder="Ej: 12.345.678-K"
                     value={identificador}
-                    onChange={(e) => setIdentificador(e.target.value)}
+                    onChange={(e) => setIdentificador(formatRut(e.target.value))}
                     required
                   />
                 </div>
