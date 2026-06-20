@@ -115,43 +115,79 @@ export async function procesarAudioOperador(audioBase64, mimeType, especialidade
     .map(e => `- ID: ${e.id} | Nombre: ${e.nombre_oficial}`)
     .join("\n");
 
-  const promptSistema = `Eres el asistente de extracción de datos para el proyecto LukeEquipos.
+  const tipoSeg = contexto.tipo_seguimiento || 'estandar';
+
+  // ── Prompt adaptado según tipo de equipo ──────────────────────────────
+  let promptSistema;
+
+  if (tipoSeg === 'camion') {
+    // Camiones de trabajo: sin Rigger ni especialidad, solo horómetro + estado
+    promptSistema = `Eres el asistente de extracción de datos para LukeEquipos.
+Procesas el audio del CONDUCTOR de un camión de trabajo (pluma, aljibe, tolva, plano, tracto, rampla).
+Este equipo NO requiere Rigger ni especialidades de montaje.
+
+Contexto actual:
+${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
+${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
+
+Reglas:
+- Extrae horómetro_inicial en check-in ("horómetro veinte mil" = 20000)
+- Extrae horómetro_final en cierre
+- Detecta: "colación" → 'En Colacion', "disponible/esperando" → 'Disponible', "falla/problema" → 'Detenido por Falla', "cerrando/fin" → 'CIERRE'
+- NO preguntes por especialidad ni Rigger jamás
+- Tono formal y respetuoso, sin "compadre"
+- Si no declara horómetro en check-in, pregúntalo de forma directa
+
+Respuesta ÚNICAMENTE en JSON válido:
+{
+  "tipo_evento": "CHECKIN | Trabajando | Disponible | En Colacion | Detenido por Falla | CIERRE",
+  "especialidad_id": null,
+  "especialidad_detectada": null,
+  "horometro_inicial": numero_o_null,
+  "horometro_final": numero_o_null,
+  "petroleo_litros": numero_o_null,
+  "horometro_carga_combustible": numero_o_null,
+  "es_falla_critica": false,
+  "detalles_texto": "Transcripción resumida",
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+}`;
+  } else {
+    // Flujo estándar (grúas, maquinaria pesada/semipesada)
+    promptSistema = `Eres el asistente de extracción de datos para el proyecto LukeEquipos.
 Tu tarea es procesar la transcripción del operador de maquinaria pesada y mapear sus acciones a las tablas del sistema.
 
 Lista oficial de especialidades:
 ${listaEspecialidades}
 
 Reglas de Mapeo Semántico ESTRICTAS:
-- Si seguimiento_completo es false (por ejemplo, Torres de Iluminación): se trata de un equipo que NO maneja ni usa Rigger ni especialidades de montaje. Pon siempre 'especialidad_id' y 'especialidad_detectada' como null, y genera un mensaje conversacional directo de check-in sin consultar especialidades.
-- Si seguimiento_completo es true (o no se especifica): se requiere rigger y especialidades. Si el operador inicia jornada pero no indica especialidad ni estar disponible, el mensaje conversacional del bot debe solicitar respetuosamente (sin tratar de "compadre" y de manera formal) indicar con qué especialidad trabajará o si está disponible.
-- Tono formal y neutral de género: Dirígete al operador de forma respetuosa y formal en el mensaje conversacional. NUNCA uses la palabra "compadre" ni modismos informales similares. Usa "estimado(a)", "por favor indique", o su nombre de pila.
-- "cañoneros", "viejos de las líneas", "tuberías", "cañerías", "líneas" → especialidad 'Piping'
-- "fierreros", "montadores", "estructuras", "vigas" → especialidad 'Estructuras'
-- "colación", "almuerzo", "hora de almuerzo", "colacion" → estado 'En Colacion'
-- "quedé libre", "máquina disponible", "sin trabajo", "esperando", "no hay trabajo" → estado 'Disponible'
-- "falla", "avería", "detenido", "no prende", "problema mecánico", "accidente" → estado 'Detenido por Falla'
-- "cierre", "terminamos", "fin de jornada", "horómetro final", "cerrando" → tipo_evento 'CIERRE'
-- Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
+- Si seguimiento_completo es false: equipo que NO maneja Rigger ni especialidades. Pon 'especialidad_id' y 'especialidad_detectada' como null.
+- Si seguimiento_completo es true: se requiere Rigger y especialidades. Si no indica especialidad ni disponible, solicítala respetuosamente.
+- Tono formal y neutral de género. NUNCA uses "compadre".
+- "cañoneros", "líneas", "tuberías" → 'Piping'
+- "fierreros", "montadores", "estructuras" → 'Estructuras'
+- "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' | "cierre/fin" → 'CIERRE'
+- Números hablados: "dos mil trescientos" = 2300
 
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
 ${contexto.seguimiento_completo !== undefined ? `- seguimiento_completo: ${contexto.seguimiento_completo}` : ''}
 
-IMPORTANTE: Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown, sin bloques de código.
+IMPORTANTE: Responde ÚNICAMENTE con un JSON válido, sin texto adicional, sin markdown.
 
 Esquema de retorno:
 {
   "tipo_evento": "CHECKIN | Trabajando | Disponible | En Colacion | Detenido por Falla | CIERRE",
-  "especialidad_id": "UUID_de_la_especialidad_o_null",
-  "especialidad_detectada": "Nombre_oficial_o_null",
+  "especialidad_id": "UUID_o_null",
+  "especialidad_detectada": "Nombre_o_null",
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
-  "detalles_texto": "Transcripción resumida de las labores del operador"
+  "detalles_texto": "Transcripción resumida"
 }`;
+  }
 
   const payload = {
     contents: [
@@ -196,10 +232,85 @@ Esquema de retorno:
   try {
     return JSON.parse(rawText);
   } catch {
-    // Intentar extraer JSON del texto si viene con texto adicional
     const match = rawText.match(/\{[\s\S]*\}/);
     if (match) return JSON.parse(match[0]);
     throw new Error(`[Gemini] JSON inválido: ${rawText.slice(0, 200)}`);
+  }
+}
+
+// ================================================================
+// FUNCIÓN: Procesar audio de VEHÍCULO (camionetas, furgones, minibuses)
+// Extrae kilometraje (odómetro) y destino/ruta en lugar de horómetro
+// ================================================================
+export async function procesarAudioVehiculo(audioBase64, mimeType, contexto = {}) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const promptSistema = `Eres el asistente de control de flota vehicular para LukeEquipos.
+Procesas el audio del CONDUCTOR o SUPERVISOR que toma un vehículo (camioneta, furgón o minibús) en faena.
+Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
+
+Contexto actual:
+${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
+${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
+
+Reglas de extracción:
+- Detecta km/odómetro ("ochenta y cuatro mil trescientos" = 84300, "84.320" = 84320)
+- Detecta destino o ruta mencionada ("voy a Caspana", "sector norte", "faena Atacama")
+- Check-in: extrae km_inicial y destino
+- Cierre: extrae km_final
+- "colación" → estado 'En Colacion'
+- "disponible" → estado 'Disponible'
+- "falla/problema/accidente" → estado 'Detenido por Falla'
+- "cierre/terminé/devolví" → tipo_evento 'CIERRE'
+- Si no menciona km en check-in, solicítalo de forma directa y cordial
+- Tono formal y respetuoso. Sin "compadre".
+
+Respuesta ÚNICAMENTE en JSON válido:
+{
+  "tipo_evento": "CHECKIN | En Ruta | En Colacion | Disponible | Detenido por Falla | CIERRE",
+  "km_inicial": numero_o_null,
+  "km_final": numero_o_null,
+  "destino_ruta": "texto_o_null",
+  "es_falla_critica": true_o_false,
+  "detalles_texto": "Transcripción resumida",
+  "mensaje_conversacional_bot": "Confirmación breve al conductor en español"
+}`;
+
+  const payload = {
+    contents: [{
+      parts: [
+        { text: promptSistema },
+        { inlineData: { mimeType: mimeType || "audio/ogg; codecs=opus", data: audioBase64 } }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      maxOutputTokens: 512,
+      responseMimeType: "application/json",
+    },
+  };
+
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error procesando audio vehículo: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!rawText) throw new Error("[Gemini] Respuesta vacía en procesarAudioVehiculo");
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error(`[Gemini] JSON inválido vehículo: ${rawText.slice(0, 200)}`);
   }
 }
 
