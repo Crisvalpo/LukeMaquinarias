@@ -237,12 +237,18 @@ export default async function handler(req, res) {
 
       const msgText = (message || "").trim();
       const prefix = "REGISTRO:";
+      // Palabras reservadas que no son nombres reales (vienen del botón de la landing page)
+      const SUFIJOS_RESERVADOS = ["NUEVO", "INICIO", "START", ""];
       let nombreDirecto = null;
       if (msgText.toUpperCase().startsWith(prefix)) {
-        nombreDirecto = msgText.slice(prefix.length).trim();
+        const sufijo = msgText.slice(prefix.length).trim();
+        // Solo asignamos nombreDirecto si el sufijo es un nombre real (no una palabra reservada)
+        if (sufijo && !SUFIJOS_RESERVADOS.includes(sufijo.toUpperCase())) {
+          nombreDirecto = sufijo;
+        }
       }
 
-      // Atajo o Fallback: si envía el comando REGISTRO: Juan Pérez
+      // Atajo directo: si envía el comando REGISTRO: Juan Pérez (nombre explícito en el mensaje)
       if (nombreDirecto) {
         const { error: errUpsert } = await supabase
           .from("registros_pendientes")
@@ -267,6 +273,10 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, action: "SOLICITUD_CREADA" });
       }
 
+      // Caso especial: el usuario viene desde la landing page con REGISTRO:NUEVO
+      // o cualquier otro comando de registro sin nombre — inicia flujo conversacional
+      const esMensajeDeRegistro = msgText.toUpperCase().startsWith(prefix);
+
       // Caso 1: Si no tiene ningún registro en registros_pendientes, lo creamos con nombre_completo nulo
       if (!registroPendiente) {
         const { error: errInsert } = await supabase
@@ -284,16 +294,19 @@ export default async function handler(req, res) {
         }
 
         await enviarMensaje(jid, phoneClean,
-          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\nVeo que tu número no está registrado en el sistema. Para enviar tu solicitud de registro al Administrador, por favor responde a este mensaje indicando tu *Nombre Completo*.`
+          `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. Por favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud al Administrador.`
         );
         return res.status(200).json({ success: true, message: "Instrucciones de registro enviadas" });
       }
 
       // Caso 2: Si el registro existe pero el nombre es nulo, el mensaje actual es su nombre completo
       if (!registroPendiente.nombre_completo) {
-        if (!msgText) {
-          await enviarMensaje(jid, phoneClean, `❌ Por favor, responde con un mensaje de texto indicando tu *Nombre Completo*.`);
-          return res.status(200).json({ success: true, message: "Esperando nombre en texto" });
+        // Si el mensaje es el trigger de registro (REGISTRO:NUEVO u otro prefijo reservado), pedir nombre
+        if (!msgText || esMensajeDeRegistro) {
+          await enviarMensaje(jid, phoneClean,
+            `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. Por favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud al Administrador.`
+          );
+          return res.status(200).json({ success: true, message: "Esperando nombre completo" });
         }
 
         const { error: errUpdate } = await supabase
