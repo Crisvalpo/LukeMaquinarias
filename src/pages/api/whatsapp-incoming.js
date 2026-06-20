@@ -366,11 +366,14 @@ export default async function handler(req, res) {
 
     // ================================================================
     // DESVÍO CONVERSACIONAL PARA SUPERVISORES / JEFES DE ÁREA
+    // Si el supervisor/jefe tiene sesión de jornada activa, sigue el
+    // flujo normal de operador (checkin audio, hitos, cierre).
+    // Solo se desvía a Gemini Admin cuando NO está en medio de una jornada.
     // ================================================================
     const esAdmin = personal && (personal.rol === "Supervisor" || personal.rol === "Jefe de Area");
     const msgUpper = (message || "").trim().toUpperCase();
 
-    if (esAdmin && !msgUpper.startsWith("REPORTE:")) {
+    if (esAdmin && !sesion && !msgUpper.startsWith("REPORTE:")) {
       console.log(`[whatsapp-incoming] 👑 Interacción de Administrador/Supervisor (${personal.nombre_completo})`);
 
       // 1. Cargar herramientas dinámicas desde Supabase (esquema maquinaria)
