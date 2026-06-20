@@ -1215,6 +1215,7 @@ export default function AdminMaquinaria() {
   const [editEquipo, setEditEquipo] = useState(null);
   const [filtroCategoria, setFiltroCategoria] = useState("TODAS");
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
+  const [searchMonitor, setSearchMonitor] = useState("");
   const [agruparPorProyecto, setAgruparPorProyecto] = useState(false);
   const pollRef = useRef(null);
 
@@ -1597,15 +1598,40 @@ export default function AdminMaquinaria() {
 
   const CATEGORIAS_MAESTRAS = ["TODAS", "GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
 
-  // Filtrado de equipos por categoría y estado
+  // Filtrado de equipos por categoría, estado y buscador de monitoreo
   const equiposFiltrados = equiposCompleto.data.filter(eq => {
     const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
     const cumpleEst = filtroEstado === "TODOS" || eq.estado_actual === filtroEstado;
-    return cumpleCat && cumpleEst;
+    
+    const query = searchMonitor.trim().toLowerCase();
+    const cumpleSearch = query === "" ||
+      (eq.codigo_interno || "").toLowerCase().includes(query) ||
+      (eq.descripcion_equipo || "").toLowerCase().includes(query) ||
+      (eq.marca || "").toLowerCase().includes(query) ||
+      (eq.modelo || "").toLowerCase().includes(query) ||
+      (eq.patente || "").toLowerCase().includes(query) ||
+      (eq.proveedor || "").toLowerCase().includes(query) ||
+      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query);
+
+    return cumpleCat && cumpleEst && cumpleSearch;
   });
 
-  // Equipos filtrados solo por categoría para mostrar contadores coherentes por categoría
-  const equiposPorCategoria = equiposCompleto.data.filter(eq => filtroCategoria === "TODAS" || eq.categoria === filtroCategoria);
+  // Equipos filtrados por categoría y buscador para mostrar contadores coherentes
+  const equiposPorCategoria = equiposCompleto.data.filter(eq => {
+    const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
+    
+    const query = searchMonitor.trim().toLowerCase();
+    const cumpleSearch = query === "" ||
+      (eq.codigo_interno || "").toLowerCase().includes(query) ||
+      (eq.descripcion_equipo || "").toLowerCase().includes(query) ||
+      (eq.marca || "").toLowerCase().includes(query) ||
+      (eq.modelo || "").toLowerCase().includes(query) ||
+      (eq.patente || "").toLowerCase().includes(query) ||
+      (eq.proveedor || "").toLowerCase().includes(query) ||
+      (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query);
+
+    return cumpleCat && cumpleSearch;
+  });
 
   const statsCounts = {
     "Equipo Operativo": equiposPorCategoria.filter(e => e.estado_actual === "Equipo Operativo").length,
@@ -1952,6 +1978,67 @@ export default function AdminMaquinaria() {
                   gap: "16px",
                 }}
               >
+                {/* Buscador de Monitoreo */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Buscar Equipo
+                  </div>
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <Search
+                      size={16}
+                      color="#94a3b8"
+                      style={{
+                        position: "absolute",
+                        left: "14px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Ingrese código, descripción, patente, marca, modelo o proyecto del equipo..."
+                      value={searchMonitor}
+                      onChange={e => setSearchMonitor(e.target.value)}
+                      style={{
+                        width: "100%",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        border: "1px solid #1c2e52",
+                        borderRadius: "10px",
+                        color: "white",
+                        padding: "11px 16px 11px 40px",
+                        fontSize: "13px",
+                        outline: "none",
+                        transition: "all 0.2s ease",
+                        boxSizing: "border-box",
+                      }}
+                      onFocus={e => e.target.style.borderColor = "#ff303e"}
+                      onBlur={e => e.target.style.borderColor = "#1c2e52"}
+                    />
+                    {searchMonitor && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchMonitor("")}
+                        style={{
+                          position: "absolute",
+                          right: "14px",
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: "#64748b",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          padding: "4px"
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Fila de Filtros de Categorías */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
