@@ -6,3 +6,5 @@ wa-bridge/node_modules/
 public/reportes/
 *.pdf
 *.log
+scratch/
+.agents/
