@@ -28,7 +28,13 @@ export default async function handler(req, res) {
       `)
       .eq("fecha", hoy);
 
-    const reportesMap = reportesHoy ? new Map(reportesHoy.map(r => [r.equipo_id, r])) : new Map();
+    const reportesMap = reportesHoy
+      ? new Map(
+          reportesHoy
+            .filter(r => r.horometro_final === null && r.km_final === null)
+            .map(r => [r.equipo_id, r])
+        )
+      : new Map();
 
     const mergeReporteHoy = (list) => {
       if (!list) return [];
