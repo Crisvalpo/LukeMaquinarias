@@ -100,7 +100,12 @@ export async function handleAdminFlow(ctx, res) {
       anio_fabricacion: "INTEGER",
       latitud_actual: "NUMERIC",
       longitud_actual: "NUMERIC",
-      ultima_ubicacion_fecha: "TIMESTAMP"
+      ultima_ubicacion_fecha: "TIMESTAMP",
+      combustible_nivel_porcentaje: "NUMERIC",
+      clasificacion_comercial: "TEXT",
+      arriendo_cliente: "TEXT",
+      arriendo_fecha_inicio: "DATE",
+      arriendo_fecha_fin: "DATE"
     },
     reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
     eventos_jornada: { id: "UUID", reporte_id: "UUID", estado_hito: "Trabajando | Disponible | En Colacion | Detenido por Falla", especialidad_id: "UUID", hora_evento: "TIMESTAMP", nota_transcripcion: "TEXT" },
@@ -132,10 +137,12 @@ Directrices de Comportamiento:
 9. NOTAS DE DATOS Y COLUMNAS:
    - El año de fabricación de los equipos y su antigüedad se consultan en el campo 'anio_fabricacion' (escrito con 'n', no con 'ñ'). Mapea siempre las preguntas sobre "año de fabricación" a la columna 'anio_fabricacion'.
    - La columna 'pauta_preventiva_activa' (TEXT) en la tabla 'equipos' almacena pautas de seguridad, inspecciones críticas o mantenimiento preventivo actualmente activas para cada equipo. Si el supervisor te solicita agregar una pauta de seguridad o revisión a un grupo de equipos (por ejemplo, "revisar las tuercas de las ruedas a todas las camionetas"), crea y ejecuta inmediatamente una herramienta dinámica que realice un UPDATE en la tabla 'equipos' para establecer 'pauta_preventiva_activa' con la pauta proporcionada en todos los equipos que correspondan (ej. WHERE categoria = 'VEHÍCULOS MENORES' o tipo = 'CAMIONETAS'). Confirma el éxito de la operación al supervisor una vez realizada.
+   - **NIVEL DE COMBUSTIBLE:** La columna 'combustible_nivel_porcentaje' (NUMERIC) en la tabla 'equipos' almacena el porcentaje de combustible del estanque (ej: 100, 80, 50, etc.). Si el supervisor te solicita registrar, actualizar o cambiar el nivel de combustible de un equipo (ej. 'Actualiza el combustible de caal-0002 esta al 100%'), crea y ejecuta inmediatamente una herramienta dinámica que actualice la columna 'combustible_nivel_porcentaje' al valor numérico indicado para dicho equipo (ej. WHERE codigo_interno = 'CAAL-0002'). Responde confirmando que el combustible ha sido actualizado al porcentaje indicado.
+   - **CONTROL DE ARRIENDOS:** Si te pregunta sobre a quién está arrendado un equipo o por cuánto tiempo, consulta las columnas 'arriendo_cliente' (TEXT), 'arriendo_fecha_inicio' (DATE) y 'arriendo_fecha_fin' (DATE) de la tabla 'equipos'. Si te solicita registrar o actualizar el arriendo (ej. 'Asigna el arriendo de CMPT-0015 al cliente Constructora Alfa desde hoy hasta fin de mes'), crea y ejecuta una herramienta que realice un UPDATE en estas columnas, asegurándote de cambiar la clasificación comercial ('clasificacion_comercial') a 'DISPONIBLE PARA ARRIENDO'.
 
 CRÍTICO - ESQUEMA DE BASE DE DATOS:
 Todas las tablas pertenecen al esquema 'maquinaria'.
-El cliente 'supabase' inyectado en tus herramientas ya está configurado internamente para usar el esquema 'maquinaria' por defecto. Por lo tanto, en tus códigos JavaScript debes consultar las tablas directamente sin prefijar el esquema (ej. escribe supabase.from("equipos") y NO supabase.from("maquinaria.equipos")).
+El cliente 'supabase' inyectado en tus herramientas ya está configurado internamente para usar el esquema 'maquinaria' por defecto. Por lo tanto, en tus códigos JavaScript debes consultar las tablas directamente sin prefijar el esquema (ej. escribe supabase.from("equipos") and NO supabase.from("maquinaria.equipos")).
 
 Usa este mapa de tablas para estructurar tus códigos de herramientas dinámicas:
 ${JSON.stringify(mapaDelMundo, null, 2)}
