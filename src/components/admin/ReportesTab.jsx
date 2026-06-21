@@ -461,11 +461,11 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => setEqSearch(e.target.value)}
                 style={{
                   width: "100%", padding: "10px 14px 10px 38px", borderRadius: "8px",
-                  background: "#121e36", border: "1px solid #1c2e52", color: "var(--color-text)", fontSize: "13px",
+                  background: "var(--bg-input)", border: "1px solid var(--border-input)", color: "var(--color-input-text)", fontSize: "13px",
                   outline: "none"
                 }}
               />
-              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
             </div>
           </div>
 
@@ -494,8 +494,8 @@ export default function ReportesTab({ hookProps }) {
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                         <div style={{
-                          background: "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)",
-                          color: "var(--color-text)", padding: "6px 12px", borderRadius: "6px",
+                          background: "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)",
+                          color: "white", padding: "6px 12px", borderRadius: "6px",
                           fontWeight: 800, fontSize: "13px", letterSpacing: "0.5px"
                         }}>
                           {eq.codigo_interno}
@@ -539,11 +539,11 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => setOpSearch(e.target.value)}
                 style={{
                   width: "100%", padding: "10px 14px 10px 38px", borderRadius: "8px",
-                  background: "#121e36", border: "1px solid #1c2e52", color: "var(--color-text)", fontSize: "13px",
+                  background: "var(--bg-input)", border: "1px solid var(--border-input)", color: "var(--color-input-text)", fontSize: "13px",
                   outline: "none"
                 }}
               />
-              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+              <Search size={14} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
             </div>
           </div>
 
