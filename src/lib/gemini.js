@@ -52,6 +52,13 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - "cierre", "terminamos", "fin de jornada", "horómetro final", "cerrando" → tipo_evento 'CIERRE'
    - Números hablados como horómetros: "dos mil trescientos" = 2300, "tres mil" = 3000
    - IMPORTANTE (Carga de Combustible): Frases como "sin combustible", "no cargué combustible", "sin petróleo", "sin carga" al referirse al cierre significan únicamente que los litros de combustible cargados son 0 (petroleo_litros = 0). NUNCA interpretes estas frases como una falla del equipo o como estado "Detenido por Falla". Solo marca falla ('es_falla_critica: true' o estado 'Detenido por Falla') si el operador reporta una avería mecánica, pana, rotura o desperfecto físico.
+   - Mapeo de Nivel de Combustible: Mapea frases sobre el nivel o porcentaje del estanque de combustible a un valor numérico entero en el campo 'combustible_nivel_porcentaje':
+      * "Estanque lleno" / "A full" / "Tanque completo" / "lleno" / "100%" -> 100
+      * "Tres cuartos" / "3/4" / "75%" -> 75
+      * "Medio estanque" / "A la mitad" / "1/2" / "50%" -> 50
+      * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
+      * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
+      Si no se menciona el nivel de combustible, ponlo como null.
    - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
 6. Regla de Pauta Preventiva (pauta_del_dia):
    - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona 'pauta_del_dia' en el contexto. El operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
@@ -66,6 +73,7 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
   "especialidad_detectada": "Nombre_oficial_o_null",
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
+  "combustible_nivel_porcentaje": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
@@ -151,14 +159,21 @@ Reglas:
 - Extrae horómetro_final en cierre
 - Detecta: "colación" → 'En Colacion', "disponible/esperando" → 'Disponible', "falla/problema" → 'Detenido por Falla' (solo si reporta avería/pana, no por decir 'sin carga de combustible'), "cerrando/fin" → 'CIERRE'
 - IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla o estado 'Detenido por Falla'.
+- Mapeo de Nivel de Combustible: Mapea frases sobre el nivel o porcentaje del estanque de combustible a un valor numérico entero en el campo 'combustible_nivel_porcentaje':
+  * "Estanque lleno" / "A full" / "Tanque completo" / "lleno" / "100%" -> 100
+  * "Tres cuartos" / "3/4" / "75%" -> 75
+  * "Medio estanque" / "A la mitad" / "1/2" / "50%" -> 50
+  * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
+  * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
+  Si no se menciona el nivel de combustible, ponlo como null.
 - NO preguntes por especialidad ni Rigger jamás
 - Tono formal y respetuoso, sin "compadre"
 - Si no declara horómetro en check-in, pregúntalo de forma directa
 - Regla de Pauta Preventiva (pauta_del_dia):
   - Si se proporciona pauta preventiva para hoy, verifica si el conductor confirma haber cumplido, revisado o realizado la inspección de la pauta.
-  - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
-  - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
-  - Si no hay pauta preventiva, establece 'pauta_confirmada' en true.
+  - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' in true.
+  - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' in false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
+  - Si no hay pauta preventiva, establece 'pauta_confirmada' in true.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -167,6 +182,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "especialidad_detectada": null,
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
+  "combustible_nivel_porcentaje": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": false,
@@ -190,6 +206,13 @@ Reglas de Mapeo Semántico ESTRICTAS:
 - "fierreros", "montadores", "estructuras" → 'Estructuras'
 - "colación" → 'En Colacion' | "disponible/esperando" → 'Disponible' | "falla" → 'Detenido por Falla' (solo por pana o avería física, no por decir 'sin carga de combustible') | "cierre/fin" → 'CIERRE'
 - IMPORTANTE: Frases como "sin combustible", "no cargué combustible", "sin petróleo" o "sin carga" al referirse al cierre significan petroleo_litros = 0. NUNCA las interpretes como falla o estado 'Detenido por Falla'.
+- Mapeo de Nivel de Combustible: Mapea frases sobre el nivel o porcentaje del estanque de combustible a un valor numérico entero en el campo 'combustible_nivel_porcentaje':
+  * "Estanque lleno" / "A full" / "Tanque completo" / "lleno" / "100%" -> 100
+  * "Tres cuartos" / "3/4" / "75%" -> 75
+  * "Medio estanque" / "A la mitad" / "1/2" / "50%" -> 50
+  * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
+  * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
+  Si no se menciona el nivel de combustible, ponlo como null.
 - Números hablados: "dos mil trescientos" = 2300
 - Regla de Pauta Preventiva (pauta_del_dia):
   - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
@@ -212,6 +235,7 @@ Esquema de retorno:
   "especialidad_detectada": "Nombre_o_null",
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
+  "combustible_nivel_porcentaje": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
@@ -296,6 +320,13 @@ Reglas de extracción:
 - "disponible" → estado 'Disponible'
 - "falla/problema/accidente" → estado 'Detenido por Falla' (solo por desperfectos, no por decir 'sin carga de combustible')
 - IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla.
+- Mapeo de Nivel de Combustible: Mapea frases sobre el nivel o porcentaje del estanque de combustible a un valor numérico entero en el campo 'combustible_nivel_porcentaje':
+  * "Estanque lleno" / "A full" / "Tanque completo" / "lleno" / "100%" -> 100
+  * "Tres cuartos" / "3/4" / "75%" -> 75
+  * "Medio estanque" / "A la mitad" / "1/2" / "50%" -> 50
+  * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
+  * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
+  Si no se menciona el nivel de combustible, ponlo como null.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
@@ -311,6 +342,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "km_inicial": numero_o_null,
   "km_final": numero_o_null,
   "destino_ruta": "texto_o_null",
+  "combustible_nivel_porcentaje": numero_o_null,
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
   "pauta_confirmada": true_o_false,
@@ -382,6 +414,13 @@ Reglas de extracción:
 - "disponible" → estado 'Disponible'
 - "falla/problema/accidente" → estado 'Detenido por Falla' (solo por desperfectos, no por decir 'sin carga de combustible')
 - IMPORTANTE: Frases como "sin combustible", "no cargué combustible" o "sin carga" significan petroleo_litros = 0. NUNCA las interpretes como falla.
+- Mapeo de Nivel de Combustible: Mapea frases sobre el nivel o porcentaje del estanque de combustible a un valor numérico entero en el campo 'combustible_nivel_porcentaje':
+  * "Estanque lleno" / "A full" / "Tanque completo" / "lleno" / "100%" -> 100
+  * "Tres cuartos" / "3/4" / "75%" -> 75
+  * "Medio estanque" / "A la mitad" / "1/2" / "50%" -> 50
+  * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
+  * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
+  Si no se menciona el nivel de combustible, ponlo como null.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
@@ -397,6 +436,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "km_inicial": numero_o_null,
   "km_final": numero_o_null,
   "destino_ruta": "texto_o_null",
+  "combustible_nivel_porcentaje": numero_o_null,
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
   "pauta_confirmada": true_o_false,

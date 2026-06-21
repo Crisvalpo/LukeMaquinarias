@@ -150,6 +150,43 @@ export default function EquipoCard({ equipo, onPautaClick }) {
         );
       })()}
 
+      {/* Indicador de Combustible */}
+      {(() => {
+        const nivel = equipo.reporte_hoy?.combustible_nivel_porcentaje;
+        if (nivel === undefined || nivel === null) return null;
+
+        const esCritico = nivel <= 25;
+        const colorCombustible = nivel >= 50 
+          ? "#22c55e" 
+          : nivel > 25 
+            ? "#eab308" 
+            : "#ef4444";
+
+        return (
+          <div style={{ marginBottom: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <span style={{ color: "#64748b", fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>NIVEL ESTANQUE</span>
+              <span style={{ color: esCritico ? "#f87171" : "white", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
+                {esCritico && <span className="animate-pulse-fuel" style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#ef4444" }} />}
+                {nivel}%
+              </span>
+            </div>
+            <div style={{ width: "100%", height: "6px", background: "#0f172a", borderRadius: "3px", overflow: "hidden", border: "1px solid #1c2e52" }}>
+              <div
+                className={esCritico ? "animate-pulse-fuel" : ""}
+                style={{
+                  width: `${nivel}%`,
+                  height: "100%",
+                  background: colorCombustible,
+                  boxShadow: esCritico ? `0 0 8px ${colorCombustible}` : "none",
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Pauta activa */}
       {equipo.pauta_preventiva_activa && (
         <div

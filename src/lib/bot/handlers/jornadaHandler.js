@@ -356,7 +356,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, equipos(id, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+    .select("equipo_id, horometro_inicio, km_inicial, supervisor_id, equipos(id, codigo_interno, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
@@ -501,10 +501,13 @@ export async function handleJornadaFlow(ctx, res) {
     especialidad_id: resultado.especialidad_id || null,
     hora_evento: new Date().toISOString(),
     nota_transcripcion: resultado.detalles_texto || "",
+    ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
+      combustible_nivel_momento: resultado.combustible_nivel_porcentaje
+    })
   });
 
   // Actualizar combustible si se mencionó
-  if (resultado.petroleo_litros || resultado.horometro_carga_combustible) {
+  if (resultado.petroleo_litros || resultado.horometro_carga_combustible || (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined)) {
     await supabase
       .from("reportes_diarios")
       .update({
@@ -512,6 +515,9 @@ export async function handleJornadaFlow(ctx, res) {
         ...(resultado.horometro_carga_combustible && {
           horometro_carga_combustible: resultado.horometro_carga_combustible,
         }),
+        ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
+          combustible_nivel_porcentaje: resultado.combustible_nivel_porcentaje
+        })
       })
       .eq("id", sesion.reporte_activo_id);
 
@@ -519,6 +525,26 @@ export async function handleJornadaFlow(ctx, res) {
       await supabase.from("equipos")
         .update({ ultimo_horometro: resultado.horometro_carga_combustible })
         .eq("id", reporteActual.equipo_id);
+    }
+  }
+
+  // Lógica de alertas de combustible crítico por autonomía
+  const nivelCombustible = resultado.combustible_nivel_porcentaje;
+  if (nivelCombustible !== null && nivelCombustible !== undefined) {
+    if (tipoSeguimiento !== 'vehiculo' && nivelCombustible <= 25) {
+      if (reporteActual?.supervisor_id) {
+        await notificarSupervisor(
+          supabase,
+          reporteActual.supervisor_id,
+          `⚠️ *ALERTA DE SUMINISTRO*:\nEl equipo crítico *${reporteActual.equipos?.codigo_interno || '—'}* reporta un nivel de combustible del *${nivelCombustible}%*. Requiere reabastecimiento en frente de trabajo. 📍 Coordenadas listas.`
+        );
+      }
+    } else if (tipoSeguimiento === 'vehiculo' && nivelCombustible <= 50) {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `💡 *Recordatorio de Turno*: Detectamos que el estanque de la camioneta va en *${nivelCombustible}%*. Recuerda pasar por el patio de combustibles central o servicentro autorizado antes de entregar el vehículo al relevo. ¡Gracias!`,
+        !!audio,
+        geminiKey
+      );
     }
   }
 

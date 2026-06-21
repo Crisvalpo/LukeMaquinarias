@@ -17,6 +17,8 @@ export default function ConsoleTab({ hookProps }) {
     setSearchMonitor,
     agruparPorProyecto,
     setAgruparPorProyecto,
+    soloCombustibleCritico,
+    setSoloCombustibleCritico,
     statsCounts,
     gruposProyectos,
     pautaEquipo,
@@ -223,8 +225,44 @@ export default function ConsoleTab({ hookProps }) {
             </div>
           </div>
 
-          {/* Toggle Agrupamiento */}
+          {/* Toggle Combustible Crítico y Toggle Agrupamiento */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={() => setSoloCombustibleCritico(!soloCombustibleCritico)}
+              style={{
+                padding: "10px 16px",
+                borderRadius: "10px",
+                border: soloCombustibleCritico ? "1px solid #ef4444" : "1px solid #1c2e52",
+                background: soloCombustibleCritico ? "rgba(239, 68, 68, 0.15)" : "rgba(15, 23, 42, 0.4)",
+                color: soloCombustibleCritico ? "#ef4444" : "#94a3b8",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.2s ease",
+                boxShadow: soloCombustibleCritico ? "0 4px 12px rgba(239, 68, 68, 0.15)" : "none",
+              }}
+              onMouseEnter={e => {
+                if (!soloCombustibleCritico) {
+                  e.currentTarget.style.borderColor = "#ef4444";
+                  e.currentTarget.style.color = "#ef4444";
+                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.05)";
+                }
+              }}
+              onMouseLeave={e => {
+                if (!soloCombustibleCritico) {
+                  e.currentTarget.style.borderColor = "#1c2e52";
+                  e.currentTarget.style.color = "#94a3b8";
+                  e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                }
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 22V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14M11 22v-6M19 14h3M19 18h2.5M19 10H14"/></svg>
+              <span>{soloCombustibleCritico ? "Combustible Crítico Activo" : "Solo Combustible Crítico"}</span>
+            </button>
+
             <button
               onClick={() => setAgruparPorProyecto(!agruparPorProyecto)}
               style={{

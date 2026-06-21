@@ -68,8 +68,13 @@ export async function handleCheckinFlow(ctx, res) {
     }
 
     // Guardar valores acumulados en la base de datos
+    const updateCheckinVeh = { km_inicial: kmInicial, destino_ruta: destinoRuta };
+    if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+      updateCheckinVeh.combustible_inicio_porcentaje = resultado.combustible_nivel_porcentaje;
+      updateCheckinVeh.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+    }
     await supabase.from("reportes_diarios")
-      .update({ km_inicial: kmInicial, destino_ruta: destinoRuta })
+      .update(updateCheckinVeh)
       .eq("id", sesion.reporte_activo_id);
 
     if (kmInicial) {
@@ -160,8 +165,13 @@ export async function handleCheckinFlow(ctx, res) {
 
   // Guardar el horómetro inicial acumulado
   const horometroInicio = resultado.horometro_inicial || reporteCheckin?.horometro_inicio || 0;
+  const updateCheckinStandard = { horometro_inicio: horometroInicio };
+  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+    updateCheckinStandard.combustible_inicio_porcentaje = resultado.combustible_nivel_porcentaje;
+    updateCheckinStandard.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  }
   await supabase.from("reportes_diarios")
-    .update({ horometro_inicio: horometroInicio })
+    .update(updateCheckinStandard)
     .eq("id", sesion.reporte_activo_id);
 
   if (horometroInicio) {
@@ -187,7 +197,7 @@ export async function handleCheckinFlow(ctx, res) {
 
   // Aseguramos que guarde el horómetro correcto
   await supabase.from("reportes_diarios")
-    .update({ horometro_inicio: horometroInicio })
+    .update(updateCheckinStandard)
     .eq("id", sesion.reporte_activo_id);
 
   const estadoInicialDinamico = (resultado.tipo_evento && resultado.tipo_evento !== "CHECKIN")

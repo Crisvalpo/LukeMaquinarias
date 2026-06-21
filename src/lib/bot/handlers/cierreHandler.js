@@ -25,6 +25,10 @@ export async function handleCierreFlow(ctx, res) {
   if (resultado.petroleo_litros) updateData.petroleo_litros = resultado.petroleo_litros;
   if (resultado.horometro_carga_combustible)
     updateData.horometro_carga_combustible = resultado.horometro_carga_combustible;
+  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+    updateData.combustible_final_porcentaje = resultado.combustible_nivel_porcentaje;
+    updateData.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  }
 
   await supabase
     .from("reportes_diarios")

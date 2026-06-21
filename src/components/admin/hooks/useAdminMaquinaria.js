@@ -85,6 +85,7 @@ export function useAdminMaquinaria() {
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
   const [searchMonitor, setSearchMonitor] = useState("");
   const [agruparPorProyecto, setAgruparPorProyecto] = useState(false);
+  const [soloCombustibleCritico, setSoloCombustibleCritico] = useState(false);
   const pollRef = useRef(null);
 
   // APIs y Datos
@@ -354,6 +355,22 @@ export function useAdminMaquinaria() {
     const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
     const cumpleEst = filtroEstado === "TODOS" || eq.estado_actual === filtroEstado;
     
+    // Filtro de combustible crítico
+    let cumpleCombustible = true;
+    if (soloCombustibleCritico) {
+      const nivel = eq.reporte_hoy?.combustible_nivel_porcentaje;
+      if (nivel === null || nivel === undefined) {
+        cumpleCombustible = false;
+      } else {
+        const esVehiculo = eq.tipo_seguimiento === 'vehiculo';
+        if (esVehiculo) {
+          cumpleCombustible = nivel <= 50;
+        } else {
+          cumpleCombustible = nivel <= 25;
+        }
+      }
+    }
+    
     const query = searchMonitor.trim().toLowerCase();
     const cumpleSearch = query === "" ||
       (eq.codigo_interno || "").toLowerCase().includes(query) ||
@@ -367,7 +384,7 @@ export function useAdminMaquinaria() {
       (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
 
-    return cumpleCat && cumpleEst && cumpleSearch;
+    return cumpleCat && cumpleEst && cumpleSearch && cumpleCombustible;
   });
 
   const equiposPorCategoria = equiposCompleto.data.filter(eq => {
@@ -431,6 +448,8 @@ export function useAdminMaquinaria() {
     setSearchMonitor,
     agruparPorProyecto,
     setAgruparPorProyecto,
+    soloCombustibleCritico,
+    setSoloCombustibleCritico,
 
     // APIs
     equiposCompleto,

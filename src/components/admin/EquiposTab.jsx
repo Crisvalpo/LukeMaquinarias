@@ -595,7 +595,7 @@ export default function EquiposTab({ hookProps }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #1c2e52" }}>
-              {["Código", "Descripción", "Proveedor", "Proyecto", "Estado", "Acciones"].map(h => (
+              {["Código", "Descripción", "Proveedor", "Proyecto", "Estado", "Combustible", "Acciones"].map(h => (
                 <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
@@ -613,6 +613,30 @@ export default function EquiposTab({ hookProps }) {
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                       {cfg.label}
                     </span>
+                  </td>
+                  <td style={{ padding: "12px 16px" }}>
+                    {(() => {
+                      const nivel = eq.reporte_hoy?.combustible_nivel_porcentaje;
+                      if (nivel === undefined || nivel === null) return <span style={{ color: "#475569", fontSize: "12px" }}>—</span>;
+                      
+                      const esCritico = nivel <= 25;
+                      const colorCombustible = nivel >= 50 ? "#22c55e" : nivel > 25 ? "#eab308" : "#ef4444";
+                      
+                      return (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "120px" }}>
+                          <div style={{ flex: 1, height: "6px", background: "#0f172a", borderRadius: "3px", overflow: "hidden", border: "1px solid #1c2e52" }}>
+                            <div className={esCritico ? "animate-pulse-fuel" : ""} style={{
+                              width: `${nivel}%`,
+                              height: "100%",
+                              background: colorCombustible,
+                              boxShadow: esCritico ? `0 0 6px ${colorCombustible}` : "none",
+                              transition: "width 0.3s ease",
+                            }} />
+                          </div>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: esCritico ? "#ef4444" : "#94a3b8" }}>{nivel}%</span>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>
                     <button
