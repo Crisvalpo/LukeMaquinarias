@@ -287,6 +287,121 @@ export default function Home({ equipos }) {
           </div>
         </section>
 
+        {/* EMISA CONNECT: VALOR AGREGADO DIGITAL (SAAS HÍBRIDO) */}
+        <section style={{
+          position: "relative", zIndex: 10,
+          background: "radial-gradient(circle at center, #0f172a 0%, #070b13 100%)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
+          padding: "80px 24px"
+        }}>
+          {/* Orbe decorativo */}
+          <div style={{
+            position: "absolute", top: "50%", left: "50%", transform: "translate( -50%, -50% )",
+            width: "350px", height: "350px", background: "rgba(37, 99, 235, 0.05)",
+            borderRadius: "50%", filter: "blur(80px)", pointerEvents: "none"
+          }} />
+
+          <div style={{ maxWidth: "1200px", margin: "0 auto", position: "relative", zIndex: 10 }}>
+            <div style={{ textAlign: "center", marginBottom: "48px" }}>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: "6px",
+                background: "rgba(37, 99, 235, 0.08)",
+                border: "1px solid rgba(37, 99, 235, 0.2)",
+                borderRadius: "100px", padding: "6px 14px",
+                color: "#60a5fa", fontSize: "11px", fontWeight: 700,
+                textTransform: "uppercase", letterSpacing: "1px",
+                marginBottom: "16px"
+              }}>
+                ⚡ Ecosistema Tecnológico
+              </div>
+              <h2 style={{ fontSize: "32px", fontWeight: 800, marginBottom: "14px" }}>
+                EMISA Connect: El Kit Digital Incluido
+              </h2>
+              <p style={{ color: "#94a3b8", fontSize: "15px", maxWidth: "680px", margin: "0 auto", lineHeight: 1.6 }}>
+                Pasamos del arriendo físico de maquinaria a un modelo de operación inteligente. Cada equipo que arrienda con nosotros viene equipado con un software de control listo para optimizar sus costos en faena.
+              </p>
+            </div>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+              gap: "24px"
+            }}>
+              {/* Feature 1: Asistente Bot */}
+              <div style={{
+                background: "rgba(18, 30, 54, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                borderRadius: "16px", padding: "32px",
+                backdropFilter: "blur(12px)",
+                transition: "all 0.3s ease"
+              }} className="tech-card">
+                <div style={{
+                  width: "40px", height: "40px", borderRadius: "8px",
+                  background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#10b981", marginBottom: "20px"
+                }}>
+                  <MessageSquare size={18} />
+                </div>
+                <h3 style={{ fontSize: "17px", fontWeight: 700, marginBottom: "10px", color: "white" }}>
+                  Asistente Virtual por WhatsApp
+                </h3>
+                <p style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
+                  Sus operadores pueden reportar inicios y términos de jornada en segundos. Soporta reconocimiento de mensajes de voz y transcripción automática por inteligencia artificial para registrar horómetros en terreno.
+                </p>
+              </div>
+
+              {/* Feature 2: Portal Clientes */}
+              <div style={{
+                background: "rgba(18, 30, 54, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                borderRadius: "16px", padding: "32px",
+                backdropFilter: "blur(12px)",
+                transition: "all 0.3s ease"
+              }} className="tech-card">
+                <div style={{
+                  width: "40px", height: "40px", borderRadius: "8px",
+                  background: "rgba(255, 48, 62, 0.08)", border: "1px solid rgba(255, 48, 62, 0.15)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#ff303e", marginBottom: "20px"
+                }}>
+                  <Clock size={18} />
+                </div>
+                <h3 style={{ fontSize: "17px", fontWeight: 700, marginBottom: "10px", color: "white" }}>
+                  Monitoreo y RLS Multitenant
+                </h3>
+                <p style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
+                  Le entregamos credenciales de acceso a nuestro portal para que controle únicamente su flota arrendada. Vea la geolocalización en mapa, los reportes PDF de pautas de seguridad y la asistencia consolidada desde su oficina.
+                </p>
+              </div>
+
+              {/* Feature 3: Combustible */}
+              <div style={{
+                background: "rgba(18, 30, 54, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                borderRadius: "16px", padding: "32px",
+                backdropFilter: "blur(12px)",
+                transition: "all 0.3s ease"
+              }} className="tech-card">
+                <div style={{
+                  width: "40px", height: "40px", borderRadius: "8px",
+                  background: "rgba(37, 99, 235, 0.08)", border: "1px solid rgba(37, 99, 235, 0.15)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#38bdf8", marginBottom: "20px"
+                }}>
+                  <Wrench size={18} />
+                </div>
+                <h3 style={{ fontSize: "17px", fontWeight: 700, marginBottom: "10px", color: "white" }}>
+                  Control de Telemetría
+                </h3>
+                <p style={{ color: "#64748b", fontSize: "13px", lineHeight: 1.6, margin: 0 }}>
+                  Historial de niveles de combustible digitalizados, evitando mermas o desvíos en obra. Nuestra plataforma segmenta y avisa de consumos críticos para planificar el camión aljibe antes de detener la producción.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* CATALOG / INVENTORY SECTION */}
         <section id="catalogo" style={{
           position: "relative", zIndex: 10,
