@@ -325,7 +325,8 @@ export default function Home({ equipos }) {
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-              gap: "24px"
+              gap: "24px",
+              marginBottom: "56px"
             }}>
               {/* Feature 1: Asistente Bot */}
               <div style={{
@@ -333,13 +334,14 @@ export default function Home({ equipos }) {
                 border: "1px solid rgba(255, 255, 255, 0.05)",
                 borderRadius: "16px", padding: "32px",
                 backdropFilter: "blur(12px)",
-                transition: "all 0.3s ease"
-              }} className="tech-card">
-                <div style={{
+                transition: "all 0.3s ease",
+                cursor: "pointer"
+              }} className="tech-card wa">
+                <div className="icon-wrapper" style={{
                   width: "40px", height: "40px", borderRadius: "8px",
                   background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#10b981", marginBottom: "20px"
+                  color: "#10b981", marginBottom: "20px", transition: "all 0.3s"
                 }}>
                   <MessageSquare size={18} />
                 </div>
@@ -357,13 +359,14 @@ export default function Home({ equipos }) {
                 border: "1px solid rgba(255, 255, 255, 0.05)",
                 borderRadius: "16px", padding: "32px",
                 backdropFilter: "blur(12px)",
-                transition: "all 0.3s ease"
-              }} className="tech-card">
-                <div style={{
+                transition: "all 0.3s ease",
+                cursor: "pointer"
+              }} className="tech-card mon">
+                <div className="icon-wrapper" style={{
                   width: "40px", height: "40px", borderRadius: "8px",
                   background: "rgba(255, 48, 62, 0.08)", border: "1px solid rgba(255, 48, 62, 0.15)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#ff303e", marginBottom: "20px"
+                  color: "#ff303e", marginBottom: "20px", transition: "all 0.3s"
                 }}>
                   <Clock size={18} />
                 </div>
@@ -381,13 +384,14 @@ export default function Home({ equipos }) {
                 border: "1px solid rgba(255, 255, 255, 0.05)",
                 borderRadius: "16px", padding: "32px",
                 backdropFilter: "blur(12px)",
-                transition: "all 0.3s ease"
-              }} className="tech-card">
-                <div style={{
+                transition: "all 0.3s ease",
+                cursor: "pointer"
+              }} className="tech-card fuel">
+                <div className="icon-wrapper" style={{
                   width: "40px", height: "40px", borderRadius: "8px",
                   background: "rgba(37, 99, 235, 0.08)", border: "1px solid rgba(37, 99, 235, 0.15)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#38bdf8", marginBottom: "20px"
+                  color: "#38bdf8", marginBottom: "20px", transition: "all 0.3s"
                 }}>
                   <Wrench size={18} />
                 </div>
@@ -398,6 +402,213 @@ export default function Home({ equipos }) {
                   Historial de niveles de combustible digitalizados, evitando mermas o desvíos en obra. Nuestra plataforma segmenta y avisa de consumos críticos para planificar el camión aljibe antes de detener la producción.
                 </p>
               </div>
+            </div>
+
+            {/* DEMO/SIMULADOR INTERACTIVO */}
+            <div style={{
+              background: "#090f1d",
+              border: "1px solid rgba(255, 255, 255, 0.06)",
+              borderRadius: "20px",
+              padding: "36px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+            }} className="sim-container">
+              <div style={{ textAlign: "center", marginBottom: "28px" }}>
+                <h3 style={{ fontSize: "20px", fontWeight: 800, color: "white", marginBottom: "6px" }}>
+                  🕹️ Demostración Interactiva del Flujo Digital
+                </h3>
+                <p style={{ color: "#64748b", fontSize: "13px", margin: 0 }}>
+                  Selecciona uno de los escenarios operativos para ver cómo interactúa el operador y el administrador.
+                </p>
+              </div>
+
+              {/* Botones de escenario */}
+              <div style={{
+                display: "flex", justifyContent: "center", gap: "12px",
+                flexWrap: "wrap", marginBottom: "32px"
+              }}>
+                {[
+                  { id: "audio", label: "🎙️ Registro de Horómetro por Voz", color: "#10b981", activeBg: "rgba(16, 185, 129, 0.15)" },
+                  { id: "pauta", label: "📋 Validación de Pauta de Seguridad", color: "#ff303e", activeBg: "rgba(255, 48, 62, 0.15)" },
+                  { id: "combustible", label: "⛽ Alerta de Repostaje Combustible", color: "#38bdf8", activeBg: "rgba(56, 189, 248, 0.15)" }
+                ].map(sc => {
+                  const active = activeTab === sc.id || (activeTab === "ARRIENDO" && sc.id === "audio") || (activeTab === "VENTA" && sc.id === "combustible");
+                  return (
+                    <button
+                      key={sc.id}
+                      onClick={() => setActiveTab(sc.id)}
+                      style={{
+                        background: active ? sc.activeBg : "rgba(255,255,255,0.02)",
+                        border: `1px solid ${active ? sc.color : "rgba(255,255,255,0.05)"}`,
+                        color: active ? "white" : "#64748b",
+                        borderRadius: "8px", padding: "10px 18px",
+                        fontSize: "12px", fontWeight: 700, cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                      onMouseEnter={e => { if(!active) e.currentTarget.style.color = "white"; }}
+                      onMouseLeave={e => { if(!active) e.currentTarget.style.color = "#64748b"; }}
+                    >
+                      {sc.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Contenedor Simulación (Teléfono + Dashboard) */}
+              {(() => {
+                // Si la pestaña principal es "ARRIENDO" o "VENTA", fijar "audio" como escenario inicial de la simulación
+                const currentSim = (activeTab === "ARRIENDO" || activeTab === "VENTA") ? "audio" : activeTab;
+                
+                return (
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                    gap: "28px"
+                  }}>
+                    {/* Panel Izquierdo: Teléfono del Operario */}
+                    <div style={{
+                      background: "#0c1322",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: "16px",
+                      padding: "20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      minHeight: "300px",
+                      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.8)"
+                    }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "10px", marginBottom: "16px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", letterSpacing: "1px", textTransform: "uppercase" }}>💬 WhatsApp de Obra</span>
+                          <span style={{ fontSize: "10px", color: "#475569" }}>En Línea</span>
+                        </div>
+
+                        {/* Mensajes del Chat */}
+                        {currentSim === "audio" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            <div style={{ alignSelf: "flex-end", background: "#056162", color: "white", padding: "10px 14px", borderRadius: "10px 10px 0 10px", fontSize: "12px", maxWidth: "80%" }}>
+                              <div>🎙️ <b>[Audio 6 seg]</b></div>
+                              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.7)", marginTop: "4px", display: "block" }}>"Iniciando turno en excavadora CAT0387 con 12450 horas"</span>
+                            </div>
+                            <div style={{ alignSelf: "flex-start", background: "#202c33", color: "white", padding: "10px 14px", borderRadius: "10px 10px 10px 0", fontSize: "12px", maxWidth: "80%" }}>
+                              <b>🤖 Asistente EMISA:</b>
+                              <div style={{ marginTop: "4px" }}>
+                                Entendido, Juan. Registré inicio de turno para <b>Excavadora CAT-0387</b> con <b>12,450.0 hrs</b>. ¡Buen turno!
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentSim === "pauta" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            <div style={{ alignSelf: "flex-start", background: "#202c33", color: "white", padding: "10px 14px", borderRadius: "10px 10px 10px 0", fontSize: "12px", maxWidth: "80%" }}>
+                              <b>🤖 Asistente EMISA:</b>
+                              <div style={{ marginTop: "4px" }}>
+                                Para iniciar en <b>CMPT-0015</b> confirma la pauta de hoy: <i>"Verificar fugas de aire e inspección de filtros"</i>. ¿Conforme?
+                              </div>
+                            </div>
+                            <div style={{ alignSelf: "flex-end", background: "#056162", color: "white", padding: "10px 14px", borderRadius: "10px 10px 0 10px", fontSize: "12px", maxWidth: "80%" }}>
+                              Sí, revisado y conforme.
+                            </div>
+                            <div style={{ alignSelf: "flex-start", background: "#202c33", color: "white", padding: "10px 14px", borderRadius: "10px 10px 10px 0", fontSize: "12px", maxWidth: "80%" }}>
+                              <b>🤖 Asistente EMISA:</b>
+                              <div style={{ marginTop: "4px" }}>
+                                ✅ Pauta registrada con éxito. Turno habilitado.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentSim === "combustible" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                            <div style={{ alignSelf: "flex-start", background: "#202c33", color: "white", padding: "10px 14px", borderRadius: "10px 10px 10px 0", fontSize: "12px", maxWidth: "80%" }}>
+                              <b>🤖 Asistente EMISA:</b>
+                              <div style={{ marginTop: "4px" }}>
+                                ⛽ Cristian reportó término de turno para <b>CAPL-0021</b> con <b>15% de Combustible</b>.
+                              </div>
+                            </div>
+                            <div style={{ alignSelf: "flex-start", background: "#202c33", color: "white", padding: "10px 14px", borderRadius: "10px 10px 10px 0", fontSize: "12px", maxWidth: "80%" }}>
+                              <b>🤖 Alerta Logística:</b>
+                              <div style={{ marginTop: "4px" }}>
+                                ⚠️ Nivel crítico. Sugerimos despachar camión aljibe <b>CAAL-0003</b> a Faena Collahuasi.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ color: "#334155", fontSize: "10px", textAlign: "center", marginTop: "14px" }}>
+                        Pantalla del Operador
+                      </div>
+                    </div>
+
+                    {/* Panel Derecho: SaaS Portal del Cliente */}
+                    <div style={{
+                      background: "#0c1322",
+                      border: "1px solid rgba(255,255,255,0.04)",
+                      borderRadius: "16px",
+                      padding: "20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      minHeight: "300px",
+                      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.8)"
+                    }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "10px", marginBottom: "16px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: "#38bdf8", letterSpacing: "1px", textTransform: "uppercase" }}>💻 Portal Cliente EMISA</span>
+                          <span style={{ fontSize: "10px", color: "#10b981", fontWeight: 700 }}>● Activo</span>
+                        </div>
+
+                        {/* Contenido del Dashboard */}
+                        {currentSim === "audio" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            <div style={{ background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.2)", borderRadius: "8px", padding: "12px" }}>
+                              <div style={{ color: "#10b981", fontSize: "10px", fontWeight: 700 }}>NUEVO INGRESO REGISTRADO</div>
+                              <div style={{ color: "white", fontSize: "14px", fontWeight: 700, marginTop: "4px" }}>CAT-0387 — Excavadora Oruga</div>
+                              <div style={{ color: "#cbd5e1", fontSize: "11px", marginTop: "4px" }}>Operador: <b>Juan Pérez</b></div>
+                              <div style={{ color: "#cbd5e1", fontSize: "11px" }}>Horómetro Inicial: <b>12.450,0 hrs</b></div>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#64748b", padding: "0 6px" }}>
+                              <span>Ubicación: CC-0389 ENAP</span>
+                              <span>Hace un momento</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentSim === "pauta" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", padding: "12px" }}>
+                              <div style={{ color: "#94a3b8", fontSize: "10px", fontWeight: 700 }}>HISTORIAL DE PAUTAS DE SEGURIDAD</div>
+                              <div style={{ color: "white", fontSize: "14px", fontWeight: 700, marginTop: "4px" }}>CMPT-0015 — Compresor Atlas</div>
+                              <div style={{ color: "#10b981", fontSize: "11px", fontWeight: 600, marginTop: "6px" }}>✓ Pauta diaria: Conforme</div>
+                              <div style={{ color: "#64748b", fontSize: "10px", marginTop: "2px" }}>"Verificar fugas de aire e inspección de filtros"</div>
+                            </div>
+                            <div style={{ fontSize: "10px", color: "#475569", padding: "0 6px" }}>
+                              Firmado digitalmente por: <b>Carlos Silva (RUT: 14.887.654-2)</b>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentSim === "combustible" && (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            <div style={{ background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.2)", borderRadius: "8px", padding: "12px" }}>
+                              <div style={{ color: "#ef4444", fontSize: "10px", fontWeight: 700 }}>⚠️ ALERTA DE LOGÍSTICA CRÍTICA</div>
+                              <div style={{ color: "white", fontSize: "14px", fontWeight: 700, marginTop: "4px" }}>CAPL-0021 — Camión Pluma</div>
+                              <div style={{ color: "#fca5a5", fontSize: "11px", marginTop: "4px" }}>Combustible Restante: <b>15%</b></div>
+                              <div style={{ color: "#cbd5e1", fontSize: "11px", marginTop: "2px" }}>Proyecto: <b>CC-0389 K484 ENAP</b></div>
+                            </div>
+                            <div style={{ background: "rgba(56, 189, 248, 0.08)", border: "1px dashed rgba(56, 189, 248, 0.2)", borderRadius: "6px", padding: "8px 10px", fontSize: "11px", color: "#38bdf8" }}>
+                              💡 <b>Acción sugerida:</b> Despachar camión aljibe <b>CAAL-0004</b> (actualmente en ENAP con 100% de agua/petróleo).
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ color: "#334155", fontSize: "10px", textAlign: "center", marginTop: "14px" }}>
+                        Consola del Cliente (SaaS Dashboard)
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </section>
