@@ -47,12 +47,12 @@ function ExpandedReportList({ type, id }) {
 
   return (
     <div style={{
-      background: "rgba(10, 17, 32, 0.45)",
-      border: "1px solid #1c2e52",
+      background: "var(--bg-app)",
+      border: "1px solid var(--border-container)",
       padding: "20px",
-      borderRadius: "10px",
+      borderRadius: "var(--border-radius-base)",
       margin: "8px 0 16px",
-      boxShadow: "inset 0 2px 10px rgba(0,0,0,0.3)"
+      boxShadow: "none"
     }}>
       <style>{`
         @keyframes spin {
@@ -74,15 +74,15 @@ function ExpandedReportList({ type, id }) {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
                 {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "PDF"].map(h => (
-                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {reports.map((r, i) => (
-                <tr key={r.id} style={{ borderBottom: i < reports.length - 1 ? "1px solid #1e293b" : "none" }}>
-                  <td style={{ padding: "10px 14px", color: "#cbd5e1", fontSize: "12px" }}>{r.fecha}</td>
-                  <td style={{ padding: "10px 14px", color: "white", fontSize: "12px" }}>
+                <tr key={r.id} style={{ borderBottom: i < reports.length - 1 ? "1px solid var(--border-container)" : "none" }}>
+                  <td style={{ padding: "10px 14px", color: "var(--color-text)", fontSize: "12px" }}>{r.fecha}</td>
+                  <td style={{ padding: "10px 14px", color: "var(--color-text)", fontSize: "12px" }}>
                     {type === "equipo" ? (
                       r.personal?.nombre_completo || "—"
                     ) : (
@@ -92,8 +92,8 @@ function ExpandedReportList({ type, id }) {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "10px 14px", color: "#94a3b8", fontSize: "12px" }}>{r.horometro_inicio?.toLocaleString("es-CL")}</td>
-                  <td style={{ padding: "10px 14px", color: "#94a3b8", fontSize: "12px" }}>{r.horometro_final?.toLocaleString("es-CL") || "—"}</td>
+                  <td style={{ padding: "10px 14px", color: "var(--color-text-muted)", fontSize: "12px" }}>{r.horometro_inicio?.toLocaleString("es-CL")}</td>
+                  <td style={{ padding: "10px 14px", color: "var(--color-text-muted)", fontSize: "12px" }}>{r.horometro_final?.toLocaleString("es-CL") || "—"}</td>
                   <td style={{ padding: "10px 14px", color: r.horas_trabajadas ? "#16a34a" : "#64748b", fontWeight: 700, fontSize: "12px" }}>
                     {r.horas_trabajadas ? `${r.horas_trabajadas} hrs` : "—"}
                   </td>
@@ -131,7 +131,7 @@ function ExpandedReportList({ type, id }) {
               alignItems: "center",
               marginTop: "16px",
               paddingTop: "12px",
-              borderTop: "1px solid #1e293b"
+              borderTop: "1px solid var(--border-sidebar)"
             }}>
               <button
                 disabled={page === 1 || loading}
@@ -212,8 +212,8 @@ export default function ReportesTab({ hookProps }) {
         {/* Selector de modo de vista */}
         <div style={{
           display: "flex",
-          background: "#121e36",
-          border: "1px solid #1c2e52",
+          background: "var(--bg-sidebar)",
+          border: "1px solid var(--border-sidebar)",
           padding: "3px",
           borderRadius: "10px",
           gap: "4px"
@@ -233,8 +233,8 @@ export default function ReportesTab({ hookProps }) {
                   display: "flex", alignItems: "center", gap: "6px",
                   padding: "6px 12px", borderRadius: "8px",
                   border: "none",
-                  background: active ? "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)" : "transparent",
-                  color: active ? "white" : "#64748b",
+                  background: active ? "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)" : "transparent",
+                  color: active ? "white" : "var(--color-text-muted)",
                   fontWeight: 700, fontSize: "12px",
                   cursor: "pointer", transition: "all 0.2s"
                 }}
@@ -255,12 +255,12 @@ export default function ReportesTab({ hookProps }) {
           {/* Panel de Filtros */}
           <div style={{
             display: "flex", flexWrap: "wrap", gap: "16px", padding: "16px 20px",
-            background: "rgba(18, 30, 54, 0.65)", backdropFilter: "blur(8px)",
-            border: "1px solid #1c2e52", borderRadius: "12px",
+            background: "var(--bg-container)",
+            border: "1px solid var(--border-container)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", borderRadius: "12px",
             marginBottom: "20px", alignItems: "flex-end"
           }}>
             <div style={{ flex: "1 1 200px" }}>
-              <label style={{ display: "block", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
+              <label style={{ display: "block", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
                 Filtrar por Equipo
               </label>
               <select
@@ -268,7 +268,7 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => reportes.setEquipoId(e.target.value)}
                 style={{
                   width: "100%", padding: "8px 12px", borderRadius: "8px",
-                  background: "#0a1120", border: "1px solid #1c2e52", color: "white", fontSize: "13px",
+                  background: "var(--bg-input)", border: "1px solid var(--border-input)", color: "var(--color-input-text)", fontSize: "13px",
                   outline: "none"
                 }}
               >
@@ -280,7 +280,7 @@ export default function ReportesTab({ hookProps }) {
             </div>
 
             <div style={{ flex: "1 1 200px" }}>
-              <label style={{ display: "block", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
+              <label style={{ display: "block", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
                 Filtrar por Operador
               </label>
               <select
@@ -288,7 +288,7 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => reportes.setOperadorId(e.target.value)}
                 style={{
                   width: "100%", padding: "8px 12px", borderRadius: "8px",
-                  background: "#0a1120", border: "1px solid #1c2e52", color: "white", fontSize: "13px",
+                  background: "var(--bg-input)", border: "1px solid var(--border-input)", color: "var(--color-input-text)", fontSize: "13px",
                   outline: "none"
                 }}
               >
@@ -300,7 +300,7 @@ export default function ReportesTab({ hookProps }) {
             </div>
 
             <div style={{ flex: "1 1 150px" }}>
-              <label style={{ display: "block", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
+              <label style={{ display: "block", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "6px" }}>
                 Fecha
               </label>
               <input
@@ -309,7 +309,7 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => reportes.setFecha(e.target.value)}
                 style={{
                   width: "100%", padding: "7px 12px", borderRadius: "8px",
-                  background: "#0a1120", border: "1px solid #1c2e52", color: "white", fontSize: "13px",
+                  background: "var(--bg-input)", border: "1px solid var(--border-input)", color: "var(--color-input-text)", fontSize: "13px",
                   outline: "none"
                 }}
               />
@@ -337,12 +337,12 @@ export default function ReportesTab({ hookProps }) {
           </div>
 
           {/* Tabla de Reportes */}
-          <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}>
+          <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden", boxShadow: "none" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #1c2e52" }}>
+                <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
                   {["Fecha", "Equipo", "Operador", "Hr. Inicio", "Hr. Final", "Horas", "PDF"].map(h => (
-                    <th key={h} style={{ padding: "14px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+                    <th key={h} style={{ padding: "14px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -364,15 +364,15 @@ export default function ReportesTab({ hookProps }) {
                   </tr>
                 ) : (
                   reportes.data.map((r, i) => (
-                    <tr key={r.id} style={{ borderBottom: i < reportes.data.length - 1 ? "1px solid #182642" : "none", background: i % 2 === 0 ? "transparent" : "rgba(15, 23, 42, 0.12)" }}>
-                      <td style={{ padding: "12px 16px", color: "#cbd5e1", fontSize: "13px" }}>{r.fecha}</td>
+                    <tr key={r.id} style={{ borderBottom: i < reportes.data.length - 1 ? "1px solid var(--border-container)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>{r.fecha}</td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ color: "#ff303e", fontWeight: 700, fontSize: "12px" }}>{r.equipos?.codigo_interno}</div>
-                        <div style={{ color: "#64748b", fontSize: "11px" }}>{r.equipos?.descripcion_equipo?.slice(0, 30)}</div>
+                        <div style={{ color: "var(--color-text-muted)", fontSize: "11px" }}>{r.equipos?.descripcion_equipo?.slice(0, 30)}</div>
                       </td>
-                      <td style={{ padding: "12px 16px", color: "white", fontSize: "13px" }}>{r.personal?.nombre_completo}</td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{r.horometro_inicio?.toLocaleString("es-CL")}</td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{r.horometro_final?.toLocaleString("es-CL") || "—"}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px" }}>{r.personal?.nombre_completo}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>{r.horometro_inicio?.toLocaleString("es-CL")}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>{r.horometro_final?.toLocaleString("es-CL") || "—"}</td>
                       <td style={{ padding: "12px 16px", color: r.horas_trabajadas ? "#16a34a" : "#64748b", fontWeight: 700, fontSize: "13px" }}>
                         {r.horas_trabajadas ? `${r.horas_trabajadas} hrs` : "—"}
                       </td>
@@ -407,14 +407,14 @@ export default function ReportesTab({ hookProps }) {
             {!reportes.loading && reportes.count > 0 && (
               <div style={{
                 display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "16px 20px", borderTop: "1px solid #1c2e52", background: "#0c1527"
+                padding: "16px 20px", borderTop: "1px solid var(--border-sidebar)", background: "var(--bg-sidebar)"
               }}>
                 <button
                   disabled={reportes.page === 1 || reportes.loading}
                   onClick={() => reportes.setPage(p => Math.max(1, p - 1))}
                   style={{
-                    background: reportes.page === 1 ? "#121e36" : "#ff303e",
-                    color: reportes.page === 1 ? "#475569" : "white",
+                    background: reportes.page === 1 ? "rgba(0,0,0,0.05)" : "var(--color-primary)",
+                    color: reportes.page === 1 ? "var(--color-text-muted)" : "white",
                     border: "none", padding: "8px 16px", borderRadius: "8px",
                     fontSize: "12px", fontWeight: 700, cursor: (reportes.page === 1 || reportes.loading) ? "not-allowed" : "pointer",
                     transition: "all 0.2s"
@@ -423,16 +423,16 @@ export default function ReportesTab({ hookProps }) {
                   Anterior
                 </button>
                 <span style={{ fontSize: "12px", color: "#64748b" }}>
-                  Página <strong style={{ color: "white" }}>{reportes.page}</strong> de{" "}
-                  <strong style={{ color: "white" }}>{Math.ceil(reportes.count / reportes.limit) || 1}</strong>{" "}
+                  Página <strong style={{ color: "var(--color-text)" }}>{reportes.page}</strong> de{" "}
+                  <strong style={{ color: "var(--color-text)" }}>{Math.ceil(reportes.count / reportes.limit) || 1}</strong>{" "}
                   (Total: {reportes.count} reportes)
                 </span>
                 <button
                   disabled={reportes.page * reportes.limit >= reportes.count || reportes.loading}
                   onClick={() => reportes.setPage(p => p + 1)}
                   style={{
-                    background: reportes.page * reportes.limit >= reportes.count ? "#121e36" : "#ff303e",
-                    color: reportes.page * reportes.limit >= reportes.count ? "#475569" : "white",
+                    background: reportes.page * reportes.limit >= reportes.count ? "rgba(0,0,0,0.05)" : "var(--color-primary)",
+                    color: reportes.page * reportes.limit >= reportes.count ? "var(--color-text-muted)" : "white",
                     border: "none", padding: "8px 16px", borderRadius: "8px",
                     fontSize: "12px", fontWeight: 700, cursor: (reportes.page * reportes.limit >= reportes.count || reportes.loading) ? "not-allowed" : "pointer",
                     transition: "all 0.2s"
@@ -461,7 +461,7 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => setEqSearch(e.target.value)}
                 style={{
                   width: "100%", padding: "10px 14px 10px 38px", borderRadius: "8px",
-                  background: "#121e36", border: "1px solid #1c2e52", color: "white", fontSize: "13px",
+                  background: "#121e36", border: "1px solid #1c2e52", color: "var(--color-text)", fontSize: "13px",
                   outline: "none"
                 }}
               />
@@ -480,30 +480,30 @@ export default function ReportesTab({ hookProps }) {
                 const isExpanded = expandedEqId === eq.id;
                 return (
                   <div key={eq.id} style={{
-                    background: "#121e36", border: "1px solid #1c2e52",
-                    borderRadius: "10px", marginBottom: "10px", overflow: "hidden",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+                    background: "var(--bg-container)", border: "1px solid var(--border-container)",
+                    borderRadius: "var(--border-radius-base)", marginBottom: "10px", overflow: "hidden",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.02)"
                   }}>
                     <div
                       onClick={() => setExpandedEqId(isExpanded ? null : eq.id)}
                       style={{
                         padding: "14px 18px", display: "flex", justifyContent: "space-between",
-                        alignItems: "center", cursor: "pointer", background: isExpanded ? "rgba(28, 46, 82, 0.3)" : "transparent",
+                        alignItems: "center", cursor: "pointer", background: isExpanded ? "var(--bg-sidebar)" : "transparent",
                         transition: "background 0.2s"
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                         <div style={{
                           background: "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)",
-                          color: "white", padding: "6px 12px", borderRadius: "6px",
+                          color: "var(--color-text)", padding: "6px 12px", borderRadius: "6px",
                           fontWeight: 800, fontSize: "13px", letterSpacing: "0.5px"
                         }}>
                           {eq.codigo_interno}
                         </div>
                         <div>
-                          <div style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{eq.descripcion_equipo}</div>
+                          <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "14px" }}>{eq.descripcion_equipo}</div>
                           <div style={{ color: "#64748b", fontSize: "12px", marginTop: "2px" }}>
-                            Proveedor: <span style={{ color: "#cbd5e1" }}>{eq.proveedor}</span> | Estado actual: <span style={{ color: eq.estado_actual === "Disponible" ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{eq.estado_actual}</span>
+                            Proveedor: <span style={{ color: "var(--color-text)" }}>{eq.proveedor}</span> | Estado actual: <span style={{ color: eq.estado_actual === "Disponible" ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{eq.estado_actual}</span>
                           </div>
                         </div>
                       </div>
@@ -539,7 +539,7 @@ export default function ReportesTab({ hookProps }) {
                 onChange={e => setOpSearch(e.target.value)}
                 style={{
                   width: "100%", padding: "10px 14px 10px 38px", borderRadius: "8px",
-                  background: "#121e36", border: "1px solid #1c2e52", color: "white", fontSize: "13px",
+                  background: "#121e36", border: "1px solid #1c2e52", color: "var(--color-text)", fontSize: "13px",
                   outline: "none"
                 }}
               />
@@ -558,30 +558,30 @@ export default function ReportesTab({ hookProps }) {
                 const isExpanded = expandedOpId === op.id;
                 return (
                   <div key={op.id} style={{
-                    background: "#121e36", border: "1px solid #1c2e52",
-                    borderRadius: "10px", marginBottom: "10px", overflow: "hidden",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+                    background: "var(--bg-container)", border: "1px solid var(--border-container)",
+                    borderRadius: "var(--border-radius-base)", marginBottom: "10px", overflow: "hidden",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.02)"
                   }}>
                     <div
                       onClick={() => setExpandedOpId(isExpanded ? null : op.id)}
                       style={{
                         padding: "14px 18px", display: "flex", justifyContent: "space-between",
-                        alignItems: "center", cursor: "pointer", background: isExpanded ? "rgba(28, 46, 82, 0.3)" : "transparent",
+                        alignItems: "center", cursor: "pointer", background: isExpanded ? "var(--bg-sidebar)" : "transparent",
                         transition: "background 0.2s"
                       }}
                     >
                       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                         <div style={{
-                          background: "rgba(96, 165, 250, 0.15)",
-                          color: "#60a5fa", padding: "6px 12px", borderRadius: "6px",
-                          fontWeight: 700, fontSize: "12px", border: "1px solid rgba(96, 165, 250, 0.3)"
+                          background: "rgba(16, 185, 129, 0.1)",
+                          color: "var(--color-primary-hover)", padding: "6px 12px", borderRadius: "6px",
+                          fontWeight: 700, fontSize: "12px", border: "1px solid var(--color-primary)"
                         }}>
                           {op.rol}
                         </div>
                         <div>
-                          <div style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{op.nombre_completo}</div>
+                          <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "14px" }}>{op.nombre_completo}</div>
                           <div style={{ color: "#64748b", fontSize: "12px", marginTop: "2px" }}>
-                            RUT: <span style={{ color: "#cbd5e1" }}>{op.rut}</span> | WhatsApp: <span style={{ color: "#cbd5e1" }}>{op.whatsapp}</span>
+                            RUT: <span style={{ color: "var(--color-text)" }}>{op.rut}</span> | WhatsApp: <span style={{ color: "var(--color-text)" }}>{op.whatsapp}</span>
                           </div>
                         </div>
                       </div>

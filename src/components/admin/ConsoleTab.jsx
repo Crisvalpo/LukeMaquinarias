@@ -239,9 +239,9 @@ export default function ConsoleTab({ hookProps }) {
                     style={{
                       padding: "6px 12px",
                       borderRadius: "8px",
-                      border: active ? "1.5px solid #ff303e" : "1px solid #1c2e52",
-                      background: active ? "rgba(255, 48, 62, 0.15)" : "rgba(15, 23, 42, 0.4)",
-                      color: active ? "white" : "#94a3b8",
+                      border: active ? "1.5px solid var(--color-primary)" : "1px solid var(--border-container)",
+                      background: active ? "rgba(16, 185, 129, 0.15)" : "var(--bg-input)",
+                      color: active ? "var(--color-primary-hover)" : "var(--color-text-muted)",
                       fontSize: "12px",
                       fontWeight: active ? 700 : 500,
                       cursor: "pointer",
@@ -274,9 +274,9 @@ export default function ConsoleTab({ hookProps }) {
               style={{
                 padding: "10px 16px",
                 borderRadius: "10px",
-                border: soloCombustibleCritico ? "1px solid #ef4444" : "1px solid #1c2e52",
-                background: soloCombustibleCritico ? "rgba(239, 68, 68, 0.15)" : "rgba(15, 23, 42, 0.4)",
-                color: soloCombustibleCritico ? "#ef4444" : "#94a3b8",
+                border: soloCombustibleCritico ? "1px solid #ef4444" : "1px solid var(--border-container)",
+                background: soloCombustibleCritico ? "rgba(239, 68, 68, 0.15)" : "var(--bg-input)",
+                color: soloCombustibleCritico ? "#ef4444" : "var(--color-text-muted)",
                 fontSize: "13px",
                 fontWeight: 700,
                 cursor: "pointer",
@@ -295,9 +295,9 @@ export default function ConsoleTab({ hookProps }) {
               }}
               onMouseLeave={e => {
                 if (!soloCombustibleCritico) {
-                  e.currentTarget.style.borderColor = "#1c2e52";
-                  e.currentTarget.style.color = "#94a3b8";
-                  e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                  e.currentTarget.style.borderColor = "var(--border-container)";
+                  e.currentTarget.style.color = "var(--color-text-muted)";
+                  e.currentTarget.style.background = "var(--bg-input)";
                 }
               }}
             >
@@ -310,9 +310,9 @@ export default function ConsoleTab({ hookProps }) {
               style={{
                 padding: "10px 16px",
                 borderRadius: "10px",
-                border: agruparPorProyecto ? "1px solid #ff303e" : "1px solid #1c2e52",
-                background: agruparPorProyecto ? "rgba(255, 48, 62, 0.1)" : "rgba(15, 23, 42, 0.4)",
-                color: agruparPorProyecto ? "#ff303e" : "#94a3b8",
+                border: agruparPorProyecto ? "1px solid var(--color-primary)" : "1px solid var(--border-container)",
+                background: agruparPorProyecto ? "rgba(16, 185, 129, 0.1)" : "var(--bg-input)",
+                color: agruparPorProyecto ? "var(--color-primary-hover)" : "var(--color-text-muted)",
                 fontSize: "13px",
                 fontWeight: 700,
                 cursor: "pointer",
@@ -324,16 +324,16 @@ export default function ConsoleTab({ hookProps }) {
               }}
               onMouseEnter={e => {
                 if (!agruparPorProyecto) {
-                  e.currentTarget.style.borderColor = "#ff303e";
-                  e.currentTarget.style.color = "#ff303e";
-                  e.currentTarget.style.background = "rgba(255, 48, 62, 0.05)";
+                  e.currentTarget.style.borderColor = "var(--color-primary)";
+                  e.currentTarget.style.color = "var(--color-primary-hover)";
+                  e.currentTarget.style.background = "rgba(16, 185, 129, 0.05)";
                 }
               }}
               onMouseLeave={e => {
                 if (!agruparPorProyecto) {
-                  e.currentTarget.style.borderColor = "#1c2e52";
-                  e.currentTarget.style.color = "#94a3b8";
-                  e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                  e.currentTarget.style.borderColor = "var(--border-container)";
+                  e.currentTarget.style.color = "var(--color-text-muted)";
+                  e.currentTarget.style.background = "var(--bg-input)";
                 }
               }}
             >
@@ -350,7 +350,7 @@ export default function ConsoleTab({ hookProps }) {
           const Icono = cfg.icon;
           return (
             <div key={estado} style={{
-              background: "#121e36", border: `1px solid ${cfg.border}`,
+              background: "var(--bg-container)", border: `1px solid ${cfg.border}`, boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
               borderRadius: "10px", padding: "14px 16px",
               display: "flex", alignItems: "center", gap: "12px",
             }}>
@@ -362,10 +362,10 @@ export default function ConsoleTab({ hookProps }) {
                 <Icono size={16} color={cfg.color} />
               </div>
               <div>
-                <div style={{ color: "white", fontWeight: 800, fontSize: "20px" }}>
+                <div style={{ color: "var(--color-text)", fontWeight: 800, fontSize: "20px" }}>
                   {statsCounts[estado]}
                 </div>
-                <div style={{ color: "#64748b", fontSize: "11px" }}>{cfg.label}</div>
+                <div style={{ color: "var(--color-text-muted)", fontSize: "11px" }}>{cfg.label}</div>
               </div>
             </div>
           );
@@ -382,8 +382,9 @@ export default function ConsoleTab({ hookProps }) {
             <div
               key={grupo.id}
               style={{
-                background: "rgba(18, 30, 54, 0.3)",
-                border: "1px solid #1c2e52",
+                background: "var(--bg-container)",
+                border: "1px solid var(--border-container)",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
                 borderRadius: "14px",
                 padding: "20px",
               }}
@@ -394,7 +395,7 @@ export default function ConsoleTab({ hookProps }) {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  borderBottom: "1px solid rgba(28, 46, 82, 0.6)",
+                  borderBottom: "1px solid var(--border-container)",
                   paddingBottom: "12px",
                   marginBottom: "16px",
                 }}
@@ -405,19 +406,19 @@ export default function ConsoleTab({ hookProps }) {
                       width: "32px",
                       height: "32px",
                       borderRadius: "8px",
-                      background: "rgba(255, 48, 62, 0.1)",
+                      background: "rgba(16, 185, 129, 0.1)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <Building2 size={16} color="#ff303e" />
+                    <Building2 size={16} color="var(--color-primary)" />
                   </div>
                   <div>
-                    <div style={{ color: "white", fontWeight: 700, fontSize: "15px" }}>
+                    <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "15px" }}>
                       {grupo.nombre}
                     </div>
-                    <div style={{ color: "#64748b", fontSize: "11px", marginTop: "1px" }}>
+                    <div style={{ color: "var(--color-text-muted)", fontSize: "11px", marginTop: "1px" }}>
                       CC: {grupo.cc}
                     </div>
                   </div>
@@ -426,9 +427,9 @@ export default function ConsoleTab({ hookProps }) {
                 {/* Badge de cantidad */}
                 <div
                   style={{
-                    background: "rgba(255, 48, 62, 0.15)",
-                    color: "#ff303e",
-                    border: "1px solid rgba(255, 48, 62, 0.3)",
+                    background: "rgba(16, 185, 129, 0.15)",
+                    color: "var(--color-primary-hover)",
+                    border: "1px solid var(--color-primary)",
                     borderRadius: "20px",
                     padding: "4px 10px",
                     fontSize: "11px",

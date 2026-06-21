@@ -260,7 +260,7 @@ export default function ProyectosTab({ hookProps }) {
                       <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px" }}>
                         {o.nombre_proyecto}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {o.ubicacion || "—"}
                       </td>
                       <td style={{ padding: "12px 16px" }}>

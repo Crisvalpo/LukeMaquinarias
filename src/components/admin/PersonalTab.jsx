@@ -349,15 +349,15 @@ export default function PersonalTab({ hookProps }) {
                             alt={p.nombre_completo}
                             style={{
                               width: "28px", height: "28px", borderRadius: "50%",
-                              objectFit: "cover", border: "1px solid #1c2e52"
+                              objectFit: "cover", border: "1px solid var(--border-container)"
                             }}
                           />
                         ) : (
                           <div style={{
                             width: "28px", height: "28px", borderRadius: "50%",
-                            background: "rgba(37, 99, 235, 0.15)", display: "flex",
+                            background: "rgba(16, 185, 129, 0.15)", display: "flex",
                             alignItems: "center", justifyContent: "center", fontSize: "10px",
-                            fontWeight: 700, color: "#60a5fa", border: "1px solid #1c2e52"
+                            fontWeight: 700, color: "var(--color-primary-hover)", border: "1px solid var(--border-container)"
                           }}>
                             {p.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
                           </div>
@@ -366,10 +366,10 @@ export default function PersonalTab({ hookProps }) {
                       <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px" }}>
                         {p.nombre_completo}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {p.rut}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#64748b", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {p.whatsapp}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
@@ -377,10 +377,10 @@ export default function PersonalTab({ hookProps }) {
                           {p.rol}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {p.proyectos ? `${p.proyectos.codigo_cc} — ${p.proyectos.nombre_proyecto.slice(0, 35)}${p.proyectos.nombre_proyecto.length > 35 ? "..." : ""}` : "—"}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {p.turno_tipo} · {p.jornada_tipo}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
@@ -414,7 +414,7 @@ export default function PersonalTab({ hookProps }) {
             })}
             {personalPaginado.data.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                <td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>
                   No hay trabajadores registrados o no coinciden con la búsqueda.
                 </td>
               </tr>

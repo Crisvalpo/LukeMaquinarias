@@ -9,8 +9,8 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
 
   const hasImage = equipo.imagen_url && equipo.imagen_url.trim() !== "";
   const cardBackground = hasImage
-    ? `linear-gradient(rgba(18, 30, 54, 0.86), rgba(18, 30, 54, 0.96)), url(${equipo.imagen_url})`
-    : "#121e36";
+    ? `linear-gradient(rgba(253, 253, 251, 0.90), rgba(253, 253, 251, 0.97)), url(${equipo.imagen_url})`
+    : "var(--bg-container)";
 
   return (
     <div
@@ -36,10 +36,10 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
           <div>
-            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
+            <div style={{ color: "var(--color-primary-hover)", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
               {equipo.codigo_interno}
             </div>
-            <div style={{ color: "white", fontWeight: 700, fontSize: "14px", marginTop: "2px", lineHeight: 1.3 }}>
+            <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "14px", marginTop: "2px", lineHeight: 1.3 }}>
               {equipo.descripcion_equipo}
             </div>
           </div>
@@ -49,15 +49,15 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                 onClick={() => onHistorialClick(equipo)}
                 title="Ver Historial de Uso"
                 style={{
-                  background: "rgba(30, 41, 59, 0.4)",
-                  border: "1px solid #1c2e52",
+                  background: "var(--bg-input)",
+                  border: "1px solid var(--border-input)",
                   borderRadius: "50%",
                   width: "26px",
                   height: "26px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "#94a3b8",
+                  color: "var(--color-text-muted)",
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
@@ -85,10 +85,10 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
         </div>
 
         {/* Info */}
-        <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+        <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginBottom: "12px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
           <span>{equipo.proveedor}</span>
           {equipo.proyectos && (
-            <span style={{ color: "#475569" }}>
+            <span style={{ color: "var(--color-text-muted)" }}>
               · 📍 {equipo.proyectos.nombre_proyecto}
             </span>
           )}
@@ -97,9 +97,9 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
               const esArriendo = equipo.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO";
               const estaArrendado = esArriendo && equipo.arriendo_cliente && equipo.arriendo_cliente.trim() !== "";
               
-              let bg = "rgba(30, 41, 59, 0.4)";
-              let color = "#94a3b8";
-              let border = "1px solid #1c2e52";
+              let bg = "var(--bg-sidebar)";
+              let color = "var(--color-text-muted)";
+              let border = "1px solid var(--border-sidebar)";
               let label = equipo.clasificacion_comercial;
 
               if (equipo.clasificacion_comercial === "VENTA") {
@@ -149,11 +149,11 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
             <div style={{ color: "#f97316", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
               🤝 ARRENDADO ACTIVO
             </div>
-            <div style={{ color: "#cbd5e1", fontSize: "11px", fontWeight: 600 }}>
+            <div style={{ color: "var(--color-text)", fontSize: "11px", fontWeight: 600 }}>
               Cliente: {equipo.arriendo_cliente}
             </div>
             {(equipo.arriendo_fecha_inicio || equipo.arriendo_fecha_fin) && (
-              <div style={{ color: "#94a3b8", fontSize: "10px", marginTop: "2px", display: "flex", gap: "4px" }}>
+              <div style={{ color: "var(--color-text-muted)", fontSize: "10px", marginTop: "2px", display: "flex", gap: "4px" }}>
                 <span>📅</span>
                 <span>
                   {(() => {
@@ -174,17 +174,18 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
         {equipo.pauta_preventiva_activa && (
           <div
             style={{
-              background: "#0f172a",
-              borderLeft: "3px solid #ff303e",
+              background: "var(--bg-input)",
+              borderLeft: "3px solid var(--color-primary)",
+              border: "1px solid var(--border-input)",
               borderRadius: "6px",
               padding: "8px 10px",
               marginBottom: "12px",
             }}
           >
-            <div style={{ color: "#ff303e", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
+            <div style={{ color: "var(--color-primary-hover)", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
               📋 PAUTA HOY
             </div>
-            <div style={{ color: "#cbd5e1", fontSize: "11px", lineHeight: 1.4 }}>
+            <div style={{ color: "var(--color-text)", fontSize: "11px", lineHeight: 1.4 }}>
               {equipo.pauta_preventiva_activa.slice(0, 80)}{equipo.pauta_preventiva_activa.length > 80 ? "…" : ""}
             </div>
           </div>
@@ -195,15 +196,15 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
           <div style={{
             marginTop: "auto", // Si hay personal, empujarlo hacia abajo en la sección de datos
             padding: "8px 10px",
-            background: "rgba(15, 23, 42, 0.4)",
+            background: "var(--bg-sidebar)",
             borderRadius: "8px",
-            border: "1px solid rgba(28, 46, 82, 0.4)",
-            boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
+            border: "1px solid var(--border-sidebar)",
+            boxShadow: "none",
             display: "flex",
             flexDirection: "column",
             gap: "6px"
           }}>
-            <div style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
               Personal Asignado
             </div>
             <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px" }}>
@@ -215,7 +216,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                     cfgBorder={cfg.border}
                   />
                 ) : (
-                  <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
+                  <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
                 )
               ) : (
                 <>
@@ -226,7 +227,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                       cfgBorder={cfg.border}
                     />
                   ) : (
-                    <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
+                    <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
                   )}
                   {equipo.reporte_hoy.rigger && (
                     <PersonalAvatar
@@ -256,23 +257,23 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
           return (
             <div
               style={{
-                background: "#090f1d",
-                border: "1px solid #1e293b",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border-input)",
                 borderRadius: "8px",
                 padding: "10px 12px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
+                boxShadow: "none",
                 position: "relative",
                 overflow: "hidden",
               }}
             >
               <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
                   {label}
                 </span>
-                <span style={{ color: "#475569", fontSize: "9px", fontWeight: 500 }}>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 500 }}>
                   ÚLTIMO REGISTRO
                 </span>
               </div>
@@ -283,11 +284,11 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                   alignItems: "baseline",
                   gap: "4px",
                   fontFamily: "monospace",
-                  background: "#050811",
+                  background: "var(--bg-container)",
                   padding: "4px 10px",
                   borderRadius: "4px",
-                  border: "1px solid #111e36",
-                  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.9)",
+                  border: "1px solid var(--border-container)",
+                  boxShadow: "none",
                 }}
               >
                 <span
@@ -301,7 +302,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                 >
                   {formattedValue}
                 </span>
-                <span style={{ fontSize: "10px", color: "#475569", fontWeight: 700 }}>
+                <span style={{ fontSize: "10px", color: "var(--color-text-muted)", fontWeight: 700 }}>
                   {unidad}
                 </span>
               </div>
@@ -321,23 +322,23 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
           return (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                <span style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
                   ESTANQUE DE COMBUSTIBLE
                 </span>
-                <span style={{ color: esCritico ? "#ef4444" : "white", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>
+                <span style={{ color: esCritico ? "#ef4444" : "var(--color-text)", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>
                   {nivel}%
                 </span>
               </div>
               
               <div style={{
-                background: "#090f1d",
-                border: "1px solid #1e293b",
+                background: "var(--bg-input)",
+                border: "1px solid var(--border-input)",
                 borderRadius: "6px",
                 padding: "6px 10px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)",
+                boxShadow: "none",
                 gap: "12px"
               }}>
                 {/* Bloques de LED segmentados */}
@@ -363,7 +364,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                           flex: 1,
                           height: "8px",
                           borderRadius: "2px",
-                          background: activo ? colorLed : "#1e293b",
+                          background: activo ? colorLed : "var(--border-input)",
                           boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
                           transition: "all 0.3s ease",
                           opacity: activo ? 1 : 0.15
@@ -394,9 +395,9 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
           style={{
             width: "100%",
             background: "transparent",
-            border: "1px solid #1c2e52",
+            border: "1px solid var(--border-input)",
             borderRadius: "6px",
-            color: "#94a3b8",
+            color: "var(--color-text-muted)",
             fontSize: "11px",
             padding: "5px",
             cursor: "pointer",

@@ -467,13 +467,13 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{
             background: "transparent", border: "1px solid #1c2e52",
-            color: "#94a3b8", borderRadius: "8px", padding: "10px 20px",
+            color: "var(--color-text-muted)", borderRadius: "8px", padding: "10px 20px",
             cursor: "pointer", fontSize: "13px", fontWeight: 600,
           }}>
             Cancelar
           </button>
           <button onClick={handleSave} disabled={saving} style={{
-            background: "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)", border: "none",
+            background: "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)", border: "none",
             color: "white", borderRadius: "8px", padding: "10px 24px",
             cursor: "pointer", fontSize: "13px", fontWeight: 700,
             display: "flex", alignItems: "center", gap: "6px",
@@ -517,12 +517,12 @@ export default function EquiposTab({ hookProps }) {
           <button
             onClick={() => setShowForm(!showForm)}
             style={{
-              background: showForm ? "#1e293b" : "linear-gradient(135deg, #ff303e, #c21a25)",
-              border: showForm ? "1px solid #334155" : "none",
+              background: showForm ? "rgba(0,0,0,0.08)" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))",
+              border: showForm ? "1px solid var(--border-container)" : "none",
               color: "white", borderRadius: "8px", padding: "6px 14px",
               cursor: "pointer", fontWeight: 700, fontSize: "12px",
               display: "flex", alignItems: "center", gap: "6px",
-              boxShadow: showForm ? "none" : "0 0 12px rgba(255, 48, 62, 0.3)",
+              boxShadow: "none",
               transition: "all 0.2s"
             }}
           >
@@ -532,14 +532,14 @@ export default function EquiposTab({ hookProps }) {
         </div>
         <div style={{
           display: "flex", alignItems: "center", gap: "10px",
-          background: "#121e36", border: "1px solid #1c2e52",
+          background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
           padding: "6px 12px", borderRadius: "10px",
         }}>
-          <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>🤖 Teléfono del Bot:</span>
+          <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>🤖 Teléfono del Bot:</span>
           <input
             style={{
-              background: "#0f172a", border: "1px solid #1c2e52",
-              borderRadius: "6px", color: "white", padding: "4px 8px",
+              background: "var(--bg-input)", border: "1px solid var(--border-input)",
+              borderRadius: "6px", color: "var(--color-input-text)", padding: "4px 8px",
               fontSize: "12px", width: "120px", outline: "none",
             }}
             placeholder="569..."
@@ -565,7 +565,7 @@ export default function EquiposTab({ hookProps }) {
               }
             }}
             style={{
-              background: "#ff303e", border: "none", color: "white",
+              background: "var(--color-primary)", border: "none", color: "white",
               borderRadius: "6px", padding: "4px 10px", fontSize: "12px",
               fontWeight: 700, cursor: "pointer",
             }}
@@ -577,14 +577,14 @@ export default function EquiposTab({ hookProps }) {
 
       {/* Formulario nuevo equipo */}
       {showForm && (
-        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+        <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", padding: "20px", marginBottom: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--color-text-muted)" }}>
               + REGISTRAR NUEVO EQUIPO
             </h3>
             <button
               onClick={() => setShowForm(false)}
-              style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+              style={{ background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
             >
               <X size={16} />
             </button>
@@ -657,7 +657,7 @@ export default function EquiposTab({ hookProps }) {
             onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
             disabled={saving}
             style={{
-              background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
+              background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none",
               color: "white", borderRadius: "8px", padding: "9px 20px",
               cursor: "pointer", fontWeight: 700, fontSize: "13px",
               display: "flex", alignItems: "center", gap: "6px", marginTop: "4px",
@@ -676,12 +676,12 @@ export default function EquiposTab({ hookProps }) {
       />
 
       {/* Tabla equipos */}
-      <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid #1c2e52" }}>
+            <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
               {["Código", "Descripción", "Proyecto", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map(h => (
-                <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+                <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -689,10 +689,10 @@ export default function EquiposTab({ hookProps }) {
             {equiposPaginado.data.map((eq, i) => {
               const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
               return (
-                <tr key={eq.id} style={{ borderBottom: i < equiposPaginado.data.length - 1 ? "1px solid #121e36" : "none", background: i % 2 === 0 ? "transparent" : "#0f172a22" }}>
+                <tr key={eq.id} style={{ borderBottom: "1px solid var(--border-container)", background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
                   <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
-                  <td style={{ padding: "12px 16px", color: "white", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
-                  <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proyectos?.nombre_proyecto || "—"}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>{eq.proyectos?.nombre_proyecto || "—"}</td>
                   <td style={{ padding: "12px 16px" }}>
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                       {cfg.label}
@@ -741,10 +741,10 @@ export default function EquiposTab({ hookProps }) {
                             </span>
                           </div>
                           {estaArrendado && (
-                            <div style={{ fontSize: "11px", color: "#cbd5e1", lineHeight: 1.2 }}>
-                              <span style={{ color: "#94a3b8" }}>Cliente: </span>{eq.arriendo_cliente}
+                            <div style={{ fontSize: "11px", color: "var(--color-text)", lineHeight: 1.2 }}>
+                              <span style={{ color: "var(--color-text-muted)" }}>Cliente: </span>{eq.arriendo_cliente}
                               {(eq.arriendo_fecha_inicio || eq.arriendo_fecha_fin) && (
-                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                                <div style={{ fontSize: "10px", color: "var(--color-text-muted)", marginTop: "2px" }}>
                                   {(() => {
                                     const fmt = (d) => {
                                       if (!d) return "—";
@@ -771,7 +771,7 @@ export default function EquiposTab({ hookProps }) {
                       
                       return (
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "120px" }}>
-                          <div style={{ flex: 1, height: "6px", background: "#0f172a", borderRadius: "3px", overflow: "hidden", border: "1px solid #1c2e52" }}>
+                          <div style={{ flex: 1, height: "6px", background: "var(--bg-input)", borderRadius: "3px", overflow: "hidden", border: "1px solid var(--border-input)" }}>
                             <div className={esCritico ? "animate-pulse-fuel" : ""} style={{
                               width: `${nivel}%`,
                               height: "100%",
@@ -780,7 +780,7 @@ export default function EquiposTab({ hookProps }) {
                               transition: "width 0.3s ease",
                             }} />
                           </div>
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: esCritico ? "#ef4444" : "#94a3b8" }}>{nivel}%</span>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: esCritico ? "#ef4444" : "var(--color-text-muted)" }}>{nivel}%</span>
                         </div>
                       );
                     })()}
@@ -789,8 +789,8 @@ export default function EquiposTab({ hookProps }) {
                     <button
                       onClick={() => setEditEquipo(eq)}
                       style={{
-                        background: "#1e3a5f", border: "1px solid #2563eb",
-                        color: "#60a5fa", borderRadius: "6px", padding: "6px 12px",
+                        background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)",
+                        color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
                         fontSize: "11px", fontWeight: 700, cursor: "pointer",
                         display: "inline-flex", alignItems: "center", gap: "4px"
                       }}
@@ -800,8 +800,8 @@ export default function EquiposTab({ hookProps }) {
                     <button
                       onClick={() => setQrEquipo(eq)}
                       style={{
-                        background: "#121e36", border: "1px solid #1c2e52",
-                        color: "#94a3b8", borderRadius: "6px", padding: "6px 12px",
+                        background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
+                        color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 12px",
                         fontSize: "11px", fontWeight: 700, cursor: "pointer",
                         display: "inline-flex", alignItems: "center", gap: "4px"
                       }}
@@ -814,7 +814,7 @@ export default function EquiposTab({ hookProps }) {
             })}
             {equiposPaginado.data.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>
                   No hay equipos registrados o no coinciden con la búsqueda.
                 </td>
               </tr>
