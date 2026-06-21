@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, CheckCircle, WifiOff, Loader2, MessageSquare } from "lucide-react";
+import AdminAuthWrapper from "../components/admin/Shared/AdminAuthWrapper";
 
 export default function QrPuente() {
   const [status, setStatus] = useState("disconnected");
@@ -88,7 +89,7 @@ export default function QrPuente() {
   const badge = getBadgeStyle();
 
   return (
-    <>
+    <AdminAuthWrapper>
       <Head>
         <title>Vincular WhatsApp — LukeEquipos</title>
         <meta name="description" content="Vinculación de WhatsApp para el sistema de control de maquinaria" />
@@ -563,6 +564,6 @@ export default function QrPuente() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-    </>
+    </AdminAuthWrapper>
   );
 }

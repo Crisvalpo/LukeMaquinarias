@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Search, RefreshCw, Building2 } from "lucide-react";
 import { ESTADO_CONFIG } from "./Shared/constants";
 import EquipoCard from "./Shared/EquipoCard";
 import PautaModal from "./Shared/PautaModal";
+import HistorialModal from "./Shared/HistorialModal";
 
 export default function ConsoleTab({ hookProps }) {
   const {
@@ -13,6 +14,8 @@ export default function ConsoleTab({ hookProps }) {
     setFiltroCategoria,
     filtroEstado,
     setFiltroEstado,
+    filtroComercial,
+    setFiltroComercial,
     searchMonitor,
     setSearchMonitor,
     agruparPorProyecto,
@@ -25,6 +28,8 @@ export default function ConsoleTab({ hookProps }) {
     setPautaEquipo,
     showMsg
   } = hookProps;
+
+  const [historialEquipo, setHistorialEquipo] = useState(null);
 
   const CATEGORIAS_MAESTRAS = ["TODAS", "GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
 
@@ -225,6 +230,54 @@ export default function ConsoleTab({ hookProps }) {
             </div>
           </div>
 
+          {/* Filtro Comercial */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Clasificación Comercial
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+              {[
+                { id: "TODOS", label: "Todos" },
+                { id: "OPERATIVO - EN USO", label: "En Obra" },
+                { id: "DISPONIBLE PARA ARRIENDO", label: "Para Arriendo" },
+                { id: "VENTA", label: "Venta" }
+              ].map(opt => {
+                const active = filtroComercial === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setFiltroComercial(opt.id)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "8px",
+                      border: active ? "1.5px solid #ff303e" : "1px solid #1c2e52",
+                      background: active ? "rgba(255, 48, 62, 0.15)" : "rgba(15, 23, 42, 0.4)",
+                      color: active ? "white" : "#94a3b8",
+                      fontSize: "12px",
+                      fontWeight: active ? 700 : 500,
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={e => {
+                      if (!active) {
+                        e.currentTarget.style.borderColor = "#ff303e";
+                        e.currentTarget.style.color = "white";
+                      }
+                    }}
+                    onMouseLeave={e => {
+                      if (!active) {
+                        e.currentTarget.style.borderColor = "#1c2e52";
+                        e.currentTarget.style.color = "#94a3b8";
+                      }
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Toggle Combustible Crítico y Toggle Agrupamiento */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <button
@@ -400,7 +453,7 @@ export default function ConsoleTab({ hookProps }) {
               {/* Grid de equipos del Proyecto */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
                 {grupo.equipos.map(eq => (
-                  <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} />
+                  <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} onHistorialClick={setHistorialEquipo} />
                 ))}
               </div>
             </div>
@@ -416,7 +469,7 @@ export default function ConsoleTab({ hookProps }) {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
             {equiposFiltrados.map(eq => (
-              <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} />
+              <EquipoCard key={eq.id} equipo={eq} onPautaClick={setPautaEquipo} onHistorialClick={setHistorialEquipo} />
             ))}
           </div>
           {equiposFiltrados.length === 0 && (
@@ -437,6 +490,13 @@ export default function ConsoleTab({ hookProps }) {
             equiposCompleto.refresh(true);
             showMsg("✅ Pauta actualizada con éxito");
           }}
+        />
+      )}
+
+      {historialEquipo && (
+        <HistorialModal
+          equipo={historialEquipo}
+          onClose={() => setHistorialEquipo(null)}
         />
       )}
     </>

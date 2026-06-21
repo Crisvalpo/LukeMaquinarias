@@ -70,7 +70,18 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     // Crear nuevo equipo
-    const { codigo_interno, descripcion_equipo, proveedor, proyecto_actual_id, pauta_preventiva_activa, seguimiento_completo } = req.body;
+    const { 
+      codigo_interno, 
+      descripcion_equipo, 
+      proveedor, 
+      proyecto_actual_id, 
+      pauta_preventiva_activa, 
+      seguimiento_completo,
+      clasificacion_comercial,
+      arriendo_cliente,
+      arriendo_fecha_inicio,
+      arriendo_fecha_fin
+    } = req.body;
 
     if (!codigo_interno || !descripcion_equipo) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
@@ -86,7 +97,11 @@ export default async function handler(req, res) {
         proveedor: proveedor || "EIMISA",
         proyecto_actual_id: cleanProyectoId,
         pauta_preventiva_activa,
-        seguimiento_completo: seguimiento_completo !== undefined ? seguimiento_completo : true
+        seguimiento_completo: seguimiento_completo !== undefined ? seguimiento_completo : true,
+        clasificacion_comercial: clasificacion_comercial || "OPERATIVO - EN USO",
+        arriendo_cliente: arriendo_cliente || null,
+        arriendo_fecha_inicio: arriendo_fecha_inicio || null,
+        arriendo_fecha_fin: arriendo_fecha_fin || null
       })
       .select()
       .single();

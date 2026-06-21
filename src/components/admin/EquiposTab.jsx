@@ -127,6 +127,10 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     seguimiento_completo: equipo?.seguimiento_completo !== false,
     imagen_url: equipo?.imagen_url || "",
     combustible_nivel_porcentaje: equipo?.combustible_nivel_porcentaje !== null && equipo?.combustible_nivel_porcentaje !== undefined ? equipo.combustible_nivel_porcentaje.toString() : "100",
+    clasificacion_comercial: equipo?.clasificacion_comercial || "OPERATIVO - EN USO",
+    arriendo_cliente: equipo?.arriendo_cliente || "",
+    arriendo_fecha_inicio: equipo?.arriendo_fecha_inicio || "",
+    arriendo_fecha_fin: equipo?.arriendo_fecha_fin || "",
   });
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
@@ -201,6 +205,10 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         seguimiento_completo: formData.seguimiento_completo,
         imagen_url: formData.imagen_url.trim() || null,
         combustible_nivel_porcentaje: formData.combustible_nivel_porcentaje.trim() !== "" ? parseFloat(formData.combustible_nivel_porcentaje) : 100,
+        clasificacion_comercial: formData.clasificacion_comercial,
+        arriendo_cliente: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_cliente.trim() || null) : null,
+        arriendo_fecha_inicio: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_inicio || null) : null,
+        arriendo_fecha_fin: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_fin || null) : null,
       };
 
       const r = await fetch("/api/equipos", {
@@ -322,6 +330,45 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               <option value="Detenido por Falla">Detenido por Falla (Taller)</option>
             </select>
           </FormRow>
+          <FormRow label="Clasificación Comercial">
+            <select style={selectStyle} value={formData.clasificacion_comercial}
+              onChange={e => setFormData(p => ({ ...p, clasificacion_comercial: e.target.value }))}>
+              <option value="OPERATIVO - EN USO">Operativo - En Uso</option>
+              <option value="DISPONIBLE PARA ARRIENDO">Disponible para Arriendo</option>
+              <option value="VENTA">Venta</option>
+              <option value="EN PREPARACION OBRA">En Preparación Obra</option>
+              <option value="FUERA DE SERVICIO - REPARACION - MANTENCION">Fuera de Servicio - Reparación / Mantención</option>
+              <option value="EN IMPORTACION">En Importación</option>
+            </select>
+          </FormRow>
+          {formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" && (
+            <>
+              <FormRow label="Cliente / Obra de Arriendo">
+                <input
+                  style={inputStyle}
+                  placeholder="Ej: Constructora Alfa S.A."
+                  value={formData.arriendo_cliente}
+                  onChange={e => setFormData(p => ({ ...p, arriendo_cliente: e.target.value }))}
+                />
+              </FormRow>
+              <FormRow label="Fecha Inicio Arriendo">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={formData.arriendo_fecha_inicio}
+                  onChange={e => setFormData(p => ({ ...p, arriendo_fecha_inicio: e.target.value }))}
+                />
+              </FormRow>
+              <FormRow label="Fecha Fin Arriendo">
+                <input
+                  type="date"
+                  style={inputStyle}
+                  value={formData.arriendo_fecha_fin}
+                  onChange={e => setFormData(p => ({ ...p, arriendo_fecha_fin: e.target.value }))}
+                />
+              </FormRow>
+            </>
+          )}
           <FormRow label="Nivel de Combustible (%)">
             <input
               style={inputStyle}
@@ -580,9 +627,40 @@ export default function EquiposTab({ hookProps }) {
                 <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
               </select>
             </FormRow>
+            <FormRow label="Clasificación Comercial">
+              <select style={selectStyle}
+                value={formEquipo.clasificacion_comercial || "OPERATIVO - EN USO"}
+                onChange={e => setFormEquipo(p => ({ ...p, clasificacion_comercial: e.target.value }))}>
+                <option value="OPERATIVO - EN USO">Operativo - En Uso</option>
+                <option value="DISPONIBLE PARA ARRIENDO">Disponible para Arriendo</option>
+                <option value="VENTA">Venta</option>
+                <option value="EN PREPARACION OBRA">En Preparación Obra</option>
+                <option value="FUERA DE SERVICIO - REPARACION - MANTENCION">Fuera de Servicio - Reparación / Mantención</option>
+                <option value="EN IMPORTACION">En Importación</option>
+              </select>
+            </FormRow>
+            {formEquipo.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" && (
+              <>
+                <FormRow label="Cliente / Obra de Arriendo">
+                  <input style={inputStyle} placeholder="Ej: Constructora Alfa S.A."
+                    value={formEquipo.arriendo_cliente || ""}
+                    onChange={e => setFormEquipo(p => ({ ...p, arriendo_cliente: e.target.value }))} />
+                </FormRow>
+                <FormRow label="Fecha Inicio Arriendo">
+                  <input type="date" style={inputStyle}
+                    value={formEquipo.arriendo_fecha_inicio || ""}
+                    onChange={e => setFormEquipo(p => ({ ...p, arriendo_fecha_inicio: e.target.value }))} />
+                </FormRow>
+                <FormRow label="Fecha Fin Arriendo">
+                  <input type="date" style={inputStyle}
+                    value={formEquipo.arriendo_fecha_fin || ""}
+                    onChange={e => setFormEquipo(p => ({ ...p, arriendo_fecha_fin: e.target.value }))} />
+                </FormRow>
+              </>
+            )}
           </div>
           <button
-            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
             disabled={saving}
             style={{
               background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
@@ -608,7 +686,7 @@ export default function EquiposTab({ hookProps }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid #1c2e52" }}>
-              {["Código", "Descripción", "Proveedor", "Proyecto", "Estado", "Combustible", "Acciones"].map(h => (
+              {["Código", "Descripción", "Proyecto", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map(h => (
                 <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
@@ -620,12 +698,74 @@ export default function EquiposTab({ hookProps }) {
                 <tr key={eq.id} style={{ borderBottom: i < equiposPaginado.data.length - 1 ? "1px solid #121e36" : "none", background: i % 2 === 0 ? "transparent" : "#0f172a22" }}>
                   <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
                   <td style={{ padding: "12px 16px", color: "white", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
-                  <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proveedor}</td>
                   <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>{eq.proyectos?.nombre_proyecto || "—"}</td>
                   <td style={{ padding: "12px 16px" }}>
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                       {cfg.label}
                     </span>
+                  </td>
+                  <td style={{ padding: "12px 16px" }}>
+                    {(() => {
+                      const esArriendo = eq.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO";
+                      const estaArrendado = esArriendo && eq.arriendo_cliente && eq.arriendo_cliente.trim() !== "";
+                      
+                      let bg = "rgba(30, 41, 59, 0.4)";
+                      let color = "#94a3b8";
+                      let border = "1px solid #1c2e52";
+                      let label = eq.clasificacion_comercial || "OPERATIVO - EN USO";
+
+                      if (eq.clasificacion_comercial === "VENTA") {
+                        bg = "rgba(59, 130, 246, 0.15)";
+                        color = "#60a5fa";
+                        border = "1px solid rgba(59, 130, 246, 0.3)";
+                        label = "💲 VENTA";
+                      } else if (esArriendo) {
+                        if (estaArrendado) {
+                          bg = "rgba(249, 115, 22, 0.15)";
+                          color = "#f97316";
+                          border = "1px solid rgba(249, 115, 22, 0.3)";
+                          label = "🤝 ARRENDADO";
+                        } else {
+                          bg = "rgba(16, 185, 129, 0.15)";
+                          color = "#10b981";
+                          border = "1px solid rgba(16, 185, 129, 0.3)";
+                          label = "🔑 EN PATIO";
+                        }
+                      }
+
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div>
+                            <span style={{
+                              background: bg,
+                              color: color,
+                              border: border,
+                              borderRadius: "6px", padding: "3px 8px", fontSize: "11px", fontWeight: 700,
+                              display: "inline-block"
+                            }}>
+                              {label}
+                            </span>
+                          </div>
+                          {estaArrendado && (
+                            <div style={{ fontSize: "11px", color: "#cbd5e1", lineHeight: 1.2 }}>
+                              <span style={{ color: "#94a3b8" }}>Cliente: </span>{eq.arriendo_cliente}
+                              {(eq.arriendo_fecha_inicio || eq.arriendo_fecha_fin) && (
+                                <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                                  {(() => {
+                                    const fmt = (d) => {
+                                      if (!d) return "—";
+                                      const p = d.split("-");
+                                      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+                                    };
+                                    return `📅 ${fmt(eq.arriendo_fecha_inicio)} al ${fmt(eq.arriendo_fecha_fin)}`;
+                                  })()}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: "12px 16px" }}>
                     {(() => {
@@ -680,7 +820,7 @@ export default function EquiposTab({ hookProps }) {
             })}
             {equiposPaginado.data.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
+                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontSize: "13px" }}>
                   No hay equipos registrados o no coinciden con la búsqueda.
                 </td>
               </tr>

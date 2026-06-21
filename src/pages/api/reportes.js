@@ -4,9 +4,9 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    const { fecha, equipo_id, page = 1 } = req.query;
-    const pageSize = 20;
-    const from = (page - 1) * pageSize;
+    const { fecha, equipo_id, operador_id, page = 1, limit = 20 } = req.query;
+    const pageSize = parseInt(limit) || 20;
+    const from = (parseInt(page) - 1) * pageSize;
 
     let query = supabase
       .from("reportes_diarios")
@@ -22,6 +22,7 @@ export default async function handler(req, res) {
 
     if (fecha) query = query.eq("fecha", fecha);
     if (equipo_id) query = query.eq("equipo_id", equipo_id);
+    if (operador_id) query = query.eq("operador_id", operador_id);
 
     const { data, error, count } = await query;
     if (error) return res.status(500).json({ success: false, error: error.message });

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAdminMaquinaria } from "../components/admin/hooks/useAdminMaquinaria";
 import ConsoleTab from "../components/admin/ConsoleTab";
+import AdminAuthWrapper from "../components/admin/Shared/AdminAuthWrapper";
 import MapTab from "../components/admin/MapTab";
 import EquiposTab from "../components/admin/EquiposTab";
 import ProyectosTab from "../components/admin/ProyectosTab";
@@ -49,7 +50,7 @@ export default function AdminMaquinaria() {
   };
 
   return (
-    <>
+    <AdminAuthWrapper>
       <Head>
         <title>LukeEquipos — Control de Maquinaria</title>
         <meta name="description" content="Sistema de Control Operacional por Voz y Gestión de Maquinaria Pesada en Faena" />
@@ -151,6 +152,35 @@ export default function AdminMaquinaria() {
             </Link>
           </div>
 
+          {/* Botón Cerrar Sesión */}
+          <div style={{ padding: "8px 12px", borderTop: "1px solid #1c2e52" }}>
+            <button
+              onClick={() => {
+                localStorage.removeItem("luke_auth");
+                window.location.reload();
+              }}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                padding: "10px 12px", borderRadius: "8px",
+                background: "rgba(239, 68, 68, 0.1)",
+                border: "1px solid rgba(239, 68, 68, 0.2)",
+                color: "#ef4444",
+                cursor: "pointer", fontSize: "12px", fontWeight: 700,
+                transition: "all 0.2s",
+                textAlign: "left",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.18)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: "inline-block", marginRight: "4px" }}>
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span>Cerrar Sesión</span>
+            </button>
+          </div>
+
           {/* Footer sidebar */}
           <div style={{ padding: "16px 20px", borderTop: "1px solid #1c2e52" }}>
             <div style={{ color: "#1c2e52", fontSize: "10px" }}>equipos.lukeapp.me</div>
@@ -175,6 +205,6 @@ export default function AdminMaquinaria() {
           {renderActiveTab()}
         </div>
       </div>
-    </>
+    </AdminAuthWrapper>
   );
 }

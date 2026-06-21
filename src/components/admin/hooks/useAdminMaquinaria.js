@@ -70,6 +70,61 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
     search,
     setSearch,
     refresh: (silent = false) => fetch_(silent),
+  };
+}
+
+function useReportesPaginado(initialLimit = 20, deps = []) {
+  const [data, setData] = useState([]);
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [equipoId, setEquipoId] = useState("");
+  const [operadorId, setOperadorId] = useState("");
+  const [fecha, setFecha] = useState("");
+
+  const fetch_ = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const url = new URL("/api/reportes", window.location.origin);
+      url.searchParams.set("page", page.toString());
+      url.searchParams.set("limit", initialLimit.toString());
+      if (equipoId) url.searchParams.set("equipo_id", equipoId);
+      if (operadorId) url.searchParams.set("operador_id", operadorId);
+      if (fecha) url.searchParams.set("fecha", fecha);
+
+      const r = await fetch(url.toString());
+      const json = await r.json();
+      setData(json.data || []);
+      setCount(json.total || 0);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [page, equipoId, operadorId, fecha, initialLimit]);
+
+  useEffect(() => {
+    fetch_(false);
+  }, [page, equipoId, operadorId, fecha, ...deps]);
+
+  // Resetear página a 1 cuando cambien filtros
+  useEffect(() => {
+    setPage(1);
+  }, [equipoId, operadorId, fecha]);
+
+  return {
+    data,
+    count,
+    loading,
+    page,
+    setPage,
+    equipoId,
+    setEquipoId,
+    operadorId,
+    setOperadorId,
+    fecha,
+    setFecha,
+    refresh: (silent = false) => fetch_(silent),
     limit: initialLimit
   };
 }
@@ -83,6 +138,7 @@ export function useAdminMaquinaria() {
   const [editEquipo, setEditEquipo] = useState(null);
   const [filtroCategoria, setFiltroCategoria] = useState("TODAS");
   const [filtroEstado, setFiltroEstado] = useState("TODOS");
+  const [filtroComercial, setFiltroComercial] = useState("TODOS");
   const [searchMonitor, setSearchMonitor] = useState("");
   const [agruparPorProyecto, setAgruparPorProyecto] = useState(false);
   const [soloCombustibleCritico, setSoloCombustibleCritico] = useState(false);
@@ -95,7 +151,7 @@ export function useAdminMaquinaria() {
   const proyectosPaginado = usePaginatedApi("/api/proyectos", 15, [tab]);
   const personalCompleto = useApi("/api/personal", [tab]);
   const personalPaginado = usePaginatedApi("/api/personal", 15, [tab]);
-  const reportes = useApi("/api/reportes", [tab]);
+  const reportes = useReportesPaginado(20, [tab]);
   const registros = useApi("/api/registros", [tab]);
 
   // Estados de edición para la pestaña de registros
@@ -109,7 +165,11 @@ export function useAdminMaquinaria() {
     descripcion_equipo: "",
     proveedor: "EIMISA",
     proyecto_actual_id: "",
-    seguimiento_completo: true
+    seguimiento_completo: true,
+    clasificacion_comercial: "OPERATIVO - EN USO",
+    arriendo_cliente: "",
+    arriendo_fecha_inicio: "",
+    arriendo_fecha_fin: ""
   });
   const [formProyecto, setFormProyecto] = useState({
     nombre_proyecto: "",
@@ -354,6 +414,7 @@ export function useAdminMaquinaria() {
   const equiposFiltrados = equiposCompleto.data.filter(eq => {
     const cumpleCat = filtroCategoria === "TODAS" || eq.categoria === filtroCategoria;
     const cumpleEst = filtroEstado === "TODOS" || eq.estado_actual === filtroEstado;
+    const cumpleComercial = filtroComercial === "TODOS" || (eq.clasificacion_comercial || "OPERATIVO - EN USO") === filtroComercial;
     
     // Filtro de combustible crítico
     let cumpleCombustible = true;
@@ -384,7 +445,7 @@ export function useAdminMaquinaria() {
       (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
 
-    return cumpleCat && cumpleEst && cumpleSearch && cumpleCombustible;
+    return cumpleCat && cumpleEst && cumpleSearch && cumpleCombustible && cumpleComercial;
   });
 
   const equiposPorCategoria = equiposCompleto.data.filter(eq => {
@@ -444,6 +505,8 @@ export function useAdminMaquinaria() {
     setFiltroCategoria,
     filtroEstado,
     setFiltroEstado,
+    filtroComercial,
+    setFiltroComercial,
     searchMonitor,
     setSearchMonitor,
     agruparPorProyecto,

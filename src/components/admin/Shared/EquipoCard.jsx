@@ -1,9 +1,9 @@
 import React from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Clock } from "lucide-react";
 import PersonalAvatar from "./PersonalAvatar";
 import { ESTADO_CONFIG } from "./constants";
 
-export default function EquipoCard({ equipo, onPautaClick }) {
+export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
   const cfg = ESTADO_CONFIG[equipo.estado_actual] || ESTADO_CONFIG["Disponible"];
   const Icono = cfg.icon;
 
@@ -43,31 +43,132 @@ export default function EquipoCard({ equipo, onPautaClick }) {
               {equipo.descripcion_equipo}
             </div>
           </div>
-          <div
-            style={{
-              background: cfg.bg,
-              border: `1px solid ${cfg.border}`,
-              borderRadius: "20px",
-              padding: "4px 10px",
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-            }}
-          >
-            <Icono size={12} color={cfg.color} />
-            <span style={{ color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
+          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            {onHistorialClick && (
+              <button
+                onClick={() => onHistorialClick(equipo)}
+                title="Ver Historial de Uso"
+                style={{
+                  background: "rgba(30, 41, 59, 0.4)",
+                  border: "1px solid #1c2e52",
+                  borderRadius: "50%",
+                  width: "26px",
+                  height: "26px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#94a3b8",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#ff303e"; e.currentTarget.style.color = "#ff303e"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#1c2e52"; e.currentTarget.style.color = "#94a3b8"; }}
+              >
+                <Clock size={12} />
+              </button>
+            )}
+            <div
+              style={{
+                background: cfg.bg,
+                border: `1px solid ${cfg.border}`,
+                borderRadius: "20px",
+                padding: "4px 10px",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              <Icono size={12} color={cfg.color} />
+              <span style={{ color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
+            </div>
           </div>
         </div>
 
         {/* Info */}
-        <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px" }}>
-          {equipo.proveedor}
+        <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+          <span>{equipo.proveedor}</span>
           {equipo.proyectos && (
-            <span style={{ marginLeft: "8px", color: "#475569" }}>
+            <span style={{ color: "#475569" }}>
               · 📍 {equipo.proyectos.nombre_proyecto}
             </span>
           )}
+          {equipo.clasificacion_comercial && equipo.clasificacion_comercial !== "OPERATIVO - EN USO" && (
+            (() => {
+              const esArriendo = equipo.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO";
+              const estaArrendado = esArriendo && equipo.arriendo_cliente && equipo.arriendo_cliente.trim() !== "";
+              
+              let bg = "rgba(30, 41, 59, 0.4)";
+              let color = "#94a3b8";
+              let border = "1px solid #1c2e52";
+              let label = equipo.clasificacion_comercial;
+
+              if (equipo.clasificacion_comercial === "VENTA") {
+                bg = "rgba(59, 130, 246, 0.15)";
+                color = "#60a5fa";
+                border = "1px solid rgba(59, 130, 246, 0.3)";
+                label = "💲 VENTA";
+              } else if (esArriendo) {
+                if (estaArrendado) {
+                  bg = "rgba(249, 115, 22, 0.15)";
+                  color = "#f97316";
+                  border = "1px solid rgba(249, 115, 22, 0.3)";
+                  label = "🤝 ARRENDADO";
+                } else {
+                  bg = "rgba(16, 185, 129, 0.15)";
+                  color = "#10b981";
+                  border = "1px solid rgba(16, 185, 129, 0.3)";
+                  label = "🔑 EN PATIO - DISPONIBLE";
+                }
+              }
+
+              return (
+                <span style={{
+                  background: bg,
+                  color: color,
+                  border: border,
+                  borderRadius: "4px", padding: "1px 6px", fontSize: "10px", fontWeight: 700, marginLeft: "4px"
+                }}>
+                  {label}
+                </span>
+              );
+            })()
+          )}
         </div>
+
+        {/* Detalle Arriendo Activo */}
+        {equipo.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" && equipo.arriendo_cliente && equipo.arriendo_cliente.trim() !== "" && (
+          <div
+            style={{
+              background: "rgba(249, 115, 22, 0.08)",
+              borderLeft: "3px solid #f97316",
+              borderRadius: "6px",
+              padding: "8px 10px",
+              marginBottom: "12px",
+            }}
+          >
+            <div style={{ color: "#f97316", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
+              🤝 ARRENDADO ACTIVO
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: "11px", fontWeight: 600 }}>
+              Cliente: {equipo.arriendo_cliente}
+            </div>
+            {(equipo.arriendo_fecha_inicio || equipo.arriendo_fecha_fin) && (
+              <div style={{ color: "#94a3b8", fontSize: "10px", marginTop: "2px", display: "flex", gap: "4px" }}>
+                <span>📅</span>
+                <span>
+                  {(() => {
+                    const fmt = (d) => {
+                      if (!d) return "—";
+                      const p = d.split("-");
+                      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+                    };
+                    return `${fmt(equipo.arriendo_fecha_inicio)} al ${fmt(equipo.arriendo_fecha_fin)}`;
+                  })()}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Pauta activa */}
         {equipo.pauta_preventiva_activa && (
