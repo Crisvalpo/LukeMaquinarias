@@ -97,7 +97,9 @@ export default function QrLanding() {
       const storedId = localStorage.getItem("luke_operador_identificador");
       if (storedId) {
         setIdentificador(storedId);
-        setIsIdentified(true);
+        // No marcamos isIdentified en true inmediatamente para evitar que React
+        // intente renderizar la vista de check-in antes de que fetchLandingData 
+        // cargue la información del operador (evita race conditions y crashes).
         fetchLandingData(storedId);
       } else {
         setLoadingData(false);
@@ -485,7 +487,7 @@ export default function QrLanding() {
               {/* Tarjeta de Operador */}
               <div className="user-profile-box">
                 <div className="avatar-wrapper">
-                  {operador.foto_url ? (
+                  {operador?.foto_url ? (
                     <img src={operador.foto_url} alt={operador.nombre_completo} className="avatar-img" />
                   ) : (
                     <div className="avatar-placeholder">
@@ -509,9 +511,9 @@ export default function QrLanding() {
                   />
                 </div>
                 <div className="user-info">
-                  <h3>{operador.nombre_completo}</h3>
-                  <p>{operador.rol || "Operador de Maquinaria"}</p>
-                  {!operador.foto_url && (
+                  <h3>{operador?.nombre_completo || "Cargando operador..."}</h3>
+                  <p>{operador?.rol || "Operador de Maquinaria"}</p>
+                  {!operador?.foto_url && operador && (
                     <span className="photo-warning">⚠️ Falta registrar foto de perfil</span>
                   )}
                 </div>
