@@ -8,10 +8,10 @@ export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEn
   const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.me");
   if (tieneAudioEntrante && texto && !contieneLink && geminiKey) {
     try {
-      const ttsModelName = "gemini-2.5-flash";
+      const ttsModelName = "gemini-2.5-flash-preview-tts";
       console.log(`[messageService] 🎙️ Sintetizando voz con Gemini TTS: "${texto.substring(0, 50)}..."`);
       const ttsRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModelName}:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1alpha/models/${ttsModelName}:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     // 2. Obtener tipo de seguimiento del equipo
     const { data: equipo, error: errorEq } = await supabase
       .from("equipos")
-      .select("id, codigo_interno, descripcion_equipo, tipo_seguimiento")
+      .select("id, codigo_interno, descripcion_equipo, tipo_seguimiento, seguimiento_completo")
       .eq("id", equipoId)
       .maybeSingle();
 
@@ -73,14 +73,17 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     let reporteId;
+    const requiereSeguimiento = equipo.seguimiento_completo !== false;
     const updateData = {};
-    if (esVehiculo) {
-      updateData.km_inicial = valorLectura;
-      if (destinoRuta) {
-        updateData.destino_ruta = destinoRuta;
+    if (requiereSeguimiento) {
+      if (esVehiculo) {
+        updateData.km_inicial = valorLectura;
+        if (destinoRuta) {
+          updateData.destino_ruta = destinoRuta;
+        }
+      } else {
+        updateData.horometro_inicio = valorLectura;
       }
-    } else {
-      updateData.horometro_inicio = valorLectura;
     }
 
     if (combustibleNivel !== undefined && combustibleNivel !== null) {
