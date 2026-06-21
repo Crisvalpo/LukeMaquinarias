@@ -453,10 +453,29 @@ export default function EquiposTab({ hookProps }) {
     handleSubmit
   } = hookProps;
 
+  const [showForm, setShowForm] = useState(false);
+
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Equipos</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Equipos</h1>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            style={{
+              background: showForm ? "#1e293b" : "linear-gradient(135deg, #ff303e, #c21a25)",
+              border: showForm ? "1px solid #334155" : "none",
+              color: "white", borderRadius: "8px", padding: "6px 14px",
+              cursor: "pointer", fontWeight: 700, fontSize: "12px",
+              display: "flex", alignItems: "center", gap: "6px",
+              boxShadow: showForm ? "none" : "0 0 12px rgba(255, 48, 62, 0.3)",
+              transition: "all 0.2s"
+            }}
+          >
+            {showForm ? <X size={14} /> : <Plus size={14} />}
+            {showForm ? "Ocultar Formulario" : "Agregar Equipo"}
+          </button>
+        </div>
         <div style={{
           display: "flex", alignItems: "center", gap: "10px",
           background: "#121e36", border: "1px solid #1c2e52",
@@ -503,56 +522,66 @@ export default function EquiposTab({ hookProps }) {
       </div>
 
       {/* Formulario nuevo equipo */}
-      <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>
-          + REGISTRAR NUEVO EQUIPO
-        </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-          <FormRow label="Código Interno *">
-            <input style={inputStyle} placeholder="EIMI00387"
-              value={formEquipo.codigo_interno}
-              onChange={e => setFormEquipo(p => ({ ...p, codigo_interno: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Descripción *">
-            <input style={inputStyle} placeholder="Liebherr LR 1300"
-              value={formEquipo.descripcion_equipo}
-              onChange={e => setFormEquipo(p => ({ ...p, descripcion_equipo: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Proveedor">
-            <input style={inputStyle} placeholder="EIMISA"
-              value={formEquipo.proveedor}
-              onChange={e => setFormEquipo(p => ({ ...p, proveedor: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Proyecto Actual">
-            <select style={selectStyle}
-              value={formEquipo.proyecto_actual_id}
-              onChange={e => setFormEquipo(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
-              <option value="">Sin asignar</option>
-              {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
-            </select>
-          </FormRow>
-          <FormRow label="Seguimiento de Horas por Especialidad/Operador">
-            <select style={selectStyle}
-              value={(formEquipo.seguimiento_completo !== false).toString()}
-              onChange={e => setFormEquipo(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
-              <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
-              <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
-            </select>
-          </FormRow>
+      {showForm && (
+        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>
+              + REGISTRAR NUEVO EQUIPO
+            </h3>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <FormRow label="Código Interno *">
+              <input style={inputStyle} placeholder="EIMI00387"
+                value={formEquipo.codigo_interno}
+                onChange={e => setFormEquipo(p => ({ ...p, codigo_interno: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Descripción *">
+              <input style={inputStyle} placeholder="Liebherr LR 1300"
+                value={formEquipo.descripcion_equipo}
+                onChange={e => setFormEquipo(p => ({ ...p, descripcion_equipo: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Proveedor">
+              <input style={inputStyle} placeholder="EIMISA"
+                value={formEquipo.proveedor}
+                onChange={e => setFormEquipo(p => ({ ...p, proveedor: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Proyecto Actual">
+              <select style={selectStyle}
+                value={formEquipo.proyecto_actual_id}
+                onChange={e => setFormEquipo(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
+                <option value="">Sin asignar</option>
+                {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Seguimiento de Horas por Especialidad/Operador">
+              <select style={selectStyle}
+                value={(formEquipo.seguimiento_completo !== false).toString()}
+                onChange={e => setFormEquipo(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
+                <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
+                <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
+              </select>
+            </FormRow>
+          </div>
+          <button
+            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+            disabled={saving}
+            style={{
+              background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
+              color: "white", borderRadius: "8px", padding: "9px 20px",
+              cursor: "pointer", fontWeight: 700, fontSize: "13px",
+              display: "flex", alignItems: "center", gap: "6px", marginTop: "4px",
+            }}
+          >
+            <Plus size={14} /> {saving ? "Guardando…" : "Registrar Equipo"}
+          </button>
         </div>
-        <button
-          onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
-          disabled={saving}
-          style={{
-            background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none",
-            color: "white", borderRadius: "8px", padding: "9px 20px",
-            cursor: "pointer", fontWeight: 700, fontSize: "13px",
-            display: "flex", alignItems: "center", gap: "6px", marginTop: "4px",
-          }}
-        >
-          <Plus size={14} /> {saving ? "Guardando…" : "Registrar Equipo"}
-        </button>
-      </div>
+      )}
 
       {/* Buscador de Equipos */}
       <Buscador

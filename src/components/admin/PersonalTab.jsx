@@ -127,72 +127,101 @@ export default function PersonalTab({ hookProps }) {
     handleGuardarPersonal
   } = hookProps;
 
+  const [showForm, setShowForm] = useState(false);
+
   const rolColors = { "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
 
   return (
     <>
-      <h1 style={{ margin: "0 0 24px", fontSize: "22px", fontWeight: 800 }}>Gestión de Personal</h1>
-
-      <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>+ REGISTRAR TRABAJADOR</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
-          <FormRow label="RUT *">
-            <input style={inputStyle} placeholder="12.345.678-9"
-              value={formPersonal.rut}
-              onChange={e => setFormPersonal(p => ({ ...p, rut: formatRut(e.target.value) }))} />
-          </FormRow>
-          <FormRow label="Nombre Completo *">
-            <input style={inputStyle} placeholder="Juan Pérez González"
-              value={formPersonal.nombre_completo}
-              onChange={e => setFormPersonal(p => ({ ...p, nombre_completo: e.target.value }))} />
-          </FormRow>
-          <FormRow label="WhatsApp * (569...)">
-            <input style={inputStyle} placeholder="56912345678"
-              value={formPersonal.whatsapp}
-              onChange={e => setFormPersonal(p => ({ ...p, whatsapp: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Rol *">
-            <select style={selectStyle} value={formPersonal.rol}
-              onChange={e => setFormPersonal(p => ({ ...p, rol: e.target.value }))}>
-              {["Operador", "Supervisor", "Rigger", "Jefe de Area"].map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </FormRow>
-          <FormRow label="Turno">
-            <select style={selectStyle} value={formPersonal.turno_tipo}
-              onChange={e => setFormPersonal(p => ({ ...p, turno_tipo: e.target.value }))}>
-              {["14x14", "5x2", "7x7", "Mensual"].map(t => <option key={t}>{t}</option>)}
-            </select>
-          </FormRow>
-          <FormRow label="Jornada">
-            <select style={selectStyle} value={formPersonal.jornada_tipo}
-              onChange={e => setFormPersonal(p => ({ ...p, jornada_tipo: e.target.value }))}>
-              <option value="Dia">Día</option>
-              <option value="Noche">Noche</option>
-            </select>
-          </FormRow>
-          <FormRow label="Proyecto Actual">
-            <select style={selectStyle} value={formPersonal.proyecto_actual_id}
-              onChange={e => setFormPersonal(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
-              <option value="">Sin asignar</option>
-              {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
-            </select>
-          </FormRow>
-          <FormRow label="Foto de Perfil URL">
-            <input style={inputStyle} placeholder="https://..."
-              value={formPersonal.foto_url}
-              onChange={e => setFormPersonal(p => ({ ...p, foto_url: e.target.value }))} />
-          </FormRow>
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Personal</h1>
         <button
-          onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
-          disabled={saving}
-          style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
+          onClick={() => setShowForm(!showForm)}
+          style={{
+            background: showForm ? "#1e293b" : "linear-gradient(135deg, #ff303e, #c21a25)",
+            border: showForm ? "1px solid #334155" : "none",
+            color: "white", borderRadius: "8px", padding: "6px 14px",
+            cursor: "pointer", fontWeight: 700, fontSize: "12px",
+            display: "flex", alignItems: "center", gap: "6px",
+            boxShadow: showForm ? "none" : "0 0 12px rgba(255, 48, 62, 0.3)",
+            transition: "all 0.2s"
+          }}
         >
-          <Plus size={14} /> {saving ? "Guardando…" : "Registrar Trabajador"}
+          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? "Ocultar Formulario" : "Agregar Trabajador"}
         </button>
       </div>
+
+      {showForm && (
+        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>+ REGISTRAR TRABAJADOR</h3>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+            <FormRow label="RUT *">
+              <input style={inputStyle} placeholder="12.345.678-9"
+                value={formPersonal.rut}
+                onChange={e => setFormPersonal(p => ({ ...p, rut: formatRut(e.target.value) }))} />
+            </FormRow>
+            <FormRow label="Nombre Completo *">
+              <input style={inputStyle} placeholder="Juan Pérez González"
+                value={formPersonal.nombre_completo}
+                onChange={e => setFormPersonal(p => ({ ...p, nombre_completo: e.target.value }))} />
+            </FormRow>
+            <FormRow label="WhatsApp * (569...)">
+              <input style={inputStyle} placeholder="56912345678"
+                value={formPersonal.whatsapp}
+                onChange={e => setFormPersonal(p => ({ ...p, whatsapp: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Rol *">
+              <select style={selectStyle} value={formPersonal.rol}
+                onChange={e => setFormPersonal(p => ({ ...p, rol: e.target.value }))}>
+                {["Operador", "Supervisor", "Rigger", "Jefe de Area"].map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </FormRow>
+            <FormRow label="Turno">
+              <select style={selectStyle} value={formPersonal.turno_tipo}
+                onChange={e => setFormPersonal(p => ({ ...p, turno_tipo: e.target.value }))}>
+                {["14x14", "5x2", "7x7", "Mensual"].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Jornada">
+              <select style={selectStyle} value={formPersonal.jornada_tipo}
+                onChange={e => setFormPersonal(p => ({ ...p, jornada_tipo: e.target.value }))}>
+                <option value="Dia">Día</option>
+                <option value="Noche">Noche</option>
+              </select>
+            </FormRow>
+            <FormRow label="Proyecto Actual">
+              <select style={selectStyle} value={formPersonal.proyecto_actual_id}
+                onChange={e => setFormPersonal(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
+                <option value="">Sin asignar</option>
+                {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Foto de Perfil URL">
+              <input style={inputStyle} placeholder="https://..."
+                value={formPersonal.foto_url}
+                onChange={e => setFormPersonal(p => ({ ...p, foto_url: e.target.value }))} />
+            </FormRow>
+          </div>
+          <button
+            onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
+            disabled={saving}
+            style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
+          >
+            <Plus size={14} /> {saving ? "Guardando…" : "Registrar Trabajador"}
+          </button>
+        </div>
+      )}
 
       {/* Buscador de Personal */}
       <Buscador

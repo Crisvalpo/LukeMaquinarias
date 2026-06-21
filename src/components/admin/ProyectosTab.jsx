@@ -116,37 +116,66 @@ export default function ProyectosTab({ hookProps }) {
     handleGuardarProyecto
   } = hookProps;
 
+  const [showForm, setShowForm] = useState(false);
+
   return (
     <>
-      <h1 style={{ margin: "0 0 24px", fontSize: "22px", fontWeight: 800 }}>Gestión de Proyectos</h1>
-
-      <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
-        <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>+ REGISTRAR NUEVO PROYECTO</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
-          <FormRow label="Nombre Proyecto *">
-            <input style={inputStyle} placeholder="Andina Fase 2"
-              value={formProyecto.nombre_proyecto}
-              onChange={e => setFormProyecto(p => ({ ...p, nombre_proyecto: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Centro de Costos *">
-            <input style={inputStyle} placeholder="CC-ANDINA-01"
-              value={formProyecto.codigo_cc}
-              onChange={e => setFormProyecto(p => ({ ...p, codigo_cc: e.target.value }))} />
-          </FormRow>
-          <FormRow label="Ubicación">
-            <input style={inputStyle} placeholder="Frente Norte, Sector 3"
-              value={formProyecto.ubicacion}
-              onChange={e => setFormProyecto(p => ({ ...p, ubicacion: e.target.value }))} />
-          </FormRow>
-        </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Proyectos</h1>
         <button
-          onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), () => { proyectosPaginado.refresh(); proyectosCompleto.refresh(); })}
-          disabled={saving}
-          style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
+          onClick={() => setShowForm(!showForm)}
+          style={{
+            background: showForm ? "#1e293b" : "linear-gradient(135deg, #ff303e, #c21a25)",
+            border: showForm ? "1px solid #334155" : "none",
+            color: "white", borderRadius: "8px", padding: "6px 14px",
+            cursor: "pointer", fontWeight: 700, fontSize: "12px",
+            display: "flex", alignItems: "center", gap: "6px",
+            boxShadow: showForm ? "none" : "0 0 12px rgba(255, 48, 62, 0.3)",
+            transition: "all 0.2s"
+          }}
         >
-          <Plus size={14} /> {saving ? "Guardando…" : "Registrar Proyecto"}
+          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? "Ocultar Formulario" : "Agregar Proyecto"}
         </button>
       </div>
+
+      {showForm && (
+        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>+ REGISTRAR NUEVO PROYECTO</h3>
+            <button
+              onClick={() => setShowForm(false)}
+              style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+            <FormRow label="Nombre Proyecto *">
+              <input style={inputStyle} placeholder="Andina Fase 2"
+                value={formProyecto.nombre_proyecto}
+                onChange={e => setFormProyecto(p => ({ ...p, nombre_proyecto: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Centro de Costos *">
+              <input style={inputStyle} placeholder="CC-ANDINA-01"
+                value={formProyecto.codigo_cc}
+                onChange={e => setFormProyecto(p => ({ ...p, codigo_cc: e.target.value }))} />
+            </FormRow>
+            <FormRow label="Ubicación">
+              <input style={inputStyle} placeholder="Frente Norte, Sector 3"
+                value={formProyecto.ubicacion}
+                onChange={e => setFormProyecto(p => ({ ...p, ubicacion: e.target.value }))} />
+            </FormRow>
+          </div>
+          <button
+            onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), () => { proyectosPaginado.refresh(); proyectosCompleto.refresh(); })}
+            disabled={saving}
+            style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
+          >
+            <Plus size={14} /> {saving ? "Guardando…" : "Registrar Proyecto"}
+          </button>
+        </div>
+      )}
 
       {/* Buscador de Proyectos */}
       <Buscador
