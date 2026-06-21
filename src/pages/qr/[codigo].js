@@ -74,6 +74,7 @@ export default function QrLanding() {
   const [pautaConfirmada, setPautaConfirmada] = useState(false);
   const [errorMessageLocal, setErrorMessageLocal] = useState("");
   const [checkinSuccess, setCheckinSuccess] = useState(false);
+  const [showBypassGps, setShowBypassGps] = useState(false);
 
   // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
@@ -216,6 +217,55 @@ export default function QrLanding() {
     reader.readAsDataURL(file);
   };
 
+  // Ejecutar el check-in físico enviando la ubicación al servidor
+  const performCheckin = async (lat = null, lng = null) => {
+    if (!equipo || !operador) return;
+
+    const requiereSeguimiento = equipo.seguimiento_completo !== false;
+    const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
+    
+    let valorLecturaNum = 0;
+    if (requiereSeguimiento) {
+      valorLecturaNum = parseFloat(lecturaActual) || 0;
+    }
+
+    setUbicacionCargando(true);
+    setErrorMessageLocal("");
+
+    try {
+      const res = await fetch("/api/equipos/checkin-web", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          equipoId: equipo.id,
+          operadorId: operador.id,
+          valorLectura: valorLecturaNum,
+          latitud: lat,
+          longitud: lng,
+          pautaConfirmada: equipo.pauta_preventiva_activa ? true : false,
+          destinoRuta: esVehiculo ? destinoRuta : null
+        })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        setCheckinSuccess(true);
+        setUbicacionOk(true);
+        // Redirigir a WhatsApp
+        const messageText = `REPORTE:${equipo.codigo_interno}`;
+        const cleanPhone = botPhone.replace(/[^0-9]/g, "");
+        window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
+      } else {
+        setErrorMessageLocal(json.message || "Error al procesar el check-in en el servidor.");
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessageLocal("Error de red al conectar con el servidor.");
+    } finally {
+      setUbicacionCargando(false);
+    }
+  };
+
   // Procesar check-in consolidado desde la Web
   const handleCheckinWeb = async (e) => {
     e.preventDefault();
@@ -251,10 +301,12 @@ export default function QrLanding() {
 
     setErrorMessageLocal("");
     setUbicacionCargando(true);
+    setShowBypassGps(false);
 
     if (!navigator.geolocation) {
-      setErrorMessageLocal("Tu dispositivo o navegador no soporta geolocalización.");
+      setErrorMessageLocal("Tu dispositivo o navegador no soporta geolocalización. Puedes continuar omitiendo el GPS.");
       setUbicacionCargando(false);
+      setShowBypassGps(true);
       return;
     }
 
@@ -262,47 +314,19 @@ export default function QrLanding() {
       async (position) => {
         const { latitude, longitude } = position.coords;
         setCoords({ latitude, longitude });
-
-        try {
-          // Enviar todo al backend consolidado
-          const res = await fetch("/api/equipos/checkin-web", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              equipoId: equipo.id,
-              operadorId: operador.id,
-              valorLectura: valorLecturaNum,
-              latitud: latitude,
-              longitud: longitude,
-              pautaConfirmada: equipo.pauta_preventiva_activa ? true : false,
-              destinoRuta: esVehiculo ? destinoRuta : null
-            })
-          });
-
-          const json = await res.json();
-          if (json.success) {
-            setCheckinSuccess(true);
-            setUbicacionOk(true);
-            // Redirigir a WhatsApp
-            const messageText = `REPORTE:${equipo.codigo_interno}`;
-            const cleanPhone = botPhone.replace(/[^0-9]/g, "");
-            window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`;
-          } else {
-            setErrorMessageLocal(json.message || "Error al procesar el check-in en el servidor.");
-          }
-        } catch (err) {
-          console.error(err);
-          setErrorMessageLocal("Error de red al conectar con el servidor.");
-        } finally {
-          setUbicacionCargando(false);
-        }
+        await performCheckin(latitude, longitude);
       },
       (error) => {
         console.error("Geolocation error:", error);
         setUbicacionCargando(false);
+        setShowBypassGps(true);
         let errorTxt = "No se pudo obtener la geolocalización.";
         if (error.code === error.PERMISSION_DENIED) {
-          errorTxt = "Permiso de GPS denegado. Por favor, activa el GPS de tu celular y concede permisos de ubicación en tu navegador para continuar.";
+          errorTxt = "Permiso de GPS denegado. Concede permisos de ubicación en tu navegador para continuar con GPS, o haz clic en el botón de abajo para continuar sin ubicación.";
+        } else if (error.code === error.TIMEOUT) {
+          errorTxt = "La obtención de ubicación tardó demasiado (Timeout). Puedes reintentar, o hacer clic abajo para continuar sin ubicación.";
+        } else {
+          errorTxt = "No se pudo obtener la geolocalización. Puedes continuar sin ubicación haciendo clic abajo.";
         }
         setErrorMessageLocal(errorTxt);
       },
@@ -655,6 +679,21 @@ export default function QrLanding() {
                     </>
                   )}
                 </button>
+
+                {showBypassGps && !checkinSuccess && (
+                  <button
+                    type="button"
+                    onClick={() => performCheckin(null, null)}
+                    className="submit-btn mt-2 bypass-btn"
+                    style={{
+                      background: "transparent",
+                      border: "1px dashed #ef4444",
+                      color: "#fca5a5"
+                    }}
+                  >
+                    <span>Omitir GPS e Iniciar Turno</span>
+                  </button>
+                )}
               </form>
             </div>
           )}
