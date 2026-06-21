@@ -8,7 +8,7 @@ export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEn
   const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.me");
   if (tieneAudioEntrante && texto && !contieneLink && geminiKey) {
     try {
-      const ttsModelName = "gemini-2.5-flash-preview-tts";
+      const ttsModelName = "gemini-2.5-flash";
       console.log(`[messageService] 🎙️ Sintetizando voz con Gemini TTS: "${texto.substring(0, 50)}..."`);
       const ttsRes = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${ttsModelName}:generateContent?key=${geminiKey}`,
