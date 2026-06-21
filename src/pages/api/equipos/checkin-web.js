@@ -43,7 +43,7 @@ export default async function handler(req, res) {
     }
 
     const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
 
     // 2.5 Verificar si el operador ya tiene una jornada activa en otro equipo hoy
     const { data: reporteActivoOtro } = await supabase

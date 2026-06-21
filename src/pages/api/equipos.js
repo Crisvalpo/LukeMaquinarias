@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     }
 
     // Obtener reportes activos de hoy para asociar el operador en la respuesta
-    const hoy = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" }); // YYYY-MM-DD
     const { data: reportesHoy } = await supabase
       .from("reportes_diarios")
       .select(`

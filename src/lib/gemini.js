@@ -553,7 +553,7 @@ Responde en español técnico chileno, de forma concisa y directa.`;
 // ================================================================
 // FUNCIÓN: Clasificador conversacional de intenciones históricas
 // ================================================================
-export async function analizarIntencionHistorica(textoOAudio, contextoFechaActual = new Date().toISOString().slice(0, 10)) {
+export async function analizarIntencionHistorica(textoOAudio, contextoFechaActual = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" })) {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
 
