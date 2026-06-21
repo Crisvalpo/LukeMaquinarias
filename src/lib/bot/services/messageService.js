@@ -4,8 +4,53 @@ export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEn
   const dest = jid || `${phoneClean}@s.whatsapp.net`;
   let audioBase64ParaEnviar = null;
 
-  // TTS deshabilitado: ningún modelo Gemini soporta actualmente el endpoint de audio generativo
-  // de forma estable. El bot responde siempre en texto.
+  // Solo sintetizar si el usuario original envió audio y no hay URLs en la respuesta,
+  // ni es un reporte o lista larga (por ejemplo, con más de 350 caracteres o estructura de lista).
+  const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.me");
+  const lineas = texto.split("\n");
+  const tieneEstructuraLista = lineas.filter(line => line.trim().startsWith("-") || line.trim().startsWith("*") || /^\d+\./.test(line.trim())).length >= 3;
+  const esReporteLargo = texto.length > 350 || tieneEstructuraLista;
+
+  if (tieneAudioEntrante && texto && !contieneLink && !esReporteLargo && geminiKey) {
+    try {
+      const ttsModelName = "gemini-2.5-flash-preview-tts";
+      console.log(`[messageService] 🎙️ Sintetizando voz con Gemini TTS: "${texto.substring(0, 50)}..."`);
+      const ttsRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${ttsModelName}:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: texto }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: "Charon" }
+                }
+              }
+            }
+          })
+        }
+      );
+
+      if (ttsRes.ok) {
+        const ttsData = await ttsRes.json();
+        const ttsParts = ttsData.candidates?.[0]?.content?.parts || [];
+        for (const part of ttsParts) {
+          if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith("audio/")) {
+            audioBase64ParaEnviar = part.inlineData.data;
+            break;
+          }
+        }
+      } else {
+        const ttsErrBody = await ttsRes.text();
+        console.error(`[messageService] Error TTS (${ttsRes.status}):`, ttsErrBody.substring(0, 200));
+      }
+    } catch (ttsErr) {
+      console.error("[messageService] Error en síntesis de voz:", ttsErr.message);
+    }
+  }
 
   try {
     await fetch(`${BRIDGE_URL}/send`, {
