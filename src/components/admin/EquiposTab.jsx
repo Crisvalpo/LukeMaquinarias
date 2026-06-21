@@ -509,6 +509,16 @@ export default function EquiposTab({ hookProps }) {
 
   const [showForm, setShowForm] = useState(false);
 
+  const equiposAgrupados = React.useMemo(() => {
+    const groups = {};
+    (equiposPaginado.data || []).forEach(eq => {
+      const pName = eq.proyectos?.nombre_proyecto || "Sin Asignar / En Patio";
+      if (!groups[pName]) groups[pName] = [];
+      groups[pName].push(eq);
+    });
+    return groups;
+  }, [equiposPaginado.data]);
+
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
@@ -680,20 +690,26 @@ export default function EquiposTab({ hookProps }) {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
-              {["Código", "Descripción", "Proyecto", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map(h => (
+              {["Código", "Descripción", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map(h => (
                 <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {equiposPaginado.data.map((eq, i) => {
-              const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
-              return (
-                <tr key={eq.id} style={{ borderBottom: "1px solid var(--border-container)", background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
-                  <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
-                  <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
-                  <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>{eq.proyectos?.nombre_proyecto || "—"}</td>
-                  <td style={{ padding: "12px 16px" }}>
+            {Object.entries(equiposAgrupados).map(([proyecto, items]) => (
+              <React.Fragment key={proyecto}>
+                <tr style={{ background: "var(--bg-sidebar)", borderBottom: "1px solid var(--border-container)" }}>
+                  <td colSpan={6} style={{ padding: "8px 16px", color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    📍 {proyecto} ({items.length} {items.length === 1 ? "equipo" : "equipos"})
+                  </td>
+                </tr>
+                {items.map((eq, i) => {
+                  const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
+                  return (
+                    <tr key={eq.id} style={{ borderBottom: "1px solid var(--border-container)", background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
+                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
+                      <td style={{ padding: "12px 16px" }}>
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                       {cfg.label}
                     </span>
@@ -812,9 +828,11 @@ export default function EquiposTab({ hookProps }) {
                 </tr>
               );
             })}
+          </React.Fragment>
+        ))}
             {equiposPaginado.data.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "13px" }}>
                   No hay equipos registrados o no coinciden con la búsqueda.
                 </td>
               </tr>

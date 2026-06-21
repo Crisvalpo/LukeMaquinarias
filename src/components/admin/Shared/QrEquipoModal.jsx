@@ -87,43 +87,44 @@ export default function QrEquipoModal({ equipo, botPhone, onClose }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 1000, padding: "20px",
     }}>
       <div style={{
-        background: "#121e36", border: "1px solid #1c2e52",
-        borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "400px",
-        textAlign: "center",
+        background: "var(--bg-container)", border: "1px solid var(--border-container)",
+        borderRadius: "var(--border-radius-base)", padding: "24px", width: "100%", maxWidth: "400px",
+        textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.08)"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
           <div style={{ textAlign: "left" }}>
-            <div style={{ color: "#ff303e", fontWeight: 700, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Código QR de Equipo</div>
-            <div style={{ color: "white", fontWeight: 700, fontSize: "16px", marginTop: "2px" }}>{equipo.codigo_interno}</div>
+            <div style={{ color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Código QR de Equipo</div>
+            <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "16px", marginTop: "2px" }}>{equipo.codigo_interno}</div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer" }}>
             <X size={20} />
           </button>
         </div>
 
-        <div style={{ color: "#cbd5e1", fontSize: "13px", marginBottom: "20px", textAlign: "left", lineHeight: 1.4 }}>
+        <div style={{ color: "var(--color-text)", fontSize: "13px", marginBottom: "20px", textAlign: "left", lineHeight: 1.4 }}>
           {equipo.descripcion_equipo}
         </div>
 
         <div style={{
           background: "white", padding: "20px", borderRadius: "12px",
-          display: "inline-block", marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+          display: "inline-block", marginBottom: "20px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          border: "1px solid var(--border-container)"
         }}>
           <img src={qrUrl} alt={`QR ${equipo.codigo_interno}`} width={220} height={220} style={{ display: "block" }} />
         </div>
 
-        <div style={{ color: "#64748b", fontSize: "11px", marginBottom: "20px", lineHeight: 1.4 }}>
+        <div style={{ color: "var(--color-text-muted)", fontSize: "11px", marginBottom: "20px", lineHeight: 1.4 }}>
           Al escanear este QR con el móvil, el operador abrirá la landing page intermedia para registrar su ubicación y foto antes de ir a WhatsApp.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
           <button onClick={handlePrint} style={{
-            background: "#ff303e", border: "none", color: "white",
+            background: "var(--color-primary)", border: "none", color: "white",
             borderRadius: "8px", padding: "10px", fontSize: "12px", fontWeight: 700,
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
             transition: "background 0.2s"
@@ -131,7 +132,7 @@ export default function QrEquipoModal({ equipo, botPhone, onClose }) {
             Imprimir QR
           </button>
           <button onClick={handleDownload} disabled={downloading} style={{
-            background: "#1e3a5f", border: "1px solid #2563eb", color: "#60a5fa",
+            background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)",
             borderRadius: "8px", padding: "10px", fontSize: "12px", fontWeight: 700,
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
           }}>
@@ -139,7 +140,7 @@ export default function QrEquipoModal({ equipo, botPhone, onClose }) {
           </button>
         </div>
         <button onClick={handleCopy} style={{
-          width: "100%", background: "transparent", border: "1px solid #1c2e52", color: copied ? "#10b981" : "#cbd5e1",
+          width: "100%", background: "transparent", border: "1px solid var(--border-input)", color: copied ? "var(--color-primary-hover)" : "var(--color-text-muted)",
           borderRadius: "8px", padding: "10px", fontSize: "12px", fontWeight: 600,
           cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px"
         }}>
