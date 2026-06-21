@@ -27,7 +27,11 @@ export default function RegistrosTab({ hookProps }) {
     proyectosCompleto,
     saving,
     handleAprobarRegistro,
-    setRechazoId
+    rechazoId,
+    setRechazoId,
+    notaRechazo,
+    setNotaRechazo,
+    handleRechazarRegistro
   } = hookProps;
 
   return (

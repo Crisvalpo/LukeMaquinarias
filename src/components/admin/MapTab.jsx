@@ -196,7 +196,7 @@ export default function MapTab({ hookProps }) {
                   }}
                   onClick={() => {
                     if (tieneGPS && mapInstance.current) {
-                      mapInstance.setView([e.latitud_actual, e.longitud_actual], 16);
+                      mapInstance.current.setView([e.latitud_actual, e.longitud_actual], 16);
                     }
                   }}
                   onMouseEnter={el => { if (tieneGPS) el.currentTarget.style.borderColor = "#6366f1"; }}
