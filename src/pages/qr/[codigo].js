@@ -633,176 +633,69 @@ export default function QrLanding() {
                   </div>
                 )}
 
-                {/* Selector interactivo de Nivel de Combustible - PREMIUM */}
-                <div className="fuel-selector-box mt-4 animate-fade-in">
-                  {/* Header con label y valor */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
-                      ⛽ Nivel Combustible Inicial
+                {/* Selector interactivo de Nivel de Combustible */}
+                <div className="fuel-selector-box mt-4 animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px" }}>
+                      ⛽ ESTANQUE DE COMBUSTIBLE INICIAL
                     </span>
                     <span style={{ 
                       color: combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e", 
-                      fontSize: "20px", 
-                      fontWeight: 900, 
+                      fontSize: "15px", 
+                      fontWeight: 800, 
                       fontFamily: "monospace",
-                      textShadow: `0 0 10px ${combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e"}`,
-                      transition: "all 0.3s ease"
+                      textShadow: `0 0 6px ${combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e"}`
                     }}>
                       {combustibleNivel}%
                     </span>
                   </div>
 
-                  {/* Layout de tanque + barras */}
-                  <div style={{ display: "flex", gap: "12px", alignItems: "stretch" }}>
-                    {/* Tanque vertical animado */}
-                    <div style={{ 
-                      width: "48px", 
-                      flexShrink: 0,
-                      background: "#090f1d",
-                      border: "1px solid #1e293b",
-                      borderRadius: "6px",
-                      padding: "4px",
-                      boxShadow: "inset 0 2px 6px rgba(0,0,0,0.8)",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "flex-end",
-                      overflow: "hidden",
-                      position: "relative",
-                      minHeight: "80px"
-                    }}>
-                      {/* Fondo vacío */}
-                      <div style={{
-                        position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "flex-end"
-                      }}>
-                        {/* Líquido animado */}
-                        <div style={{
-                          height: `${combustibleNivel}%`,
-                          background: combustibleNivel <= 20
-                            ? "linear-gradient(to top, #b91c1c, #ef4444)"
-                            : combustibleNivel <= 50
-                            ? "linear-gradient(to top, #a16207, #eab308)"
-                            : "linear-gradient(to top, #15803d, #22c55e)",
-                          borderRadius: "3px",
-                          transition: "height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.4s ease",
-                          boxShadow: `0 -2px 8px ${combustibleNivel <= 20 ? "rgba(239,68,68,0.5)" : combustibleNivel <= 50 ? "rgba(234,179,8,0.5)" : "rgba(34,197,94,0.5)"}`,
-                          position: "relative",
-                          overflow: "hidden"
-                        }}>
-                          {/* Efecto onda */}
-                          <div style={{
-                            position: "absolute",
-                            top: 0,
-                            left: "-50%",
-                            width: "200%",
-                            height: "6px",
-                            background: "rgba(255,255,255,0.15)",
-                            borderRadius: "50%",
-                            animation: "wave 2s ease-in-out infinite"
-                          }} />
-                        </div>
-                      </div>
-                      {/* Marcas del tanque */}
-                      {[75, 50, 25].map(mark => (
-                        <div key={mark} style={{
-                          position: "absolute",
-                          bottom: `${mark}%`,
-                          left: 0, right: 0,
-                          height: "1px",
-                          background: "rgba(255,255,255,0.08)"
-                        }} />
-                      ))}
-                    </div>
-
-                    {/* Barras táctiles verticales */}
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "3px", justifyContent: "center" }}>
-                      {/* Labels de referencia */}
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                        {["E", "", "", "", "", "½", "", "", "", "F"].map((label, i) => (
-                          <span key={i} style={{ 
-                            fontSize: "8px", fontWeight: 700, color: "#475569",
-                            width: "100%", textAlign: "center"
-                          }}>{label}</span>
-                        ))}
-                      </div>
-                      
-                      {/* Barras clicables */}
-                      <div style={{ display: "flex", gap: "3px", alignItems: "flex-end" }}>
-                        {Array.from({ length: 10 }).map((_, idx) => {
-                          const bloquePorcentaje = (idx + 1) * 10;
-                          const activo = bloquePorcentaje <= combustibleNivel;
-                          
-                          let colorLed = "#22c55e";
-                          if (bloquePorcentaje <= 20) colorLed = "#ef4444";
-                          else if (bloquePorcentaje <= 50) colorLed = "#eab308";
-
-                          // Barras con altura variable para efecto de equalizer
-                          const barHeight = 24 + (idx * 2);
-
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setCombustibleNivel(bloquePorcentaje)}
-                              style={{
-                                flex: 1,
-                                height: `${barHeight}px`,
-                                borderRadius: "3px 3px 2px 2px",
-                                background: activo ? colorLed : "#1e293b",
-                                border: combustibleNivel === bloquePorcentaje ? `1px solid ${colorLed}` : "none",
-                                boxShadow: activo ? `0 0 8px ${colorLed}80` : "none",
-                                transition: "all 0.25s ease",
-                                opacity: activo ? 1 : 0.2,
-                                cursor: "pointer",
-                                padding: 0,
-                                transform: combustibleNivel === bloquePorcentaje ? "scaleY(1.1)" : "scaleY(1)",
-                              }}
-                              title={`${bloquePorcentaje}%`}
-                            />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Etiqueta de estado */}
-                  <div style={{ 
-                    marginTop: "8px",
+                  <div style={{
+                    background: "#090f1d",
+                    border: "1px solid #1e293b",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    gap: "6px",
-                    padding: "6px 10px",
-                    borderRadius: "6px",
-                    background: combustibleNivel <= 20 
-                      ? "rgba(239, 68, 68, 0.08)" 
-                      : combustibleNivel <= 50 
-                      ? "rgba(234, 179, 8, 0.08)"
-                      : "rgba(34, 197, 94, 0.08)",
-                    border: `1px solid ${combustibleNivel <= 20 ? "rgba(239,68,68,0.2)" : combustibleNivel <= 50 ? "rgba(234,179,8,0.2)" : "rgba(34,197,94,0.2)"}`,
-                    transition: "all 0.3s ease"
+                    gap: "12px",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
                   }}>
-                    <span style={{ fontSize: "12px" }}>
-                      {combustibleNivel <= 20 ? "🔴" : combustibleNivel <= 50 ? "🟡" : "🟢"}
-                    </span>
-                    <span style={{ 
-                      fontSize: "11px", 
-                      fontWeight: 700,
-                      color: combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e"
-                    }}>
-                      {combustibleNivel <= 20 ? "CRÍTICO — Requiere carga urgente" 
-                        : combustibleNivel <= 50 ? "BAJO — Revisar antes de operar"
-                        : combustibleNivel <= 75 ? "ACEPTABLE — Nivel normal de trabajo"
-                        : "ÓPTIMO — Estanque lleno"}
-                    </span>
+                    <div style={{ display: "flex", gap: "4px", flex: 1 }}>
+                      {Array.from({ length: 10 }).map((_, idx) => {
+                        const bloquePorcentaje = (idx + 1) * 10;
+                        const activo = bloquePorcentaje <= combustibleNivel;
+                        
+                        let colorLed = "#22c55e";
+                        if (bloquePorcentaje <= 20) colorLed = "#ef4444";
+                        else if (bloquePorcentaje <= 50) colorLed = "#eab308";
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setCombustibleNivel(bloquePorcentaje)}
+                            style={{
+                              flex: 1,
+                              height: "28px",
+                              borderRadius: "3px",
+                              background: activo ? colorLed : "#1e293b",
+                              border: "none",
+                              boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
+                              transition: "all 0.2s ease",
+                              opacity: activo ? 1 : 0.15,
+                              cursor: "pointer",
+                              padding: 0
+                            }}
+                            title={`Seleccionar ${bloquePorcentaje}%`}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div style={{ color: "#475569", fontSize: "9px", textAlign: "center", marginTop: "4px" }}>
-                    Toca cada barra para ajustar el nivel del estanque
+                  <div style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>
+                    Toca la barra en el nivel que corresponda para actualizar el estanque.
                   </div>
                 </div>
-
 
                 {/* 2. Pauta preventiva obligatoria */}
                 {equipo.pauta_preventiva_activa && (
