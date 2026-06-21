@@ -75,6 +75,7 @@ export default function QrLanding() {
   const [errorMessageLocal, setErrorMessageLocal] = useState("");
   const [checkinSuccess, setCheckinSuccess] = useState(false);
   const [showBypassGps, setShowBypassGps] = useState(false);
+  const [combustibleNivel, setCombustibleNivel] = useState(100);
 
   // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
@@ -88,6 +89,9 @@ export default function QrLanding() {
         if (res.ok && data.success) {
           setEquipo(data.equipo);
           setBotPhone(data.botPhone);
+          if (data.equipo && data.equipo.combustible_nivel_porcentaje != null) {
+            setCombustibleNivel(data.equipo.combustible_nivel_porcentaje);
+          }
         }
       } catch (err) {
         console.error("Error cargando datos iniciales del equipo:", err);
@@ -120,6 +124,9 @@ export default function QrLanding() {
       if (res.ok && data.success) {
         setEquipo(data.equipo);
         setBotPhone(data.botPhone);
+        if (data.equipo && data.equipo.combustible_nivel_porcentaje != null) {
+          setCombustibleNivel(data.equipo.combustible_nivel_porcentaje);
+        }
         
         if (data.operador) {
           setOperador(data.operador);
@@ -245,7 +252,8 @@ export default function QrLanding() {
           latitud: lat,
           longitud: lng,
           pautaConfirmada: equipo.pauta_preventiva_activa ? true : false,
-          destinoRuta: esVehiculo ? destinoRuta : null
+          destinoRuta: esVehiculo ? destinoRuta : null,
+          combustibleNivel: combustibleNivel
         })
       });
 
@@ -624,6 +632,73 @@ export default function QrLanding() {
                     )}
                   </div>
                 )}
+
+                {/* Selector interactivo de Nivel de Combustible */}
+                <div className="fuel-selector-box mt-4 animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px" }}>
+                      ⛽ ESTANQUE DE COMBUSTIBLE INICIAL
+                    </span>
+                    <span style={{ 
+                      color: combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e", 
+                      fontSize: "15px", 
+                      fontWeight: 800, 
+                      fontFamily: "monospace",
+                      textShadow: `0 0 6px ${combustibleNivel <= 20 ? "#ef4444" : combustibleNivel <= 50 ? "#eab308" : "#22c55e"}`
+                    }}>
+                      {combustibleNivel}%
+                    </span>
+                  </div>
+
+                  <div style={{
+                    background: "#090f1d",
+                    border: "1px solid #1e293b",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
+                  }}>
+                    <div style={{ display: "flex", gap: "4px", flex: 1 }}>
+                      {Array.from({ length: 10 }).map((_, idx) => {
+                        const bloquePorcentaje = (idx + 1) * 10;
+                        const activo = bloquePorcentaje <= combustibleNivel;
+                        
+                        let colorLed = "#22c55e"; // Verde
+                        if (bloquePorcentaje <= 20) {
+                          colorLed = "#ef4444"; // Rojo
+                        } else if (bloquePorcentaje <= 50) {
+                          colorLed = "#eab308"; // Amarillo
+                        }
+
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setCombustibleNivel(bloquePorcentaje)}
+                            style={{
+                              flex: 1,
+                              height: "24px", // Más alto para que sea fácil de tocar con el dedo en celular
+                              borderRadius: "3px",
+                              background: activo ? colorLed : "#1e293b",
+                              border: "none",
+                              boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
+                              transition: "all 0.2s ease",
+                              opacity: activo ? 1 : 0.15,
+                              cursor: "pointer",
+                              padding: 0
+                            }}
+                            title={`Seleccionar ${bloquePorcentaje}%`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div style={{ color: "#64748b", fontSize: "10px", textAlign: "center" }}>
+                    Toca la barra en el nivel que corresponda para actualizar el estanque.
+                  </div>
+                </div>
 
                 {/* 2. Pauta preventiva obligatoria */}
                 {equipo.pauta_preventiva_activa && (

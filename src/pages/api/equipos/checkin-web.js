@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   const supabase = createAdminClient();
-  const { equipoId, operadorId, valorLectura, latitud, longitud, pautaConfirmada, destinoRuta } = req.body;
+  const { equipoId, operadorId, valorLectura, latitud, longitud, pautaConfirmada, destinoRuta, combustibleNivel } = req.body;
 
   if (!equipoId || !operadorId || valorLectura === undefined) {
     return res.status(400).json({ success: false, message: "Parámetros insuficientes (equipoId, operadorId y valorLectura son requeridos)" });
@@ -83,6 +83,11 @@ export default async function handler(req, res) {
       updateData.horometro_inicio = valorLectura;
     }
 
+    if (combustibleNivel !== undefined && combustibleNivel !== null) {
+      updateData.combustible_inicio_porcentaje = combustibleNivel;
+      updateData.combustible_nivel_porcentaje = combustibleNivel;
+    }
+
     if (reporteExistente) {
       reporteId = reporteExistente.id;
       const { error: errUpdate } = await supabase
@@ -113,6 +118,10 @@ export default async function handler(req, res) {
       longitud_actual: longitud || null,
       ultima_ubicacion_fecha: new Date().toISOString()
     };
+
+    if (combustibleNivel !== undefined && combustibleNivel !== null) {
+      eqUpdate.combustible_nivel_porcentaje = combustibleNivel;
+    }
 
     if (esVehiculo) {
       eqUpdate.ultimo_odometro = valorLectura;
