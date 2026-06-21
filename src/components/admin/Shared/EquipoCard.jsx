@@ -25,305 +25,292 @@ export default function EquipoCard({ equipo, onPautaClick }) {
         position: "relative",
         overflow: "visible", // Permitir que los tooltips floten sobre los bordes de la tarjeta
         transition: "all 0.3s ease",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        minHeight: "410px", // Altura mínima premium
       }}
     >
-      {/* Barra de estado superior */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0, left: 0, right: 0,
-          height: "4px",
-          background: cfg.color,
-        }}
-      />
-
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        <div>
-          <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
-            {equipo.codigo_interno}
+      {/* Contenedor Superior: Información y Personal */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, marginBottom: "14px" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+          <div>
+            <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
+              {equipo.codigo_interno}
+            </div>
+            <div style={{ color: "white", fontWeight: 700, fontSize: "14px", marginTop: "2px", lineHeight: 1.3 }}>
+              {equipo.descripcion_equipo}
+            </div>
           </div>
-          <div style={{ color: "white", fontWeight: 700, fontSize: "14px", marginTop: "2px", lineHeight: 1.3 }}>
-            {equipo.descripcion_equipo}
-          </div>
-        </div>
-        <div
-          style={{
-            background: cfg.bg,
-            border: `1px solid ${cfg.border}`,
-            borderRadius: "20px",
-            padding: "4px 10px",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-          }}
-        >
-          <Icono size={12} color={cfg.color} />
-          <span style={{ color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
-        </div>
-      </div>
-
-      {/* Info */}
-      <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px" }}>
-        {equipo.proveedor}
-        {equipo.proyectos && (
-          <span style={{ marginLeft: "8px", color: "#475569" }}>
-            · 📍 {equipo.proyectos.nombre_proyecto}
-          </span>
-        )}
-      </div>
-
-      {/* Indicador Estilo Tablero Automotriz Digital */}
-      {(() => {
-        const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
-        const valorLectura = esVehiculo ? equipo.ultimo_odometro : equipo.ultimo_horometro;
-        const colorGlow = esVehiculo ? "#38bdf8" : "#10b981"; // Azul Glaciar vs Verde Neon
-        const label = esVehiculo ? "ODÓMETRO" : "HORÓMETRO";
-        const unidad = esVehiculo ? "km" : "hrs";
-        const formattedValue = valorLectura != null ? Number(valorLectura).toLocaleString("es-CL") : "------";
-
-        return (
           <div
             style={{
-              background: "#090f1d",
-              border: "1px solid #1e293b",
-              borderRadius: "8px",
-              padding: "10px 12px",
-              marginBottom: "12px",
+              background: cfg.bg,
+              border: `1px solid ${cfg.border}`,
+              borderRadius: "20px",
+              padding: "4px 10px",
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
-              position: "relative",
-              overflow: "hidden",
+              gap: "5px",
             }}
           >
-            {/* Pequeña barra brillante lateral */}
-            <div
-              style={{
-                position: "absolute",
-                left: 0, top: 0, bottom: 0,
-                width: "3px",
-                background: colorGlow,
-                boxShadow: `0 0 8px ${colorGlow}`,
-              }}
-            />
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginLeft: "4px" }}>
-              <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
-                {label}
-              </span>
-              <span style={{ color: "#475569", fontSize: "9px", fontWeight: 500 }}>
-                ÚLTIMO REGISTRO
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "baseline",
-                gap: "4px",
-                fontFamily: "monospace",
-                background: "#050811",
-                padding: "4px 10px",
-                borderRadius: "4px",
-                border: "1px solid #111e36",
-                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.9)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "15px",
-                  fontWeight: 700,
-                  color: colorGlow,
-                  letterSpacing: "1px",
-                  textShadow: `0 0 6px ${colorGlow}`,
-                }}
-              >
-                {formattedValue}
-              </span>
-              <span style={{ fontSize: "10px", color: "#475569", fontWeight: 700 }}>
-                {unidad}
-              </span>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Indicador de Combustible */}
-      {(() => {
-        const nivel = equipo.combustible_nivel_porcentaje;
-        if (nivel === undefined || nivel === null) return null;
-
-        const esCritico = nivel <= 25;
-        const numBloques = 10;
-        const bloquesActivos = Math.round((nivel / 100) * numBloques);
-
-        return (
-          <div style={{ marginBottom: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
-                ESTANQUE DE COMBUSTIBLE
-              </span>
-              <span style={{ color: esCritico ? "#ef4444" : "white", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>
-                {nivel}%
-              </span>
-            </div>
-            
-            <div style={{
-              background: "#090f1d",
-              border: "1px solid #1e293b",
-              borderRadius: "6px",
-              padding: "6px 10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)",
-              gap: "12px"
-            }}>
-              {/* Bloques de LED segmentados */}
-              <div style={{ display: "flex", gap: "3px", flex: 1 }}>
-                {Array.from({ length: numBloques }).map((_, idx) => {
-                  const activo = idx < bloquesActivos;
-                  
-                  // Colores del LED
-                  let colorLed;
-                  if (idx < 2) {
-                    colorLed = "#ef4444"; // 20% o menos: Rojo
-                  } else if (idx < 5) {
-                    colorLed = "#eab308"; // 50% o menos: Amarillo
-                  } else {
-                    colorLed = "#22c55e"; // > 50%: Verde
-                  }
-                  
-                  return (
-                    <div
-                      key={idx}
-                      className={activo && esCritico ? "animate-pulse-fuel" : ""}
-                      style={{
-                        flex: 1,
-                        height: "8px",
-                        borderRadius: "2px",
-                        background: activo ? colorLed : "#1e293b",
-                        boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
-                        transition: "all 0.3s ease",
-                        opacity: activo ? 1 : 0.15
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Icono de Surtidor / Gasolinera en color glow */}
-              <div style={{ color: esCritico ? "#ef4444" : "#38bdf8", filter: `drop-shadow(0 0 4px ${esCritico ? '#ef4444' : '#38bdf8'})`, display: "flex", alignItems: "center" }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 22V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" />
-                  <path d="M11 22v-6" />
-                  <path d="M19 14h3" />
-                  <path d="M19 18h2.5" />
-                  <path d="M19 10H14" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Pauta activa */}
-      {equipo.pauta_preventiva_activa && (
-        <div
-          style={{
-            background: "#0f172a",
-            borderLeft: "3px solid #ff303e",
-            borderRadius: "6px",
-            padding: "8px 10px",
-            marginBottom: "10px",
-          }}
-        >
-          <div style={{ color: "#ff303e", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
-            📋 PAUTA HOY
-          </div>
-          <div style={{ color: "#cbd5e1", fontSize: "11px", lineHeight: 1.4 }}>
-            {equipo.pauta_preventiva_activa.slice(0, 80)}{equipo.pauta_preventiva_activa.length > 80 ? "…" : ""}
+            <Icono size={12} color={cfg.color} />
+            <span style={{ color: cfg.color, fontSize: "11px", fontWeight: 700 }}>{cfg.label}</span>
           </div>
         </div>
-      )}
 
-      {/* Personal asociado */}
-      {equipo.reporte_hoy && (
-        <div style={{
-          marginTop: "4px",
-          marginBottom: "12px",
-          padding: "8px 10px",
-          background: "rgba(15, 23, 42, 0.4)",
-          borderRadius: "8px",
-          border: "1px solid rgba(28, 46, 82, 0.4)",
-          boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "6px"
-        }}>
-          <div style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-            Personal Asignado
+        {/* Info */}
+        <div style={{ color: "#64748b", fontSize: "12px", marginBottom: "12px" }}>
+          {equipo.proveedor}
+          {equipo.proyectos && (
+            <span style={{ marginLeft: "8px", color: "#475569" }}>
+              · 📍 {equipo.proyectos.nombre_proyecto}
+            </span>
+          )}
+        </div>
+
+        {/* Pauta activa */}
+        {equipo.pauta_preventiva_activa && (
+          <div
+            style={{
+              background: "#0f172a",
+              borderLeft: "3px solid #ff303e",
+              borderRadius: "6px",
+              padding: "8px 10px",
+              marginBottom: "12px",
+            }}
+          >
+            <div style={{ color: "#ff303e", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
+              📋 PAUTA HOY
+            </div>
+            <div style={{ color: "#cbd5e1", fontSize: "11px", lineHeight: 1.4 }}>
+              {equipo.pauta_preventiva_activa.slice(0, 80)}{equipo.pauta_preventiva_activa.length > 80 ? "…" : ""}
+            </div>
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px" }}>
-            {equipo.tipo_seguimiento === "vehiculo" ? (
-              equipo.reporte_hoy.supervisor ? (
-                <PersonalAvatar
-                  persona={equipo.reporte_hoy.supervisor}
-                  rolEtiqueta="Supervisor"
-                  cfgBorder={cfg.border}
-                />
-              ) : (
-                <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
-              )
-            ) : (
-              <>
-                {equipo.reporte_hoy.operador ? (
+        )}
+
+        {/* Personal asociado */}
+        {equipo.reporte_hoy && (
+          <div style={{
+            marginTop: "auto", // Si hay personal, empujarlo hacia abajo en la sección de datos
+            padding: "8px 10px",
+            background: "rgba(15, 23, 42, 0.4)",
+            borderRadius: "8px",
+            border: "1px solid rgba(28, 46, 82, 0.4)",
+            boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "6px"
+          }}>
+            <div style={{ color: "#64748b", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+              Personal Asignado
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px" }}>
+              {equipo.tipo_seguimiento === "vehiculo" ? (
+                equipo.reporte_hoy.supervisor ? (
                   <PersonalAvatar
-                    persona={equipo.reporte_hoy.operador}
-                    rolEtiqueta="Operador"
+                    persona={equipo.reporte_hoy.supervisor}
+                    rolEtiqueta="Supervisor"
                     cfgBorder={cfg.border}
                   />
                 ) : (
-                  <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
-                )}
-                {equipo.reporte_hoy.rigger && (
-                  <PersonalAvatar
-                    persona={equipo.reporte_hoy.rigger}
-                    rolEtiqueta="Rigger"
-                    cfgBorder="#a855f7"
-                  />
-                )}
-              </>
-            )}
+                  <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
+                )
+              ) : (
+                <>
+                  {equipo.reporte_hoy.operador ? (
+                    <PersonalAvatar
+                      persona={equipo.reporte_hoy.operador}
+                      rolEtiqueta="Operador"
+                      cfgBorder={cfg.border}
+                    />
+                  ) : (
+                    <span style={{ color: "#475569", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
+                  )}
+                  {equipo.reporte_hoy.rigger && (
+                    <PersonalAvatar
+                      persona={equipo.reporte_hoy.rigger}
+                      rolEtiqueta="Rigger"
+                      cfgBorder="#a855f7"
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Botón editar pauta */}
-      <button
-        onClick={() => onPautaClick(equipo)}
-        style={{
-          width: "100%",
-          background: "transparent",
-          border: "1px solid #1c2e52",
-          borderRadius: "6px",
-          color: "#94a3b8",
-          fontSize: "11px",
-          padding: "5px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "4px",
-          transition: "all 0.2s",
-        }}
-        onMouseEnter={e => { e.target.style.borderColor = "#ff303e"; e.target.style.color = "#ff303e"; }}
-        onMouseLeave={e => { e.target.style.borderColor = "#1c2e52"; e.target.style.color = "#94a3b8"; }}
-      >
-        <Pencil size={10} /> Editar pauta
-      </button>
+      {/* Contenedor Inferior: Métricas y Acción */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Indicador Estilo Tablero Automotriz Digital (Horómetro / Odómetro) */}
+        {(() => {
+          const esVehiculo = equipo.tipo_seguimiento === "vehiculo";
+          const valorLectura = esVehiculo ? equipo.ultimo_odometro : equipo.ultimo_horometro;
+          const colorGlow = esVehiculo ? "#38bdf8" : "#10b981"; // Azul Glaciar vs Verde Neon
+          const label = esVehiculo ? "ODÓMETRO" : "HORÓMETRO";
+          const unidad = esVehiculo ? "km" : "hrs";
+          const formattedValue = valorLectura != null ? Number(valorLectura).toLocaleString("es-CL") : "------";
+
+          return (
+            <div
+              style={{
+                background: "#090f1d",
+                border: "1px solid #1e293b",
+                borderRadius: "8px",
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.8)",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                  {label}
+                </span>
+                <span style={{ color: "#475569", fontSize: "9px", fontWeight: 500 }}>
+                  ÚLTIMO REGISTRO
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: "4px",
+                  fontFamily: "monospace",
+                  background: "#050811",
+                  padding: "4px 10px",
+                  borderRadius: "4px",
+                  border: "1px solid #111e36",
+                  boxShadow: "inset 0 1px 2px rgba(0,0,0,0.9)",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "15px",
+                    fontWeight: 700,
+                    color: colorGlow,
+                    letterSpacing: "1px",
+                    textShadow: `0 0 6px ${colorGlow}`,
+                  }}
+                >
+                  {formattedValue}
+                </span>
+                <span style={{ fontSize: "10px", color: "#475569", fontWeight: 700 }}>
+                  {unidad}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Indicador de Combustible */}
+        {(() => {
+          const nivel = equipo.combustible_nivel_porcentaje;
+          if (nivel === undefined || nivel === null) return null;
+
+          const esCritico = nivel <= 25;
+          const numBloques = 10;
+          const bloquesActivos = Math.round((nivel / 100) * numBloques);
+
+          return (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                  ESTANQUE DE COMBUSTIBLE
+                </span>
+                <span style={{ color: esCritico ? "#ef4444" : "white", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>
+                  {nivel}%
+                </span>
+              </div>
+              
+              <div style={{
+                background: "#090f1d",
+                border: "1px solid #1e293b",
+                borderRadius: "6px",
+                padding: "6px 10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)",
+                gap: "12px"
+              }}>
+                {/* Bloques de LED segmentados */}
+                <div style={{ display: "flex", gap: "3px", flex: 1 }}>
+                  {Array.from({ length: numBloques }).map((_, idx) => {
+                    const activo = idx < bloquesActivos;
+                    
+                    // Colores del LED
+                    let colorLed;
+                    if (idx < 2) {
+                      colorLed = "#ef4444"; // 20% o menos: Rojo
+                    } else if (idx < 5) {
+                      colorLed = "#eab308"; // 50% o menos: Amarillo
+                    } else {
+                      colorLed = "#22c55e"; // > 50%: Verde
+                    }
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className={activo && esCritico ? "animate-pulse-fuel" : ""}
+                        style={{
+                          flex: 1,
+                          height: "8px",
+                          borderRadius: "2px",
+                          background: activo ? colorLed : "#1e293b",
+                          boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
+                          transition: "all 0.3s ease",
+                          opacity: activo ? 1 : 0.15
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Icono de Surtidor / Gasolinera en color glow */}
+                <div style={{ color: esCritico ? "#ef4444" : "#38bdf8", filter: `drop-shadow(0 0 4px ${esCritico ? '#ef4444' : '#38bdf8'})`, display: "flex", alignItems: "center" }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 22V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" />
+                    <path d="M11 22v-6" />
+                    <path d="M19 14h3" />
+                    <path d="M19 18h2.5" />
+                    <path d="M19 10H14" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Botón editar pauta */}
+        <button
+          onClick={() => onPautaClick(equipo)}
+          style={{
+            width: "100%",
+            background: "transparent",
+            border: "1px solid #1c2e52",
+            borderRadius: "6px",
+            color: "#94a3b8",
+            fontSize: "11px",
+            padding: "5px",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "4px",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={e => { e.target.style.borderColor = "#ff303e"; e.target.style.color = "#ff303e"; }}
+          onMouseLeave={e => { e.target.style.borderColor = "#1c2e52"; e.target.style.color = "#94a3b8"; }}
+        >
+          <Pencil size={10} /> Editar pauta
+        </button>
+      </div>
     </div>
   );
 }
