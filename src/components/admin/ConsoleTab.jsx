@@ -148,16 +148,16 @@ export default function ConsoleTab({ hookProps }) {
                   }}
                   onMouseEnter={e => {
                     if (!active) {
-                      e.currentTarget.style.borderColor = "#ff303e";
-                      e.currentTarget.style.color = "white";
-                      e.currentTarget.style.background = "rgba(255, 48, 62, 0.05)";
+                      e.currentTarget.style.borderColor = "var(--color-primary)";
+                      e.currentTarget.style.color = "var(--color-primary-hover)";
+                      e.currentTarget.style.background = "rgba(16, 185, 129, 0.08)";
                     }
                   }}
                   onMouseLeave={e => {
                     if (!active) {
-                      e.currentTarget.style.borderColor = "#1c2e52";
-                      e.currentTarget.style.color = "#94a3b8";
-                      e.currentTarget.style.background = "rgba(15, 23, 42, 0.4)";
+                      e.currentTarget.style.borderColor = "var(--border-container)";
+                      e.currentTarget.style.color = "var(--color-text-muted)";
+                      e.currentTarget.style.background = "var(--bg-input)";
                     }
                   }}
                 >
@@ -201,13 +201,15 @@ export default function ConsoleTab({ hookProps }) {
                     onMouseEnter={e => {
                       if (!active) {
                         e.currentTarget.style.borderColor = color;
-                        e.currentTarget.style.color = "white";
+                        e.currentTarget.style.color = color;
+                        e.currentTarget.style.background = activeBg;
                       }
                     }}
                     onMouseLeave={e => {
                       if (!active) {
-                        e.currentTarget.style.borderColor = "#1c2e52";
-                        e.currentTarget.style.color = "#94a3b8";
+                        e.currentTarget.style.borderColor = "var(--border-container)";
+                        e.currentTarget.style.color = "var(--color-text-muted)";
+                        e.currentTarget.style.background = "var(--bg-input)";
                       }
                     }}
                   >
@@ -249,14 +251,16 @@ export default function ConsoleTab({ hookProps }) {
                     }}
                     onMouseEnter={e => {
                       if (!active) {
-                        e.currentTarget.style.borderColor = "#ff303e";
-                        e.currentTarget.style.color = "white";
+                        e.currentTarget.style.borderColor = "var(--color-primary)";
+                        e.currentTarget.style.color = "var(--color-primary-hover)";
+                        e.currentTarget.style.background = "rgba(16, 185, 129, 0.08)";
                       }
                     }}
                     onMouseLeave={e => {
                       if (!active) {
-                        e.currentTarget.style.borderColor = "#1c2e52";
-                        e.currentTarget.style.color = "#94a3b8";
+                        e.currentTarget.style.borderColor = "var(--border-container)";
+                        e.currentTarget.style.color = "var(--color-text-muted)";
+                        e.currentTarget.style.background = "var(--bg-input)";
                       }
                     }}
                   >

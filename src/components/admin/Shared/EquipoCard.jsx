@@ -34,7 +34,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
       {/* Contenedor Superior: Información y Personal */}
       <div style={{ display: "flex", flexDirection: "column", flex: 1, marginBottom: "14px" }}>
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px", flexShrink: 0 }}>
           <div>
             <div style={{ color: "var(--color-primary-hover)", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
               {equipo.codigo_interno}
@@ -61,8 +61,8 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
                   cursor: "pointer",
                   transition: "all 0.2s"
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = "#ff303e"; e.currentTarget.style.color = "#ff303e"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = "#1c2e52"; e.currentTarget.style.color = "#94a3b8"; }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.color = "var(--color-primary-hover)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-input)"; e.currentTarget.style.color = "var(--color-text-muted)"; }}
               >
                 <Clock size={12} />
               </button>
@@ -85,7 +85,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
         </div>
 
         {/* Info */}
-        <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginBottom: "12px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+        <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginBottom: "12px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px", flexShrink: 0 }}>
           <span>{equipo.proveedor}</span>
           {equipo.proyectos && (
             <span style={{ color: "var(--color-text-muted)" }}>
@@ -164,6 +164,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
               borderRadius: "6px",
               padding: "8px 10px",
               marginBottom: "12px",
+              flexShrink: 0
             }}
           >
             <div style={{ color: "#f97316", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
@@ -200,6 +201,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
               borderRadius: "6px",
               padding: "8px 10px",
               marginBottom: "12px",
+              flexShrink: 0
             }}
           >
             <div style={{ color: "var(--color-primary-hover)", fontSize: "10px", fontWeight: 700, marginBottom: "2px" }}>
@@ -222,7 +224,8 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
             boxShadow: "none",
             display: "flex",
             flexDirection: "column",
-            gap: "6px"
+            gap: "6px",
+            flexShrink: 0
           }}>
             <div style={{ color: "var(--color-text-muted)", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
               Personal Asignado
@@ -427,8 +430,8 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
             gap: "4px",
             transition: "all 0.2s",
           }}
-          onMouseEnter={e => { e.target.style.borderColor = "#ff303e"; e.target.style.color = "#ff303e"; }}
-          onMouseLeave={e => { e.target.style.borderColor = "#1c2e52"; e.target.style.color = "#94a3b8"; }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.color = "var(--color-primary-hover)"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-input)"; e.currentTarget.style.color = "var(--color-text-muted)"; }}
         >
           <Pencil size={10} /> Editar pauta
         </button>
