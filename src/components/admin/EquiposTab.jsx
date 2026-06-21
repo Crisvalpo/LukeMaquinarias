@@ -126,6 +126,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     anio_fabricacion: equipo?.anio_fabricacion !== null && equipo?.anio_fabricacion !== undefined ? equipo.anio_fabricacion.toString() : "",
     seguimiento_completo: equipo?.seguimiento_completo !== false,
     imagen_url: equipo?.imagen_url || "",
+    combustible_nivel_porcentaje: equipo?.combustible_nivel_porcentaje !== null && equipo?.combustible_nivel_porcentaje !== undefined ? equipo.combustible_nivel_porcentaje.toString() : "100",
   });
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
@@ -199,6 +200,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         anio_fabricacion: formData.anio_fabricacion.trim() !== "" ? parseInt(formData.anio_fabricacion) : null,
         seguimiento_completo: formData.seguimiento_completo,
         imagen_url: formData.imagen_url.trim() || null,
+        combustible_nivel_porcentaje: formData.combustible_nivel_porcentaje.trim() !== "" ? parseFloat(formData.combustible_nivel_porcentaje) : 100,
       };
 
       const r = await fetch("/api/equipos", {
@@ -319,6 +321,17 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               <option value="En Colacion">En Colación</option>
               <option value="Detenido por Falla">Detenido por Falla (Taller)</option>
             </select>
+          </FormRow>
+          <FormRow label="Nivel de Combustible (%)">
+            <input
+              style={inputStyle}
+              type="number"
+              min="0"
+              max="100"
+              placeholder="Ej: 80"
+              value={formData.combustible_nivel_porcentaje}
+              onChange={e => setFormData(p => ({ ...p, combustible_nivel_porcentaje: e.target.value }))}
+            />
           </FormRow>
         </div>
 
