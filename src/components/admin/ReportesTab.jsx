@@ -512,7 +512,7 @@ export default function ReportesTab({ hookProps }) {
                       </div>
                     </div>
                     {isExpanded && (
-                      <div style={{ padding: "0 18px 18px", background: "rgba(15, 23, 42, 0.08)" }}>
+                      <div style={{ padding: "18px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)" }}>
                         <ExpandedReportList type="equipo" id={eq.id} />
                       </div>
                     )}
@@ -590,7 +590,7 @@ export default function ReportesTab({ hookProps }) {
                       </div>
                     </div>
                     {isExpanded && (
-                      <div style={{ padding: "0 18px 18px", background: "rgba(15, 23, 42, 0.08)" }}>
+                      <div style={{ padding: "18px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)" }}>
                         <ExpandedReportList type="operador" id={op.id} />
                       </div>
                     )}
