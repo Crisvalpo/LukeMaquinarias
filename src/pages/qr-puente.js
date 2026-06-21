@@ -225,8 +225,8 @@ export default function QrPuente() {
 
         body {
           font-family: 'Outfit', sans-serif;
-          background: #0a1120;
-          color: #f8fafc;
+          background: var(--bg-app);
+          color: var(--color-text);
           min-height: 100vh;
           overflow-x: hidden;
         }
@@ -238,7 +238,7 @@ export default function QrPuente() {
           justify-content: center;
           padding: 24px;
           position: relative;
-          background: radial-gradient(circle at top, #101c33, #0a1120);
+          background: radial-gradient(circle at top, var(--bg-sidebar), var(--bg-app));
         }
 
         /* Orbes degradados en background */
@@ -248,33 +248,32 @@ export default function QrPuente() {
           height: 400px;
           border-radius: 50%;
           filter: blur(100px);
-          opacity: 0.15;
+          opacity: 0.12;
           pointer-events: none;
           z-index: 0;
         }
         .bg-gradient-orb.top-left {
           top: -50px;
           left: -50px;
-          background: #6366f1;
+          background: var(--color-primary);
         }
         .bg-gradient-orb.bottom-right {
           bottom: -50px;
           right: -50px;
-          background: #34d399;
+          background: #84cc16;
         }
 
-        /* Tarjeta principal Glassmorphism */
+        /* Tarjeta principal Glassmorphism (adaptado a claro) */
         .content-card {
           position: relative;
           z-index: 10;
           max-width: 480px;
           width: 100%;
-          background: rgba(30, 41, 59, 0.7);
-          backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: var(--bg-container);
+          border: 1px solid var(--border-container);
           border-radius: 24px;
           padding: 32px;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
           text-align: center;
         }
 
@@ -284,7 +283,7 @@ export default function QrPuente() {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 28px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          border-bottom: 1px solid var(--border-container);
           padding-bottom: 16px;
         }
 
@@ -292,14 +291,14 @@ export default function QrPuente() {
           display: flex;
           align-items: center;
           gap: 6px;
-          color: #94a3b8;
+          color: var(--color-text-muted);
           text-decoration: none;
           font-size: 13px;
           font-weight: 500;
           transition: color 0.2s;
         }
         .back-link:hover {
-          color: #f8fafc;
+          color: var(--color-primary-hover);
         }
 
         .app-brand {
@@ -311,7 +310,7 @@ export default function QrPuente() {
           width: 28px;
           height: 28px;
           border-radius: 6px;
-          background: linear-gradient(135deg, #ff303e, #c21a25);
+          background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -319,7 +318,7 @@ export default function QrPuente() {
         .brand-name {
           font-size: 13px;
           font-weight: 700;
-          color: #cbd5e1;
+          color: var(--color-text);
         }
 
         /* Status Section */
@@ -354,7 +353,7 @@ export default function QrPuente() {
         h2 {
           font-size: 22px;
           font-weight: 700;
-          color: #f8fafc;
+          color: var(--color-text);
           margin-bottom: 12px;
           letter-spacing: -0.5px;
         }
@@ -362,7 +361,7 @@ export default function QrPuente() {
         p {
           font-size: 14px;
           line-height: 1.6;
-          color: #94a3b8;
+          color: var(--color-text-muted);
         }
 
         /* Estado: Éxito */
@@ -387,24 +386,24 @@ export default function QrPuente() {
         }
 
         .details-box {
-          background: rgba(15, 23, 42, 0.5);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: var(--bg-sidebar);
+          border: 1px solid var(--border-sidebar);
           border-radius: 12px;
           padding: 16px;
           font-size: 13px;
           text-align: left;
-          color: #cbd5e1;
+          color: var(--color-text);
           display: flex;
           flex-direction: column;
           gap: 6px;
         }
         .details-box .highlight {
           font-weight: 600;
-          color: #f8fafc;
+          color: var(--color-text);
           float: right;
         }
         .details-box .verde {
-          color: #10b981;
+          color: var(--color-primary-hover);
         }
 
         /* Estado: Error */
@@ -424,12 +423,12 @@ export default function QrPuente() {
         }
 
         .error-details {
-          background: rgba(239, 68, 68, 0.05);
-          border: 1px dashed rgba(239, 68, 68, 0.2);
+          background: #fef2f2;
+          border: 1px dashed rgba(239, 68, 68, 0.3);
           border-radius: 12px;
           padding: 14px;
           font-size: 13px;
-          color: #fca5a5;
+          color: #991b1b;
           margin-bottom: 24px;
           text-align: left;
           word-break: break-word;
@@ -450,7 +449,8 @@ export default function QrPuente() {
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+          border: 1px solid var(--border-container);
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
         }
         .qr-image {
           width: 100%;
@@ -459,9 +459,9 @@ export default function QrPuente() {
         }
 
         .warning-note {
-          background: rgba(245, 158, 11, 0.08);
-          border: 1px solid rgba(245, 158, 11, 0.15);
-          color: #fcd34d;
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          color: #b45309;
           font-size: 12px;
           font-weight: 500;
           border-radius: 8px;
@@ -482,7 +482,7 @@ export default function QrPuente() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #6366f1, #4f46e5);
+          background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
           color: white;
           border: none;
           padding: 12px 24px;
@@ -493,26 +493,28 @@ export default function QrPuente() {
           transition: all 0.2s;
           text-decoration: none;
           width: 100%;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
         .primary-btn:hover {
           transform: translateY(-1px);
-          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
         }
 
         .red-btn {
-          background: linear-gradient(135deg, #ef4444, #c21a25);
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
         }
         .red-btn:hover {
-          box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+          box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
         }
 
         .secondary-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          color: #cbd5e1;
+          background: var(--bg-sidebar);
+          border: 1px solid var(--border-sidebar);
+          color: var(--color-text);
           padding: 10px 20px;
           font-size: 13px;
           font-weight: 600;
@@ -521,8 +523,8 @@ export default function QrPuente() {
           transition: all 0.2s;
         }
         .secondary-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
+          background: var(--border-sidebar);
+          color: var(--color-text);
         }
 
         /* Utilidades */
@@ -530,18 +532,18 @@ export default function QrPuente() {
         .mr-2 { margin-right: 8px; }
         .auto-refresh-text {
           font-size: 12px;
-          color: #64748b;
+          color: var(--color-text-muted);
           margin-bottom: 16px;
         }
         .timer-num {
           font-weight: 700;
-          color: #f59e0b;
+          color: #d97706;
         }
 
         /* Animaciones */
         .spinner {
           animation: spin 1.2s linear infinite;
-          color: #6366f1;
+          color: var(--color-primary);
         }
         @keyframes spin {
           0% { transform: rotate(0deg); }

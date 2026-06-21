@@ -70,6 +70,7 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
     search,
     setSearch,
     refresh: (silent = false) => fetch_(silent),
+    limit: initialLimit,
   };
 }
 
