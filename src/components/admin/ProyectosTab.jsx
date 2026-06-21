@@ -3,8 +3,8 @@ import { Plus, Pencil, Save, X } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 
 const inputStyle = {
-  width: "100%", background: "#0f172a", border: "1px solid #1c2e52",
-  borderRadius: "8px", color: "white", padding: "9px 12px",
+  width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
+  borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "9px 12px",
   fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
 };
 
@@ -13,7 +13,7 @@ const selectStyle = { ...inputStyle, cursor: "pointer" };
 function Buscador({ value, onChange, placeholder }) {
   return (
     <div style={{ position: "relative", marginBottom: "16px", display: "flex", alignItems: "center" }}>
-      <div style={{ position: "absolute", left: "12px", color: "#64748b", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+      <div style={{ position: "absolute", left: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
       </div>
       <input
@@ -22,17 +22,16 @@ function Buscador({ value, onChange, placeholder }) {
         value={value}
         onChange={onChange}
         style={{
-          width: "100%", background: "#0f172a", border: "1px solid #1c2e52",
-          borderRadius: "8px", color: "white", padding: "10px 12px 10px 38px",
+          width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "10px 12px 10px 38px",
           fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
           transition: "all 0.2s",
         }}
         onFocus={e => {
-          e.target.style.borderColor = "#ff303e";
-          e.target.style.boxShadow = "0 0 0 2px rgba(255, 48, 62, 0.2)";
+          e.target.style.borderColor = "var(--color-primary)";
+          e.target.style.boxShadow = "0 0 0 2px rgba(16, 185, 129, 0.2)";
         }}
         onBlur={e => {
-          e.target.style.borderColor = "#1c2e52";
+          e.target.style.borderColor = "var(--border-input)";
           e.target.style.boxShadow = "none";
         }}
       />
@@ -41,7 +40,7 @@ function Buscador({ value, onChange, placeholder }) {
           onClick={() => onChange({ target: { value: "" } })}
           style={{
             position: "absolute", right: "12px", background: "none", border: "none",
-            color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0
+            color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0
           }}
         >
           <X size={16} />
@@ -59,12 +58,11 @@ function Paginador({ api, label }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "16px", background: "#121e36", borderTop: "1px solid #1c2e52",
-      borderBottomLeftRadius: "12px", borderBottomRightRadius: "12px",
-      fontSize: "13px", color: "#94a3b8"
+      padding: "16px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)", borderBottomLeftRadius: "var(--border-radius-base)", borderBottomRightRadius: "var(--border-radius-base)",
+      fontSize: "13px", color: "var(--color-text-muted)"
     }}>
       <div>
-        Mostrando <span style={{ color: "white", fontWeight: 600 }}>{fromRecord}-{toRecord}</span> de <span style={{ color: "white", fontWeight: 600 }}>{api.count}</span> {label}
+        Mostrando <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{fromRecord}-{toRecord}</span> de <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{api.count}</span> {label}
       </div>
       {totalPages > 1 && (
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -72,23 +70,21 @@ function Paginador({ api, label }) {
             onClick={() => api.setPage(p => Math.max(p - 1, 1))}
             disabled={api.page === 1}
             style={{
-              background: api.page === 1 ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
-              border: "1px solid #2563eb", color: api.page === 1 ? "#4b5563" : "#60a5fa",
+              background: api.page === 1 ? "rgba(0, 0, 0, 0.05)" : "rgba(16, 185, 129, 0.1)", border: "1px solid " + (api.page === 1 ? "var(--border-container)" : "var(--color-primary)"), color: api.page === 1 ? "var(--color-text-muted)" : "var(--color-primary-hover)",
               borderRadius: "6px", padding: "6px 12px", cursor: api.page === 1 ? "not-allowed" : "pointer",
               fontWeight: 600, fontSize: "12px", opacity: api.page === 1 ? 0.5 : 1, transition: "all 0.2s"
             }}
           >
             Anterior
           </button>
-          <span style={{ color: "white", fontWeight: 600, padding: "0 8px" }}>
+          <span style={{ color: "var(--color-text)", fontWeight: 600, padding: "0 8px" }}>
             Pág. {api.page} de {totalPages}
           </span>
           <button
             onClick={() => api.setPage(p => Math.min(p + 1, totalPages))}
             disabled={api.page >= totalPages}
             style={{
-              background: api.page >= totalPages ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
-              border: "1px solid #2563eb", color: api.page >= totalPages ? "#4b5563" : "#60a5fa",
+              background: api.page >= totalPages ? "rgba(0, 0, 0, 0.05)" : "rgba(16, 185, 129, 0.1)", border: "1px solid " + (api.page >= totalPages ? "var(--border-container)" : "var(--color-primary)"), color: api.page >= totalPages ? "var(--color-text-muted)" : "var(--color-primary-hover)",
               borderRadius: "6px", padding: "6px 12px", cursor: api.page >= totalPages ? "not-allowed" : "pointer",
               fontWeight: 600, fontSize: "12px", opacity: api.page >= totalPages ? 0.5 : 1, transition: "all 0.2s"
             }}
@@ -125,12 +121,12 @@ export default function ProyectosTab({ hookProps }) {
         <button
           onClick={() => setShowForm(!showForm)}
           style={{
-            background: showForm ? "#1e293b" : "linear-gradient(135deg, #ff303e, #c21a25)",
-            border: showForm ? "1px solid #334155" : "none",
+            background: showForm ? "rgba(0,0,0,0.08)" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))",
+            border: showForm ? "1px solid var(--border-container)" : "none",
             color: "white", borderRadius: "8px", padding: "6px 14px",
             cursor: "pointer", fontWeight: 700, fontSize: "12px",
             display: "flex", alignItems: "center", gap: "6px",
-            boxShadow: showForm ? "none" : "0 0 12px rgba(255, 48, 62, 0.3)",
+            boxShadow: "none",
             transition: "all 0.2s"
           }}
         >
@@ -140,9 +136,9 @@ export default function ProyectosTab({ hookProps }) {
       </div>
 
       {showForm && (
-        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", padding: "20px", marginBottom: "24px" }}>
+        <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", padding: "20px", marginBottom: "24px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#94a3b8" }}>+ REGISTRAR NUEVO PROYECTO</h3>
+            <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--color-text-muted)" }}>+ REGISTRAR NUEVO PROYECTO</h3>
             <button
               onClick={() => setShowForm(false)}
               style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0 }}
@@ -170,7 +166,7 @@ export default function ProyectosTab({ hookProps }) {
           <button
             onClick={() => handleSubmit("/api/proyectos", formProyecto, () => setFormProyecto({ nombre_proyecto: "", codigo_cc: "", ubicacion: "" }), () => { proyectosPaginado.refresh(); proyectosCompleto.refresh(); })}
             disabled={saving}
-            style={{ background: "linear-gradient(135deg, #ff303e, #c21a25)", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
+            style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
           >
             <Plus size={14} /> {saving ? "Guardando…" : "Registrar Proyecto"}
           </button>
@@ -184,10 +180,10 @@ export default function ProyectosTab({ hookProps }) {
         placeholder="Buscar proyectos por nombre, centro de costos o ubicación..."
       />
 
-      <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid #1c2e52", background: "#0f172a22" }}>
+            <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
               {["Centro de Costos", "Nombre del Proyecto", "Ubicación", "Estado", "Acciones"].map(h => (
                 <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
               ))}
@@ -197,7 +193,7 @@ export default function ProyectosTab({ hookProps }) {
             {proyectosPaginado.data.map((o, idx) => {
               const isEditing = editingProyectoId === o.id;
               return (
-                <tr key={o.id} style={{ borderBottom: "1px solid #1c2e52", background: idx % 2 === 0 ? "transparent" : "#0f172a22" }}>
+                <tr key={o.id} style={{ borderBottom: "1px solid var(--border-container)", background: idx % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
                   {isEditing ? (
                     <>
                       <td style={{ padding: "8px 16px" }}>
@@ -258,10 +254,10 @@ export default function ProyectosTab({ hookProps }) {
                     </>
                   ) : (
                     <>
-                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "13px" }}>
                         {o.codigo_cc}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "white", fontWeight: 600, fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px" }}>
                         {o.nombre_proyecto}
                       </td>
                       <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "13px" }}>
@@ -288,8 +284,7 @@ export default function ProyectosTab({ hookProps }) {
                             });
                           }}
                           style={{
-                            background: "#1e3a5f", border: "1px solid #2563eb",
-                            color: "#60a5fa", borderRadius: "6px", padding: "6px 12px",
+                            background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
                             fontSize: "11px", fontWeight: 700, cursor: "pointer",
                             display: "inline-flex", alignItems: "center", gap: "4px"
                           }}

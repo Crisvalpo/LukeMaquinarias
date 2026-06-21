@@ -38,15 +38,14 @@ export default function ConsoleTab({ hookProps }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Consola de Monitoreo</h1>
-          <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px" }}>
+          <p style={{ margin: "4px 0 0", color: "var(--color-text-muted)", fontSize: "13px" }}>
             {equiposFiltrados.length} equipos filtrados (de {equiposCompleto.data.length} totales) · Actualización automática cada 10s
           </p>
         </div>
         <button
           onClick={() => equiposCompleto.refresh(true)}
           style={{
-            background: "#121e36", border: "1px solid #1c2e52",
-            borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
+            background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-sm)", padding: "8px 14px", color: "var(--color-text)",
             cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px",
           }}
         >
@@ -57,14 +56,12 @@ export default function ConsoleTab({ hookProps }) {
       {/* Panel de Controles de Filtros y Agrupamiento (Glassmorphism) */}
       <div
         style={{
-          background: "rgba(16, 28, 51, 0.6)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: "1px solid rgba(28, 46, 82, 0.8)",
-          borderRadius: "16px",
+          background: "var(--bg-container)",
+          border: "1px solid var(--border-container)",
+          borderRadius: "var(--border-radius-base)",
           padding: "20px",
           marginBottom: "24px",
-          boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.02)",
           display: "flex",
           flexDirection: "column",
           gap: "16px",
@@ -72,7 +69,7 @@ export default function ConsoleTab({ hookProps }) {
       >
         {/* Buscador de Monitoreo */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          <div style={{ color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Buscar Equipo
           </div>
           <div style={{ position: "relative", width: "100%" }}>
@@ -93,19 +90,15 @@ export default function ConsoleTab({ hookProps }) {
               value={searchMonitor}
               onChange={e => setSearchMonitor(e.target.value)}
               style={{
-                width: "100%",
-                background: "rgba(15, 23, 42, 0.6)",
-                border: "1px solid #1c2e52",
-                borderRadius: "10px",
-                color: "white",
+                width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)",
                 padding: "11px 16px 11px 40px",
                 fontSize: "13px",
                 outline: "none",
                 transition: "all 0.2s ease",
                 boxSizing: "border-box",
               }}
-              onFocus={e => e.target.style.borderColor = "#ff303e"}
-              onBlur={e => e.target.style.borderColor = "#1c2e52"}
+              onFocus={e => e.target.style.borderColor = "var(--color-primary)"}
+              onBlur={e => e.target.style.borderColor = "var(--border-input)"}
             />
             {searchMonitor && (
               <button
@@ -146,14 +139,12 @@ export default function ConsoleTab({ hookProps }) {
                   style={{
                     padding: "6px 12px",
                     borderRadius: "20px",
-                    border: active ? "1px solid #ff303e" : "1px solid #1c2e52",
-                    background: active ? "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)" : "rgba(15, 23, 42, 0.4)",
-                    color: active ? "white" : "#94a3b8",
+                    border: active ? "1px solid var(--color-primary)" : "1px solid var(--border-container)", background: active ? "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)" : "var(--bg-input)", color: active ? "white" : "var(--color-text-muted)",
                     fontSize: "12px",
                     fontWeight: active ? 700 : 500,
                     cursor: "pointer",
                     transition: "all 0.2s ease",
-                    boxShadow: active ? "0 4px 12px rgba(255, 48, 62, 0.25)" : "none",
+                    boxShadow: "none",
                   }}
                   onMouseEnter={e => {
                     if (!active) {
@@ -178,7 +169,7 @@ export default function ConsoleTab({ hookProps }) {
         </div>
 
         {/* Fila de Filtros de Estado y Switch de Agrupamiento */}
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", paddingTop: "12px", borderTop: "1px solid rgba(28, 46, 82, 0.5)" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px", paddingTop: "12px", borderTop: "1px solid var(--border-container)" }}>
           {/* Filtro de Estado */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -198,9 +189,7 @@ export default function ConsoleTab({ hookProps }) {
                     style={{
                       padding: "6px 12px",
                       borderRadius: "8px",
-                      border: active ? `1.5px solid ${color}` : "1px solid #1c2e52",
-                      background: active ? activeBg : "rgba(15, 23, 42, 0.4)",
-                      color: active ? color : "#94a3b8",
+                      border: active ? `1.5px solid ${color}` : "1px solid var(--border-container)", background: active ? activeBg : "var(--bg-input)", color: active ? color : "var(--color-text-muted)",
                       fontSize: "12px",
                       fontWeight: active ? 700 : 500,
                       cursor: "pointer",

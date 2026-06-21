@@ -5,8 +5,8 @@ import { ESTADO_CONFIG } from "./Shared/constants";
 import QrEquipoModal from "./Shared/QrEquipoModal";
 
 const inputStyle = {
-  width: "100%", background: "#0f172a", border: "1px solid #1c2e52",
-  borderRadius: "8px", color: "white", padding: "9px 12px",
+  width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
+  borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "9px 12px",
   fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
 };
 
@@ -18,7 +18,7 @@ const selectStyle = { ...inputStyle, cursor: "pointer" };
 function Buscador({ value, onChange, placeholder }) {
   return (
     <div style={{ position: "relative", marginBottom: "16px", display: "flex", alignItems: "center" }}>
-      <div style={{ position: "absolute", left: "12px", color: "#64748b", display: "flex", alignItems: "center", pointerEvents: "none" }}>
+      <div style={{ position: "absolute", left: "12px", color: "var(--color-text-muted)", display: "flex", alignItems: "center", pointerEvents: "none" }}>
         <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
       </div>
       <input
@@ -27,17 +27,16 @@ function Buscador({ value, onChange, placeholder }) {
         value={value}
         onChange={onChange}
         style={{
-          width: "100%", background: "#0f172a", border: "1px solid #1c2e52",
-          borderRadius: "8px", color: "white", padding: "10px 12px 10px 38px",
+          width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "10px 12px 10px 38px",
           fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
           transition: "all 0.2s",
         }}
         onFocus={e => {
-          e.target.style.borderColor = "#ff303e";
-          e.target.style.boxShadow = "0 0 0 2px rgba(255, 48, 62, 0.2)";
+          e.target.style.borderColor = "var(--color-primary)";
+          e.target.style.boxShadow = "0 0 0 2px rgba(16, 185, 129, 0.2)";
         }}
         onBlur={e => {
-          e.target.style.borderColor = "#1c2e52";
+          e.target.style.borderColor = "var(--border-input)";
           e.target.style.boxShadow = "none";
         }}
       />
@@ -46,7 +45,7 @@ function Buscador({ value, onChange, placeholder }) {
           onClick={() => onChange({ target: { value: "" } })}
           style={{
             position: "absolute", right: "12px", background: "none", border: "none",
-            color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: 0
+            color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", padding: 0
           }}
         >
           <X size={16} />
@@ -64,12 +63,11 @@ function Paginador({ api, label }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "16px", background: "#121e36", borderTop: "1px solid #1c2e52",
-      borderBottomLeftRadius: "12px", borderBottomRightRadius: "12px",
-      fontSize: "13px", color: "#94a3b8"
+      padding: "16px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)", borderBottomLeftRadius: "var(--border-radius-base)", borderBottomRightRadius: "var(--border-radius-base)",
+      fontSize: "13px", color: "var(--color-text-muted)"
     }}>
       <div>
-        Mostrando <span style={{ color: "white", fontWeight: 600 }}>{fromRecord}-{toRecord}</span> de <span style={{ color: "white", fontWeight: 600 }}>{api.count}</span> {label}
+        Mostrando <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{fromRecord}-{toRecord}</span> de <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{api.count}</span> {label}
       </div>
       {totalPages > 1 && (
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -77,23 +75,21 @@ function Paginador({ api, label }) {
             onClick={() => api.setPage(p => Math.max(p - 1, 1))}
             disabled={api.page === 1}
             style={{
-              background: api.page === 1 ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
-              border: "1px solid #2563eb", color: api.page === 1 ? "#4b5563" : "#60a5fa",
+              background: api.page === 1 ? "rgba(0, 0, 0, 0.05)" : "rgba(16, 185, 129, 0.1)", border: "1px solid " + (api.page === 1 ? "var(--border-container)" : "var(--color-primary)"), color: api.page === 1 ? "var(--color-text-muted)" : "var(--color-primary-hover)",
               borderRadius: "6px", padding: "6px 12px", cursor: api.page === 1 ? "not-allowed" : "pointer",
               fontWeight: 600, fontSize: "12px", opacity: api.page === 1 ? 0.5 : 1, transition: "all 0.2s"
             }}
           >
             Anterior
           </button>
-          <span style={{ color: "white", fontWeight: 600, padding: "0 8px" }}>
+          <span style={{ color: "var(--color-text)", fontWeight: 600, padding: "0 8px" }}>
             Pág. {api.page} de {totalPages}
           </span>
           <button
             onClick={() => api.setPage(p => Math.min(p + 1, totalPages))}
             disabled={api.page >= totalPages}
             style={{
-              background: api.page >= totalPages ? "rgba(30, 58, 95, 0.4)" : "#1e3a5f",
-              border: "1px solid #2563eb", color: api.page >= totalPages ? "#4b5563" : "#60a5fa",
+              background: api.page >= totalPages ? "rgba(0, 0, 0, 0.05)" : "rgba(16, 185, 129, 0.1)", border: "1px solid " + (api.page >= totalPages ? "var(--border-container)" : "var(--color-primary)"), color: api.page >= totalPages ? "var(--color-text-muted)" : "var(--color-primary-hover)",
               borderRadius: "6px", padding: "6px 12px", cursor: api.page >= totalPages ? "not-allowed" : "pointer",
               fontWeight: 600, fontSize: "12px", opacity: api.page >= totalPages ? 0.5 : 1, transition: "all 0.2s"
             }}
@@ -233,23 +229,23 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
 
   return (
     <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
       display: "flex", alignItems: "center", justifyContent: "center",
       zIndex: 1000, padding: "20px",
     }}>
       <div style={{
-        background: "#121e36", border: "1px solid #1c2e52",
-        borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "700px",
+        background: "var(--bg-container)", border: "1px solid var(--border-container)",
+        borderRadius: "var(--border-radius-base)", boxShadow: "0 10px 40px rgba(0,0,0,0.08)", padding: "24px", width: "100%", maxWidth: "700px",
         maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
           <div>
-            <div style={{ color: "white", fontWeight: 800, fontSize: "18px" }}>Editar Maquinaria / Equipo</div>
-            <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>
+            <div style={{ color: "var(--color-text)", fontWeight: 800, fontSize: "18px" }}>Editar Maquinaria / Equipo</div>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginTop: "2px" }}>
               Modifique los metadatos técnicos y operacionales del equipo.
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer" }}>
             <X size={20} />
           </button>
         </div>
@@ -389,9 +385,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               onChange={e => setFormData(p => ({ ...p, pauta_preventiva_activa: e.target.value }))}
               placeholder="Instrucciones especiales para el operador al iniciar jornada..."
               style={{
-                width: "100%", minHeight: "80px", background: "#0f172a",
-                border: "1px solid #1c2e52", borderRadius: "8px",
-                color: "white", padding: "12px", fontSize: "13px",
+                width: "100%", minHeight: "80px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "12px", fontSize: "13px",
                 resize: "vertical", outline: "none", fontFamily: "inherit",
                 boxSizing: "border-box",
               }}

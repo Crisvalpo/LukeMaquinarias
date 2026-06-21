@@ -36,7 +36,7 @@ function ExpandedReportList({ type, id }) {
 
   if (loading && reports.length === 0) {
     return (
-      <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8" }}>
+      <div style={{ padding: "24px", textAlign: "center", color: "var(--color-text-muted)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
           <RefreshCw className="spin-icon" size={16} />
           <span>Cargando historial de reportes...</span>
@@ -65,14 +65,14 @@ function ExpandedReportList({ type, id }) {
       `}</style>
 
       {reports.length === 0 ? (
-        <div style={{ color: "#64748b", fontSize: "13px", padding: "10px 0", textAlign: "center" }}>
+        <div style={{ color: "var(--color-text-muted)", fontSize: "13px", padding: "10px 0", textAlign: "center" }}>
           No se encontraron reportes registrados para este {type === "equipo" ? "equipo" : "operador"}.
         </div>
       ) : (
         <>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #1c2e52" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
                 {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "PDF"].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
@@ -87,8 +87,8 @@ function ExpandedReportList({ type, id }) {
                       r.personal?.nombre_completo || "—"
                     ) : (
                       <div>
-                        <span style={{ color: "#ff303e", fontWeight: 700 }}>{r.equipos?.codigo_interno}</span>
-                        <span style={{ color: "#94a3b8", fontSize: "11px", marginLeft: "6px" }}>{r.equipos?.descripcion_equipo}</span>
+                        <span style={{ color: "var(--color-primary-hover)", fontWeight: 700 }}>{r.equipos?.codigo_interno}</span>
+                        <span style={{ color: "var(--color-text-muted)", fontSize: "11px", marginLeft: "6px" }}>{r.equipos?.descripcion_equipo}</span>
                       </div>
                     )}
                   </td>
@@ -104,8 +104,7 @@ function ExpandedReportList({ type, id }) {
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                          background: "#1e3a5f", border: "1px solid #2563eb",
-                          color: "#60a5fa", borderRadius: "6px", padding: "4px 8px",
+                          background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "4px 8px",
                           fontSize: "11px", fontWeight: 700, textDecoration: "none",
                           display: "inline-flex", alignItems: "center", gap: "4px",
                           transition: "background 0.2s"
@@ -338,7 +337,7 @@ export default function ReportesTab({ hookProps }) {
           </div>
 
           {/* Tabla de Reportes */}
-          <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}>
+          <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.25)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid #1c2e52" }}>
@@ -350,7 +349,7 @@ export default function ReportesTab({ hookProps }) {
               <tbody>
                 {reportes.loading ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "#94a3b8" }}>
+                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                         <RefreshCw className="spin-icon" size={16} />
                         <span>Cargando listado de reportes...</span>
@@ -384,8 +383,7 @@ export default function ReportesTab({ hookProps }) {
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
-                              background: "#1e3a5f", border: "1px solid #2563eb",
-                              color: "#60a5fa", borderRadius: "6px", padding: "6px 12px",
+                              background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
                               fontSize: "11px", fontWeight: 700, textDecoration: "none",
                               display: "inline-flex", alignItems: "center", gap: "4px",
                               transition: "background 0.2s"

@@ -2,8 +2,8 @@ import React from "react";
 import { CheckCircle, XCircle, X } from "lucide-react";
 
 const inputStyle = {
-  width: "100%", background: "#0f172a", border: "1px solid #1c2e52",
-  borderRadius: "8px", color: "white", padding: "9px 12px",
+  width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
+  borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "9px 12px",
   fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit",
 };
 
@@ -43,12 +43,12 @@ export default function RegistrosTab({ hookProps }) {
         <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 700, color: "#cbd5e1" }}>
           Solicitudes Pendientes de Aprobación
         </h3>
-        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
+        <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #1c2e52", background: "#0f172a22" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
                 {["WhatsApp", "Nombre en WhatsApp", "Rol Solicitado", "Ingresar RUT *", "Proyecto", "Acciones"].map(h => (
-                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -154,10 +154,10 @@ export default function RegistrosTab({ hookProps }) {
         <h3 style={{ margin: "0 0 16px", fontSize: "14px", fontWeight: 700, color: "#cbd5e1" }}>
           Historial de Solicitudes Procesadas
         </h3>
-        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "12px", overflow: "hidden" }}>
+        <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #1c2e52", background: "#0f172a22" }}>
+              <tr style={{ borderBottom: "1px solid var(--border-container)", background: "#0f172a22" }}>
                 {["Fecha", "WhatsApp", "Nombre", "Rol", "Estado", "Detalle"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
@@ -167,7 +167,7 @@ export default function RegistrosTab({ hookProps }) {
               {registros.data.filter(r => r.estado !== "pendiente").map((r, idx) => {
                 const isAprobado = r.estado === "aprobado";
                 return (
-                  <tr key={r.id} style={{ borderBottom: "1px solid #121e36", background: idx % 2 === 0 ? "transparent" : "#0f172a22" }}>
+                  <tr key={r.id} style={{ borderBottom: "1px solid #121e36", background: idx % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
                     <td style={{ padding: "12px 16px", color: "#64748b", fontSize: "12px" }}>
                       {new Date(r.created_at).toLocaleDateString("es-CL")}
                     </td>
@@ -190,7 +190,7 @@ export default function RegistrosTab({ hookProps }) {
                         {isAprobado ? "Aprobado" : "Rechazado"}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "12px", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "12px", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {isAprobado ? "Aprobado e ingresado a personal" : (r.nota_rechazo || "Sin nota")}
                     </td>
                   </tr>
@@ -216,13 +216,12 @@ export default function RegistrosTab({ hookProps }) {
           zIndex: 1000, padding: "20px",
         }}>
           <div style={{
-            background: "#121e36", border: "1px solid #1c2e52",
-            borderRadius: "16px", padding: "24px", width: "100%", maxWidth: "450px",
+            background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", padding: "24px", width: "100%", maxWidth: "450px",
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
               <div>
                 <div style={{ color: "white", fontWeight: 700, fontSize: "16px" }}>Rechazar Solicitud de Registro</div>
-                <div style={{ color: "#94a3b8", fontSize: "12px", marginTop: "2px" }}>
+                <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginTop: "2px" }}>
                   Ingresa el motivo del rechazo. Se enviará una notificación por WhatsApp al usuario.
                 </div>
               </div>

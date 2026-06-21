@@ -43,7 +43,7 @@ export default function MapTab({ hookProps }) {
       });
 
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
         {
           attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
           maxZoom: 19,
@@ -104,8 +104,8 @@ export default function MapTab({ hookProps }) {
         });
 
         const popupContent = `
-          <div style="min-width: 180px; color: #f8fafc; font-family: sans-serif; padding: 2px;">
-            <div style="font-size: 10px; font-weight: 700; color: #ff303e; text-transform: uppercase;">
+          <div style="min-width: 180px; color: var(--color-text); font-family: sans-serif; padding: 2px;">
+            <div style="font-size: 10px; font-weight: 700; color: var(--color-primary-hover); text-transform: uppercase;">
               ${e.codigo_interno}
             </div>
             <div style="font-size: 13px; font-weight: 700; margin-top: 2px; margin-bottom: 6px; color: white;">
@@ -120,7 +120,7 @@ export default function MapTab({ hookProps }) {
               <span style="color: #cbd5e1; font-weight: 600;">${e.proyectos?.nombre_proyecto || "Sin proyecto"}</span>
             </div>
             ${e.ultima_ubicacion_fecha ? `
-              <div style="border-top: 1px solid #1c2e52; margin-top: 6px; padding-top: 6px; font-size: 9px; color: #94a3b8;">
+              <div style="border-top: 1px solid var(--border-container); margin-top: 6px; padding-top: 6px; font-size: 9px; color: #94a3b8;">
                 📍 Act: ${new Date(e.ultima_ubicacion_fecha).toLocaleTimeString("es-CL")} - ${new Date(e.ultima_ubicacion_fecha).toLocaleDateString("es-CL")}
               </div>
             ` : ""}
@@ -155,15 +155,14 @@ export default function MapTab({ hookProps }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Mapa de Geolocalización de Equipos</h1>
-          <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: "13px" }}>
+          <p style={{ margin: "4px 0 0", color: "var(--color-text-muted)", fontSize: "13px" }}>
             Ubicación en caliente basada en la última transmisión GPS compartida por el operador.
           </p>
         </div>
         <button
           onClick={() => equiposCompleto.refresh(true)}
           style={{
-            background: "#121e36", border: "1px solid #1c2e52",
-            borderRadius: "8px", padding: "8px 14px", color: "#94a3b8",
+            background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-sm)", padding: "8px 14px", color: "var(--color-text)",
             cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "12px",
           }}
         >
@@ -173,13 +172,13 @@ export default function MapTab({ hookProps }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "16px" }}>
         {/* Contenedor del mapa */}
-        <div style={{ position: "relative", height: "calc(100vh - 200px)", borderRadius: "16px", overflow: "hidden", border: "1px solid #1c2e52" }}>
+        <div style={{ position: "relative", height: "calc(100vh - 200px)", borderRadius: "var(--border-radius-base)", overflow: "hidden", border: "1px solid var(--border-container)" }}>
           <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }}></div>
         </div>
 
         {/* Barra lateral con lista de equipos */}
-        <div style={{ background: "#121e36", border: "1px solid #1c2e52", borderRadius: "16px", padding: "16px", overflowY: "auto", height: "calc(100vh - 200px)" }}>
-          <h3 style={{ fontSize: "13px", fontWeight: 700, color: "#94a3b8", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+        <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", padding: "16px", overflowY: "auto", height: "calc(100vh - 200px)" }}>
+          <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text-muted)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
             Equipos en Faena
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -189,8 +188,7 @@ export default function MapTab({ hookProps }) {
                 <div
                   key={e.id}
                   style={{
-                    background: "#0f172a", borderRadius: "10px", padding: "12px",
-                    border: `1px solid ${tieneGPS ? "rgba(99, 102, 241, 0.2)" : "#1c2e52"}`,
+                    background: "var(--bg-input)", borderRadius: "var(--border-radius-sm)", border: `1px solid ${tieneGPS ? "rgba(16, 185, 129, 0.2)" : "var(--border-container)"}`,
                     cursor: tieneGPS ? "pointer" : "default",
                     transition: "all 0.2s"
                   }}
@@ -199,11 +197,11 @@ export default function MapTab({ hookProps }) {
                       mapInstance.current.setView([e.latitud_actual, e.longitud_actual], 16);
                     }
                   }}
-                  onMouseEnter={el => { if (tieneGPS) el.currentTarget.style.borderColor = "#6366f1"; }}
-                  onMouseLeave={el => { if (tieneGPS) el.currentTarget.style.borderColor = "rgba(99, 102, 241, 0.2)"; }}
+                  onMouseEnter={el => { if (tieneGPS) el.currentTarget.style.borderColor = "var(--color-primary)"; }}
+                  onMouseLeave={el => { if (tieneGPS) el.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.2)"; }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "4px" }}>
-                    <span style={{ color: "#ff303e", fontWeight: 700, fontSize: "11px" }}>{e.codigo_interno}</span>
+                    <span style={{ color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "11px" }}>{e.codigo_interno}</span>
                     <span style={{
                       background: tieneGPS ? "rgba(16, 185, 129, 0.15)" : "rgba(100, 116, 139, 0.15)",
                       color: tieneGPS ? "#10b981" : "#94a3b8",
@@ -212,7 +210,7 @@ export default function MapTab({ hookProps }) {
                       {tieneGPS ? "📡 GPS OK" : "🚫 SIN GPS"}
                     </span>
                   </div>
-                  <div style={{ color: "white", fontSize: "13px", fontWeight: 600 }}>{e.descripcion_equipo}</div>
+                  <div style={{ color: "var(--color-text)", fontSize: "13px", fontWeight: 600 }}>{e.descripcion_equipo}</div>
                   <div style={{ color: "#64748b", fontSize: "11px", marginTop: "4px" }}>Proyecto: {e.proyectos?.nombre_proyecto || "Sin proyecto"}</div>
                   
                   {tieneGPS && e.ultima_ubicacion_fecha && (

@@ -60,20 +60,20 @@ export default function AdminMaquinaria() {
 
       <div style={{
         minHeight: "100vh",
-        backgroundImage: "linear-gradient(rgba(10, 17, 32, 0.88), rgba(10, 17, 32, 0.88)), url('https://www.arcus-global.com/wp/wp-content/uploads/2016/04/mquinaria-arcus-global_opt.jpg')",
+        backgroundImage: "linear-gradient(rgba(253, 253, 251, 0.94), rgba(253, 253, 251, 0.94)), url('https://www.arcus-global.com/wp/wp-content/uploads/2016/04/mquinaria-arcus-global_opt.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundAttachment: "fixed",
         fontFamily: "'Inter', sans-serif",
-        color: "white",
+        color: "var(--color-text)",
       }}>
-
+ 
         {/* ========== SIDEBAR ========== */}
         <div style={{
           position: "fixed", top: 0, left: 0, bottom: 0,
           width: "220px",
-          background: "#101c33",
-          borderRight: "1px solid #1a2c4d",
+          background: "var(--bg-sidebar)",
+          borderRight: "1px solid var(--border-sidebar)",
           display: "flex",
           flexDirection: "column",
           zIndex: 100,
@@ -85,11 +85,11 @@ export default function AdminMaquinaria() {
               alt="EIMISA Logo"
               style={{ width: "100%", height: "auto", display: "block" }}
             />
-            <div style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", paddingLeft: "2px", marginTop: "10px" }}>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", paddingLeft: "2px", marginTop: "10px" }}>
               Control Maquinaria
             </div>
           </div>
-
+ 
           {/* Nav */}
           <nav style={{ flex: 1, padding: "8px 12px" }}>
             {TABS.map(t => {
@@ -103,14 +103,14 @@ export default function AdminMaquinaria() {
                   style={{
                     width: "100%", display: "flex", alignItems: "center", gap: "10px",
                     padding: "10px 12px", borderRadius: "8px", border: "none",
-                    background: active ? "linear-gradient(135deg, #ff303e 0%, #c21a25 100%)" : "transparent",
-                    color: active ? "white" : "#64748b",
+                    background: active ? "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%)" : "transparent",
+                    color: active ? "white" : "var(--color-text-muted)",
                     cursor: "pointer", fontSize: "13px", fontWeight: active ? 700 : 500,
                     marginBottom: "4px", transition: "all 0.2s",
                     textAlign: "left",
                     position: "relative",
                   }}
-                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#0a1120"; }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = "rgba(16, 185, 129, 0.08)"; }}
                   onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
                 >
                   <Icono size={16} />
@@ -129,9 +129,9 @@ export default function AdminMaquinaria() {
               );
             })}
           </nav>
-
+ 
           {/* Botón Vincular WhatsApp */}
-          <div style={{ padding: "8px 12px", borderTop: "1px solid #1c2e52" }}>
+          <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-sidebar)" }}>
             <Link href="/qr-puente" style={{ textDecoration: "none" }}>
               <div
                 style={{
@@ -151,9 +151,9 @@ export default function AdminMaquinaria() {
               </div>
             </Link>
           </div>
-
+ 
           {/* Botón Cerrar Sesión */}
-          <div style={{ padding: "8px 12px", borderTop: "1px solid #1c2e52" }}>
+          <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-sidebar)" }}>
             <button
               onClick={() => {
                 localStorage.removeItem("luke_auth");
@@ -180,10 +180,10 @@ export default function AdminMaquinaria() {
               <span>Cerrar Sesión</span>
             </button>
           </div>
-
+ 
           {/* Footer sidebar */}
-          <div style={{ padding: "16px 20px", borderTop: "1px solid #1c2e52" }}>
-            <div style={{ color: "#1c2e52", fontSize: "10px" }}>equipos.lukeapp.me</div>
+          <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-sidebar)" }}>
+            <div style={{ color: "var(--color-text-muted)", fontSize: "10px" }}>equipos.lukeapp.me</div>
           </div>
         </div>
 
