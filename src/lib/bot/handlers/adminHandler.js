@@ -166,7 +166,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
   let contents = [{ role: "user", parts }];
 
   try {
-    const modelName = "gemini-1.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     let responseText = "";
     let runLoop = true;
     let iteracion = 0;
