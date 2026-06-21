@@ -77,9 +77,14 @@ export async function handleCheckinFlow(ctx, res) {
       .update(updateCheckinVeh)
       .eq("id", sesion.reporte_activo_id);
 
-    if (kmInicial) {
+    const eqUpdateVeh = {};
+    if (kmInicial) eqUpdateVeh.ultimo_odometro = kmInicial;
+    if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+      eqUpdateVeh.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+    }
+    if (Object.keys(eqUpdateVeh).length > 0) {
       await supabase.from("equipos")
-        .update({ ultimo_odometro: kmInicial })
+        .update(eqUpdateVeh)
         .eq("id", reporteCheckin.equipo_id);
     }
 
@@ -174,9 +179,14 @@ export async function handleCheckinFlow(ctx, res) {
     .update(updateCheckinStandard)
     .eq("id", sesion.reporte_activo_id);
 
-  if (horometroInicio) {
+  const eqUpdateStandard = {};
+  if (horometroInicio) eqUpdateStandard.ultimo_horometro = horometroInicio;
+  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+    eqUpdateStandard.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  }
+  if (Object.keys(eqUpdateStandard).length > 0) {
     await supabase.from("equipos")
-      .update({ ultimo_horometro: horometroInicio })
+      .update(eqUpdateStandard)
       .eq("id", reporteCheckin.equipo_id);
   }
 

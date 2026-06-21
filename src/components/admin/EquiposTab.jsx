@@ -616,7 +616,7 @@ export default function EquiposTab({ hookProps }) {
                   </td>
                   <td style={{ padding: "12px 16px" }}>
                     {(() => {
-                      const nivel = eq.reporte_hoy?.combustible_nivel_porcentaje;
+                      const nivel = eq.combustible_nivel_porcentaje;
                       if (nivel === undefined || nivel === null) return <span style={{ color: "#475569", fontSize: "12px" }}>—</span>;
                       
                       const esCritico = nivel <= 25;

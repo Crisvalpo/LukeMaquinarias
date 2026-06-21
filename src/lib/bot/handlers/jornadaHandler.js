@@ -521,9 +521,16 @@ export async function handleJornadaFlow(ctx, res) {
       })
       .eq("id", sesion.reporte_activo_id);
 
+    const eqUpdateHito = {};
     if (resultado.horometro_carga_combustible) {
+      eqUpdateHito.ultimo_horometro = resultado.horometro_carga_combustible;
+    }
+    if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+      eqUpdateHito.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+    }
+    if (Object.keys(eqUpdateHito).length > 0) {
       await supabase.from("equipos")
-        .update({ ultimo_horometro: resultado.horometro_carga_combustible })
+        .update(eqUpdateHito)
         .eq("id", reporteActual.equipo_id);
     }
   }

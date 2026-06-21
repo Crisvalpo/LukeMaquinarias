@@ -38,6 +38,9 @@ export async function handleCierreFlow(ctx, res) {
   const eqUpdate = { estado_actual: estadoFinalCierre };
   if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
   if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
+  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+    eqUpdate.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  }
   await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipo_id);
 
   // Evento de cierre

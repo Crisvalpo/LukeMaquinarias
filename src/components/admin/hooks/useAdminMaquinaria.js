@@ -358,7 +358,7 @@ export function useAdminMaquinaria() {
     // Filtro de combustible crítico
     let cumpleCombustible = true;
     if (soloCombustibleCritico) {
-      const nivel = eq.reporte_hoy?.combustible_nivel_porcentaje;
+      const nivel = eq.combustible_nivel_porcentaje;
       if (nivel === null || nivel === undefined) {
         cumpleCombustible = false;
       } else {

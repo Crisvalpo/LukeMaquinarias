@@ -152,36 +152,78 @@ export default function EquipoCard({ equipo, onPautaClick }) {
 
       {/* Indicador de Combustible */}
       {(() => {
-        const nivel = equipo.reporte_hoy?.combustible_nivel_porcentaje;
+        const nivel = equipo.combustible_nivel_porcentaje;
         if (nivel === undefined || nivel === null) return null;
 
         const esCritico = nivel <= 25;
-        const colorCombustible = nivel >= 50 
-          ? "#22c55e" 
-          : nivel > 25 
-            ? "#eab308" 
-            : "#ef4444";
+        const numBloques = 10;
+        const bloquesActivos = Math.round((nivel / 100) * numBloques);
 
         return (
           <div style={{ marginBottom: "12px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-              <span style={{ color: "#64748b", fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px" }}>NIVEL ESTANQUE</span>
-              <span style={{ color: esCritico ? "#f87171" : "white", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", gap: "4px" }}>
-                {esCritico && <span className="animate-pulse-fuel" style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#ef4444" }} />}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ color: "#64748b", fontSize: "9px", fontWeight: 700, letterSpacing: "1px" }}>
+                ESTANQUE DE COMBUSTIBLE
+              </span>
+              <span style={{ color: esCritico ? "#ef4444" : "white", fontSize: "11px", fontWeight: 700, fontFamily: "monospace" }}>
                 {nivel}%
               </span>
             </div>
-            <div style={{ width: "100%", height: "6px", background: "#0f172a", borderRadius: "3px", overflow: "hidden", border: "1px solid #1c2e52" }}>
-              <div
-                className={esCritico ? "animate-pulse-fuel" : ""}
-                style={{
-                  width: `${nivel}%`,
-                  height: "100%",
-                  background: colorCombustible,
-                  boxShadow: esCritico ? `0 0 8px ${colorCombustible}` : "none",
-                  transition: "width 0.3s ease",
-                }}
-              />
+            
+            <div style={{
+              background: "#090f1d",
+              border: "1px solid #1e293b",
+              borderRadius: "6px",
+              padding: "6px 10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)",
+              gap: "12px"
+            }}>
+              {/* Bloques de LED segmentados */}
+              <div style={{ display: "flex", gap: "3px", flex: 1 }}>
+                {Array.from({ length: numBloques }).map((_, idx) => {
+                  const activo = idx < bloquesActivos;
+                  
+                  // Colores del LED
+                  let colorLed;
+                  if (idx < 2) {
+                    colorLed = "#ef4444"; // 20% o menos: Rojo
+                  } else if (idx < 5) {
+                    colorLed = "#eab308"; // 50% o menos: Amarillo
+                  } else {
+                    colorLed = "#22c55e"; // > 50%: Verde
+                  }
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className={activo && esCritico ? "animate-pulse-fuel" : ""}
+                      style={{
+                        flex: 1,
+                        height: "8px",
+                        borderRadius: "2px",
+                        background: activo ? colorLed : "#1e293b",
+                        boxShadow: activo ? `0 0 6px ${colorLed}` : "none",
+                        transition: "all 0.3s ease",
+                        opacity: activo ? 1 : 0.15
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Icono de Surtidor / Gasolinera en color glow */}
+              <div style={{ color: esCritico ? "#ef4444" : "#38bdf8", filter: `drop-shadow(0 0 4px ${esCritico ? '#ef4444' : '#38bdf8'})`, display: "flex", alignItems: "center" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 22V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14" />
+                  <path d="M11 22v-6" />
+                  <path d="M19 14h3" />
+                  <path d="M19 18h2.5" />
+                  <path d="M19 10H14" />
+                </svg>
+              </div>
             </div>
           </div>
         );
