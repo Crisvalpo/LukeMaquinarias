@@ -719,28 +719,48 @@ export default function EquiposTab({ hookProps }) {
                       const esArriendo = eq.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO";
                       const estaArrendado = esArriendo && eq.arriendo_cliente && eq.arriendo_cliente.trim() !== "";
                       
-                      let bg = "rgba(30, 41, 59, 0.4)";
-                      let color = "#94a3b8";
-                      let border = "1px solid #1c2e52";
+                      let bg = "var(--bg-sidebar)";
+                      let color = "var(--color-text-muted)";
+                      let border = "1px solid var(--border-sidebar)";
                       let label = eq.clasificacion_comercial || "OPERATIVO - EN USO";
 
                       if (eq.clasificacion_comercial === "VENTA") {
-                        bg = "rgba(59, 130, 246, 0.15)";
-                        color = "#60a5fa";
-                        border = "1px solid rgba(59, 130, 246, 0.3)";
+                        bg = "rgba(59, 130, 246, 0.12)";
+                        color = "#2563eb";
+                        border = "1px solid rgba(59, 130, 246, 0.25)";
                         label = "💲 VENTA";
                       } else if (esArriendo) {
                         if (estaArrendado) {
-                          bg = "rgba(249, 115, 22, 0.15)";
-                          color = "#f97316";
-                          border = "1px solid rgba(249, 115, 22, 0.3)";
+                          bg = "rgba(249, 115, 22, 0.12)";
+                          color = "#ea580c";
+                          border = "1px solid rgba(249, 115, 22, 0.25)";
                           label = "🤝 ARRENDADO";
                         } else {
-                          bg = "rgba(16, 185, 129, 0.15)";
-                          color = "#10b981";
-                          border = "1px solid rgba(16, 185, 129, 0.3)";
+                          bg = "rgba(16, 185, 129, 0.12)";
+                          color = "#059669";
+                          border = "1px solid rgba(16, 185, 129, 0.25)";
                           label = "🔑 EN PATIO";
                         }
+                      } else if (eq.clasificacion_comercial === "OPERATIVO - EN USO") {
+                        bg = "rgba(16, 185, 129, 0.12)";
+                        color = "#059669";
+                        border = "1px solid rgba(16, 185, 129, 0.25)";
+                        label = "👷 EN USO";
+                      } else if (eq.clasificacion_comercial === "EN PREPARACION OBRA") {
+                        bg = "rgba(217, 119, 6, 0.12)";
+                        color = "#d97706";
+                        border = "1px solid rgba(217, 119, 6, 0.25)";
+                        label = "⚙️ PREPARACIÓN";
+                      } else if (eq.clasificacion_comercial === "FUERA DE SERVICIO - REPARACION - MANTENCION") {
+                        bg = "rgba(194, 26, 37, 0.12)";
+                        color = "#c21a25";
+                        border = "1px solid rgba(194, 26, 37, 0.25)";
+                        label = "🔧 MANTENCION";
+                      } else if (eq.clasificacion_comercial === "EN IMPORTACION") {
+                        bg = "rgba(99, 102, 241, 0.12)";
+                        color = "#4f46e5";
+                        border = "1px solid rgba(99, 102, 241, 0.25)";
+                        label = "🚢 IMPORTACIÓN";
                       }
 
                       return (
