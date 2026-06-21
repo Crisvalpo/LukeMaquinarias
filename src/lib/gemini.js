@@ -11,7 +11,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 // ================================================================
 // FUNCIÓN: Chat con memoria conversacional completa
