@@ -1,4 +1,4 @@
-import { enviarMensajeWhatsApp } from "../services/messageService";
+import { enviarMensajeWhatsApp, guardarMensajeChat, cargarHistorialGemini } from "../services/messageService";
 
 export async function handleAdminFlow(ctx, res) {
   const { supabase, personal, phoneClean, jid, message, audio, geminiKey } = ctx;
@@ -159,18 +159,24 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
   return data;
 `;
 
-  let parts = [];
+  // Cargar historial previo de la conversación para no perder el contexto
+  const historialPrevio = await cargarHistorialGemini(supabase, phoneClean, 12);
+
+  let currentParts = [];
   if (audio && audio.data) {
-    parts.push({
+    currentParts.push({
       inlineData: {
         mimeType: audio.mimeType || "audio/ogg",
         data: audio.data
       }
     });
   }
-  parts.push({ text: message || "Analiza el audio e interactúa con el supervisor." });
+  currentParts.push({ text: message || "Analiza el audio e interactúa con el supervisor." });
 
-  let contents = [{ role: "user", parts }];
+  let contents = [
+    ...historialPrevio,
+    { role: "user", parts: currentParts }
+  ];
 
   try {
     const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -322,7 +328,10 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
       }
     }
 
+    // Guardar la interacción actual en la base de datos de chat
+    await guardarMensajeChat(supabase, phoneClean, "user", message || "[Audio de supervisor]", audio ? "audio" : "texto");
     if (responseText) {
+      await guardarMensajeChat(supabase, phoneClean, "model", responseText, "texto");
       await enviarMensajeWhatsApp(jid, phoneClean, responseText, !!audio, geminiKey);
     }
     return res.status(200).json({ success: true, responseText });
