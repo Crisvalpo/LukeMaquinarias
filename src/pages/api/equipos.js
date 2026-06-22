@@ -80,7 +80,8 @@ export default async function handler(req, res) {
       clasificacion_comercial,
       arriendo_cliente,
       arriendo_fecha_inicio,
-      arriendo_fecha_fin
+      arriendo_fecha_fin,
+      capacidad_estanque_litros
     } = req.body;
 
     if (!codigo_interno || !descripcion_equipo) {
@@ -101,7 +102,8 @@ export default async function handler(req, res) {
         clasificacion_comercial: clasificacion_comercial || "OPERATIVO - EN USO",
         arriendo_cliente: arriendo_cliente || null,
         arriendo_fecha_inicio: arriendo_fecha_inicio || null,
-        arriendo_fecha_fin: arriendo_fecha_fin || null
+        arriendo_fecha_fin: arriendo_fecha_fin || null,
+        capacidad_estanque_litros: capacidad_estanque_litros ? parseInt(capacidad_estanque_litros) : null
       })
       .select()
       .single();
@@ -111,12 +113,16 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "PATCH") {
-    // Actualizar equipo (pauta, estado, proyecto)
+    // Actualizar equipo (pauta, estado, proyecto, capacidad estanque)
     const { id, ...updates } = req.body;
     if (!id) return res.status(400).json({ success: false, message: "Falta id" });
 
     if (updates.hasOwnProperty("proyecto_actual_id") && updates.proyecto_actual_id === "") {
       updates.proyecto_actual_id = null;
+    }
+
+    if (updates.hasOwnProperty("capacidad_estanque_litros")) {
+      updates.capacidad_estanque_litros = updates.capacidad_estanque_litros ? parseInt(updates.capacidad_estanque_litros) : null;
     }
 
     const { data, error } = await supabase
@@ -130,6 +136,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data });
   }
 
-  res.setHeader("Allow", ["GET", "POST", "PATCH"]);
+  if (req.method === "DELETE") {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ success: false, message: "Falta id del equipo" });
+
+    const { error } = await supabase
+      .from("equipos")
+      .delete()
+      .eq("id", id);
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.status(200).json({ success: true, message: "Equipo eliminado exitosamente" });
+  }
+
+  res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
   return res.status(405).json({ success: false, message: "Método no permitido" });
 }

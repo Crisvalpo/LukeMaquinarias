@@ -127,6 +127,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     arriendo_cliente: equipo?.arriendo_cliente || "",
     arriendo_fecha_inicio: equipo?.arriendo_fecha_inicio || "",
     arriendo_fecha_fin: equipo?.arriendo_fecha_fin || "",
+    capacidad_estanque_litros: equipo?.capacidad_estanque_litros !== null && equipo?.capacidad_estanque_litros !== undefined ? equipo.capacidad_estanque_litros.toString() : "",
   });
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
@@ -205,6 +206,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         arriendo_cliente: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_cliente.trim() || null) : null,
         arriendo_fecha_inicio: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_inicio || null) : null,
         arriendo_fecha_fin: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_fin || null) : null,
+        capacidad_estanque_litros: formData.capacidad_estanque_litros.trim() !== "" ? parseInt(formData.capacidad_estanque_litros) : null,
       };
 
       const r = await fetch("/api/equipos", {
@@ -336,6 +338,11 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               <option value="FUERA DE SERVICIO - REPARACION - MANTENCION">Fuera de Servicio - Reparación / Mantención</option>
               <option value="EN IMPORTACION">En Importación</option>
             </select>
+          </FormRow>
+          <FormRow label="Capacidad Estanque (Litros)">
+            <input style={inputStyle} type="number" placeholder="Ej: 150, 200, 350..."
+              value={formData.capacidad_estanque_litros || ""}
+              onChange={e => setFormData(p => ({ ...p, capacidad_estanque_litros: e.target.value }))} />
           </FormRow>
           {formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" && (
             <>
@@ -540,49 +547,6 @@ export default function EquiposTab({ hookProps }) {
             {showForm ? "Ocultar Formulario" : "Agregar Equipo"}
           </button>
         </div>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "10px",
-          background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
-          padding: "6px 12px", borderRadius: "10px",
-        }}>
-          <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>🤖 Teléfono del Bot:</span>
-          <input
-            style={{
-              background: "var(--bg-input)", border: "1px solid var(--border-input)",
-              borderRadius: "6px", color: "var(--color-input-text)", padding: "4px 8px",
-              fontSize: "12px", width: "120px", outline: "none",
-            }}
-            placeholder="569..."
-            value={botPhone}
-            onChange={e => setBotPhone(e.target.value)}
-          />
-          <button
-            onClick={async () => {
-              try {
-                const r = await fetch("/api/config", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ valor: botPhone }),
-                });
-                const json = await r.json();
-                if (json.success) {
-                  showMsg("✅ Teléfono del bot guardado en base de datos");
-                } else {
-                  showMsg("❌ Error al guardar en base de datos", false);
-                }
-              } catch (e) {
-                showMsg("❌ Error al guardar en base de datos", false);
-              }
-            }}
-            style={{
-              background: "var(--color-primary)", border: "none", color: "white",
-              borderRadius: "6px", padding: "4px 10px", fontSize: "12px",
-              fontWeight: 700, cursor: "pointer",
-            }}
-          >
-            Guardar
-          </button>
-        </div>
       </div>
 
       {/* Formulario nuevo equipo */}
@@ -643,6 +607,11 @@ export default function EquiposTab({ hookProps }) {
                 <option value="EN IMPORTACION">En Importación</option>
               </select>
             </FormRow>
+            <FormRow label="Capacidad Estanque (Litros)">
+              <input style={inputStyle} type="number" placeholder="Ej: 150, 200, 350..."
+                value={formEquipo.capacidad_estanque_litros || ""}
+                onChange={e => setFormEquipo(p => ({ ...p, capacidad_estanque_litros: e.target.value }))} />
+            </FormRow>
             {formEquipo.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" && (
               <>
                 <FormRow label="Cliente / Obra de Arriendo">
@@ -664,7 +633,7 @@ export default function EquiposTab({ hookProps }) {
             )}
           </div>
           <button
-            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "", capacidad_estanque_litros: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
             disabled={saving}
             style={{
               background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none",

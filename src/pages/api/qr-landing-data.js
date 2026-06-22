@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     // 1. Obtener datos del equipo
     const { data: equipo, error: errorEquipo } = await supabase
       .from("equipos")
-      .select("id, codigo_interno, descripcion_equipo, proveedor, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, ultimo_horometro, ultimo_odometro, pauta_preventiva_activa, tipo_seguimiento, combustible_nivel_porcentaje, proyectos(nombre_proyecto, codigo_cc)")
+      .select("id, codigo_interno, descripcion_equipo, proveedor, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, ultimo_horometro, ultimo_odometro, pauta_preventiva_activa, tipo_seguimiento, combustible_nivel_porcentaje, proyectos(nombre_proyecto, codigo_cc), capacidad_estanque_litros")
       .eq("codigo_interno", codigo)
       .maybeSingle();
 

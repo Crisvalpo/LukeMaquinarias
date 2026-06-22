@@ -11,6 +11,52 @@ export default function QrPuente() {
   const [countdown, setCountdown] = useState(8);
   const [errorMsg, setErrorMsg] = useState(null);
 
+  const [botPhone, setBotPhone] = useState("");
+  const [savingBotPhone, setSavingBotPhone] = useState(false);
+  const [toastMsg, setToastMsg] = useState(null);
+
+  // Cargar teléfono del bot
+  useEffect(() => {
+    const loadBotPhone = async () => {
+      try {
+        const r = await fetch("/api/config");
+        const json = await r.json();
+        if (json.success && json.valor) {
+          setBotPhone(json.valor);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadBotPhone();
+  }, []);
+
+  const handleSaveBotPhone = async () => {
+    if (!botPhone.trim()) return;
+    setSavingBotPhone(true);
+    try {
+      const r = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ valor: botPhone.trim() }),
+      });
+      const json = await r.json();
+      if (json.success) {
+        setToastMsg("✅ Guardado con éxito");
+        setTimeout(() => setToastMsg(null), 3000);
+      } else {
+        setToastMsg("❌ Error al guardar");
+        setTimeout(() => setToastMsg(null), 3000);
+      }
+    } catch (e) {
+      console.error(e);
+      setToastMsg("❌ Error de red");
+      setTimeout(() => setToastMsg(null), 3000);
+    } finally {
+      setSavingBotPhone(false);
+    }
+  };
+
   const fetchStatus = async () => {
     try {
       const res = await fetch("/api/qr-status");
@@ -213,6 +259,24 @@ export default function QrPuente() {
               </button>
             </div>
           )}
+
+          {/* Configuración del Teléfono del Bot */}
+          <div className="bot-phone-config">
+            <span className="bot-label">🤖 Teléfono del Bot:</span>
+            <div className="bot-input-group">
+              <input
+                type="text"
+                placeholder="569..."
+                value={botPhone}
+                onChange={(e) => setBotPhone(e.target.value)}
+                className="bot-input"
+              />
+              <button onClick={handleSaveBotPhone} disabled={savingBotPhone} className="bot-save-btn">
+                {savingBotPhone ? "..." : "Guardar"}
+              </button>
+            </div>
+            {toastMsg && <div className="bot-toast">{toastMsg}</div>}
+          </div>
         </div>
       </div>
 
@@ -564,6 +628,59 @@ export default function QrPuente() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .bot-phone-config {
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 1px solid var(--border-container);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+        }
+        .bot-label {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--color-text-muted);
+        }
+        .bot-input-group {
+          display: flex;
+          gap: 8px;
+          width: 100%;
+          max-width: 280px;
+        }
+        .bot-input {
+          flex: 1;
+          background: var(--bg-input);
+          border: 1px solid var(--border-input);
+          border-radius: 8px;
+          color: var(--color-input-text);
+          padding: 6px 12px;
+          font-size: 13px;
+          outline: none;
+          text-align: center;
+        }
+        .bot-save-btn {
+          background: var(--color-primary);
+          border: none;
+          color: white;
+          border-radius: 8px;
+          padding: 6px 14px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .bot-save-btn:hover {
+          background: var(--color-primary-hover);
+        }
+        .bot-toast {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--color-primary-hover);
         }
       `}</style>
     </AdminAuthWrapper>

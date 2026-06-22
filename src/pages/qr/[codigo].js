@@ -76,6 +76,7 @@ export default function QrLanding() {
   const [checkinSuccess, setCheckinSuccess] = useState(false);
   const [showBypassGps, setShowBypassGps] = useState(false);
   const [combustibleNivel, setCombustibleNivel] = useState(100);
+  const [capacidadEstanque, setCapacidadEstanque] = useState("");
 
   // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
@@ -253,7 +254,8 @@ export default function QrLanding() {
           longitud: lng,
           pautaConfirmada: equipo.pauta_preventiva_activa ? true : false,
           destinoRuta: esVehiculo ? destinoRuta : null,
-          combustibleNivel: combustibleNivel
+          combustibleNivel: combustibleNivel,
+          capacidadEstanque: equipo.capacidad_estanque_litros ? parseInt(equipo.capacidad_estanque_litros) : (capacidadEstanque ? parseInt(capacidadEstanque) : null)
         })
       });
 
@@ -308,6 +310,7 @@ export default function QrLanding() {
       setErrorMessageLocal("Debes confirmar la pauta de seguridad para iniciar tu jornada.");
       return;
     }
+
 
     setErrorMessageLocal("");
     setUbicacionCargando(true);
@@ -630,6 +633,30 @@ export default function QrLanding() {
                         </div>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* 1.5 Si la capacidad del estanque es desconocida, solicitarla de manera opcional */}
+                {equipo.capacidad_estanque_litros === null && (
+                  <div className="reading-validation-box mt-3" style={{ background: "rgba(30, 41, 59, 0.2)", border: "1px solid #1e293b", padding: "14px", borderRadius: "8px" }}>
+                    <div style={{ color: "#94a3b8", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", marginBottom: "8px" }}>
+                      ⛽ CAPACIDAD DEL ESTANQUE (OPCIONAL)
+                    </div>
+                    <div className="input-group">
+                      <label htmlFor="estanque-input">Capacidad del estanque en litros (si la conoces)</label>
+                      <input
+                        id="estanque-input"
+                        type="number"
+                        placeholder="Ej: 150, 200, 350..."
+                        value={capacidadEstanque}
+                        onChange={(e) => setCapacidadEstanque(e.target.value)}
+                        style={{
+                          width: "100%", background: "var(--bg-input, #090f1d)", border: "1px solid var(--border-input, #1e293b)",
+                          borderRadius: "8px", color: "var(--color-input-text, #f8fafc)", padding: "9px 12px",
+                          fontSize: "13px", outline: "none", boxSizing: "border-box", fontFamily: "inherit"
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
 

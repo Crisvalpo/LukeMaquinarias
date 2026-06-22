@@ -154,6 +154,7 @@ export function useAdminMaquinaria() {
   const personalPaginado = usePaginatedApi("/api/personal", 15, [tab]);
   const reportes = useReportesPaginado(20, [tab]);
   const registros = useApi("/api/registros", [tab]);
+  const especialidades = useApi("/api/especialidades", [tab]);
 
   // Estados de edición para la pestaña de registros
   const [editRegistros, setEditRegistros] = useState({});
@@ -186,6 +187,11 @@ export function useAdminMaquinaria() {
     jornada_tipo: "Dia",
     proyecto_actual_id: "",
     foto_url: ""
+  });
+
+  const [formEspecialidad, setFormEspecialidad] = useState({
+    nombre_oficial: "",
+    descripcion: ""
   });
 
   // Formularios de Edición
@@ -409,6 +415,31 @@ export function useAdminMaquinaria() {
     }
   };
 
+  const handleDelete = async (endpoint, id, refreshFn) => {
+    if (!window.confirm("¿Está seguro de que desea eliminar este registro? Esta acción no se puede deshacer.")) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.set("id", id);
+      const r = await fetch(url.toString(), {
+        method: "DELETE",
+      });
+      const json = await r.json();
+      if (json.success) {
+        showMsg("✅ Eliminado con éxito");
+        refreshFn();
+      } else {
+        showMsg(`❌ No se pudo eliminar: ${json.error || json.message}`, false);
+      }
+    } catch (e) {
+      showMsg(`❌ ${e.message}`, false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // ================================================================
   // FILTRADO Y COMPUTADOS EN MEMORIA (CALIENTE)
   // ================================================================
@@ -566,10 +597,15 @@ export function useAdminMaquinaria() {
     handleGuardarPersonal,
     handleAprobarRegistro,
     handleRechazarRegistro,
+    handleDelete,
 
     // Datos procesados
     equiposFiltrados,
     statsCounts,
-    gruposProyectos
+    gruposProyectos,
+
+    especialidades,
+    formEspecialidad,
+    setFormEspecialidad
   };
 }

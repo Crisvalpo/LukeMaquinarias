@@ -85,6 +85,9 @@ export async function handleCheckinFlow(ctx, res) {
     if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada !== false) {
       eqUpdateVeh.pauta_preventiva_activa = null;
     }
+    if (reporteCheckin?.equipos?.capacidad_estanque_litros === null && resultado.capacidad_estanque_litros) {
+      eqUpdateVeh.capacidad_estanque_litros = resultado.capacidad_estanque_litros;
+    }
     if (Object.keys(eqUpdateVeh).length > 0) {
       await supabase.from("equipos")
         .update(eqUpdateVeh)
@@ -112,7 +115,9 @@ export async function handleCheckinFlow(ctx, res) {
       .update({ estado_espera: "SESION_ABIERTA_INTERMEDIA", updated_at: new Date().toISOString() })
       .eq("id", sesion.id);
 
-    await enviarMensajeWhatsApp(jid, phoneClean, confirmacionBot, !!audio, geminiKey);
+    let msgFinalVeh = confirmacionBot;
+
+    await enviarMensajeWhatsApp(jid, phoneClean, msgFinalVeh, !!audio, geminiKey);
     return res.status(200).json({ success: true, action: "CHECKIN_VEHICULO_REGISTRADO" });
   }
 
@@ -190,6 +195,9 @@ export async function handleCheckinFlow(ctx, res) {
   if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada !== false) {
     eqUpdateStandard.pauta_preventiva_activa = null;
   }
+  if (reporteCheckin?.equipos?.capacidad_estanque_litros === null && resultado.capacidad_estanque_litros) {
+    eqUpdateStandard.capacidad_estanque_litros = resultado.capacidad_estanque_litros;
+  }
   if (Object.keys(eqUpdateStandard).length > 0) {
     await supabase.from("equipos")
       .update(eqUpdateStandard)
@@ -206,10 +214,10 @@ export async function handleCheckinFlow(ctx, res) {
     return res.status(200).json({ success: true, action: "ESPERANDO_CONFIRMACION_PAUTA" });
   }
 
-  const confirmacionBotEst = resultado.mensaje_conversacional_bot
+  let msgFinalEst = resultado.mensaje_conversacional_bot
     || `✅ *Check-in registrado.*\n⏱ Horómetro inicial: *${horometroInicio.toLocaleString("es-CL")} hrs*\n\nDurante la jornada envía audios o mensajes cuando cambies de actividad.\nAl cerrar di: *"Cierre de jornada, horómetro final XXXX"*`;
 
-  await guardarMensajeChat(supabase, phoneClean, "model", confirmacionBotEst, "texto", sesion.reporte_activo_id);
+  await guardarMensajeChat(supabase, phoneClean, "model", msgFinalEst, "texto", sesion.reporte_activo_id);
 
   // Aseguramos que guarde el horómetro correcto
   await supabase.from("reportes_diarios")
@@ -231,6 +239,6 @@ export async function handleCheckinFlow(ctx, res) {
     .update({ estado_espera: "SESION_ABIERTA_INTERMEDIA", updated_at: new Date().toISOString() })
     .eq("id", sesion.id);
 
-  await enviarMensajeWhatsApp(jid, phoneClean, confirmacionBotEst, !!audio, geminiKey);
+  await enviarMensajeWhatsApp(jid, phoneClean, msgFinalEst, !!audio, geminiKey);
   return res.status(200).json({ success: true, action: "CHECKIN_REGISTRADO" });
 }

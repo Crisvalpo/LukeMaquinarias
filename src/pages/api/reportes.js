@@ -30,6 +30,19 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, data, total: count });
   }
 
-  res.setHeader("Allow", ["GET"]);
+  if (req.method === "DELETE") {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ success: false, message: "Falta id del reporte" });
+
+    const { error } = await supabase
+      .from("reportes_diarios")
+      .delete()
+      .eq("id", id);
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.status(200).json({ success: true, message: "Reporte eliminado exitosamente" });
+  }
+
+  res.setHeader("Allow", ["GET", "DELETE"]);
   return res.status(405).json({ success: false, message: "Método no permitido" });
 }

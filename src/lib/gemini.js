@@ -59,6 +59,7 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
       * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
       * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
       Si no se menciona el nivel de combustible, ponlo como null.
+    - Mapeo de Capacidad del Estanque: Si el operador menciona la capacidad máxima del estanque del equipo (en litros) (ej: "estanque de 150 litros", "tiene capacidad de 200", "el estanque hace 300 litros", "estanque de 120 litros"), extrae el valor numérico entero en el campo 'capacidad_estanque_litros'. Si no se menciona, ponlo como null.
    - IMPORTANTE: Si el operador corrige un dato anterior (ej: "me equivoqué, era doce mil trescientos cincuenta"), usa el NUEVO valor corregido.
 6. Regla de Pauta Preventiva (pauta_del_dia):
    - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona 'pauta_del_dia' en el contexto. El operador debe confirmar explícitamente haber cumplido, revisado o realizado la inspección de la pauta (ej: "revisé niveles", "pauta de hoy conforme", "sí, chequié la pauta", "inspección realizada", "revisado").
@@ -74,6 +75,7 @@ Responde ÚNICAMENTE con un JSON válido. Esquema:
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
   "combustible_nivel_porcentaje": numero_o_null,
+  "capacidad_estanque_litros": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
@@ -166,6 +168,7 @@ Reglas:
   * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
   * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
   Si no se menciona el nivel de combustible, ponlo como null.
+- Mapeo de Capacidad del Estanque: Si el conductor menciona la capacidad máxima del estanque (en litros) (ej: "estanque de 150 litros", "capacidad de 200", "el estanque hace 120 litros"), extrae el valor numérico entero en el campo 'capacidad_estanque_litros'. Si no se menciona, ponlo como null.
 - NO preguntes por especialidad ni Rigger jamás
 - Tono formal y respetuoso, sin "compadre"
 - Si no declara horómetro en check-in, pregúntalo de forma directa
@@ -183,6 +186,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
   "combustible_nivel_porcentaje": numero_o_null,
+  "capacidad_estanque_litros": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": false,
@@ -213,6 +217,7 @@ Reglas de Mapeo Semántico ESTRICTAS:
   * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
   * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
   Si no se menciona el nivel de combustible, ponlo como null.
+- Mapeo de Capacidad del Estanque: Si el operador menciona la capacidad máxima del estanque (en litros) (ej: "estanque de 150 litros", "capacidad de 200", "el estanque hace 120 litros"), extrae el valor numérico entero en el campo 'capacidad_estanque_litros'. Si no se menciona, ponlo como null.
 - Números hablados: "dos mil trescientos" = 2300
 - Regla de Pauta Preventiva (pauta_del_dia):
   - Solo aplica si el estado_sesion es 'CHECKIN' y se proporciona pauta preventiva para hoy, verifica si el operador confirma haber cumplido, revisado o realizado la inspección de la pauta.
@@ -236,6 +241,7 @@ Esquema de retorno:
   "horometro_inicial": numero_o_null,
   "horometro_final": numero_o_null,
   "combustible_nivel_porcentaje": numero_o_null,
+  "capacidad_estanque_litros": numero_o_null,
   "petroleo_litros": numero_o_null,
   "horometro_carga_combustible": numero_o_null,
   "es_falla_critica": true_o_false,
@@ -327,6 +333,7 @@ Reglas de extracción:
   * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
   * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
   Si no se menciona el nivel de combustible, ponlo como null.
+- Mapeo de Capacidad del Estanque: Si el conductor menciona la capacidad máxima del estanque (en litros) (ej: "estanque de 150 litros", "capacidad de 200", "el estanque hace 120 litros"), extrae el valor numérico entero en el campo 'capacidad_estanque_litros'. Si no se menciona, ponlo como null.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
@@ -343,6 +350,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "km_final": numero_o_null,
   "destino_ruta": "texto_o_null",
   "combustible_nivel_porcentaje": numero_o_null,
+  "capacidad_estanque_litros": numero_o_null,
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
   "pauta_confirmada": true_o_false,
@@ -421,6 +429,7 @@ Reglas de extracción:
   * "Un cuarto" / "1/4" / "Le queda poquito" / "25%" -> 25
   * "En la reserva" / "Prendió la luz" / "Casi seco" / "reserva" / "10%" -> 10
   Si no se menciona el nivel de combustible, ponlo como null.
+- Mapeo de Capacidad del Estanque: Si el conductor menciona la capacidad máxima del estanque (en litros) (ej: "estanque de 150 litros", "capacidad de 200", "el estanque hace 120 litros"), extrae el valor numérico entero en el campo 'capacidad_estanque_litros'. Si no se menciona, ponlo como null.
 - "cierre/terminé/devolví" → tipo_evento 'CIERRE'
 - Si no menciona km en check-in, solicítalo de forma directa y cordial
 - Tono formal y respetuoso. Sin "compadre".
@@ -437,6 +446,7 @@ Respuesta ÚNICAMENTE en JSON válido:
   "km_final": numero_o_null,
   "destino_ruta": "texto_o_null",
   "combustible_nivel_porcentaje": numero_o_null,
+  "capacidad_estanque_litros": numero_o_null,
   "es_falla_critica": true_o_false,
   "detalles_texto": "Transcripción resumida",
   "pauta_confirmada": true_o_false,

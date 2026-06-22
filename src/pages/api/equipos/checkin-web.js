@@ -7,7 +7,7 @@ export default async function handler(req, res) {
   }
 
   const supabase = createAdminClient();
-  const { equipoId, operadorId, valorLectura, latitud, longitud, pautaConfirmada, destinoRuta, combustibleNivel } = req.body;
+  const { equipoId, operadorId, valorLectura, latitud, longitud, pautaConfirmada, destinoRuta, combustibleNivel, capacidadEstanque } = req.body;
 
   if (!equipoId || !operadorId || valorLectura === undefined) {
     return res.status(400).json({ success: false, message: "Parámetros insuficientes (equipoId, operadorId y valorLectura son requeridos)" });
@@ -124,6 +124,10 @@ export default async function handler(req, res) {
 
     if (pautaConfirmada) {
       eqUpdate.pauta_preventiva_activa = null;
+    }
+
+    if (capacidadEstanque !== undefined && capacidadEstanque !== null) {
+      eqUpdate.capacidad_estanque_litros = capacidadEstanque;
     }
 
     if (combustibleNivel !== undefined && combustibleNivel !== null) {
