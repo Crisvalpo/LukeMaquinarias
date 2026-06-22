@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     // 1. Obtener datos del operador para su WhatsApp
     const { data: operador, error: errorOp } = await supabase
       .from("personal")
-      .select("id, nombre_completo, whatsapp")
+      .select("id, nombre_completo, whatsapp, proyecto_actual_id")
       .eq("id", operadorId)
       .maybeSingle();
 
@@ -34,12 +34,30 @@ export default async function handler(req, res) {
     // 2. Obtener tipo de seguimiento del equipo
     const { data: equipo, error: errorEq } = await supabase
       .from("equipos")
-      .select("id, codigo_interno, descripcion_equipo, tipo_seguimiento, seguimiento_completo")
+      .select("id, codigo_interno, descripcion_equipo, tipo_seguimiento, seguimiento_completo, proyecto_actual_id, proyectos(nombre_proyecto)")
       .eq("id", equipoId)
       .maybeSingle();
 
     if (errorEq || !equipo) {
       return res.status(404).json({ success: false, message: "Equipo no encontrado" });
+    }
+
+    // Validar proyectos cruzados
+    if (operador.proyecto_actual_id && equipo.proyecto_actual_id && operador.proyecto_actual_id !== equipo.proyecto_actual_id) {
+      let obraPersonalNombre = "Sin asignar";
+      const { data: opObra } = await supabase
+        .from("proyectos")
+        .select("nombre_proyecto")
+        .eq("id", operador.proyecto_actual_id)
+        .maybeSingle();
+      if (opObra) obraPersonalNombre = opObra.nombre_proyecto;
+
+      const obraEquipoNombre = equipo.proyectos ? equipo.proyectos.nombre_proyecto : "Sin asignar";
+
+      return res.status(400).json({
+        success: false,
+        message: `No puedes iniciar jornada en el equipo ${equipo.descripcion_equipo} (${equipo.codigo_interno}) porque pertenece al proyecto "${obraEquipoNombre}", y tú estás asignado al proyecto "${obraPersonalNombre}". Por favor, solicita a tu supervisor actualizar tu asignación.`
+      });
     }
 
     const esVehiculo = equipo.tipo_seguimiento === "vehiculo";

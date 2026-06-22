@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   if (typeof searchPhone === "string") {
     searchPhone = searchPhone.split("@")[0].split(":")[0];
   }
-  const phoneClean = searchPhone.replace(/\+/g, "").trim();
+  const phoneClean = searchPhone.replace(/[^0-9]/g, "");
 
   if (!phoneClean) {
     return res.status(400).json({ success: false, message: "Falta phone" });

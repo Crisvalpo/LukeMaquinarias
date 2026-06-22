@@ -1,5 +1,6 @@
 import React from "react";
 import { CheckCircle, XCircle, X } from "lucide-react";
+import SearchableSelect from "./Shared/SearchableSelect";
 
 const inputStyle = {
   width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
@@ -96,19 +97,21 @@ export default function RegistrosTab({ hookProps }) {
                        />
                      </td>
                     <td style={{ padding: "12px 16px" }}>
-                      <select
-                        style={{ ...selectStyle, padding: "6px 10px" }}
+                      <SearchableSelect
+                        options={[
+                          { value: "", label: "Sin asignar" },
+                          ...proyectosCompleto.data.map(o => ({
+                            value: o.id,
+                            label: `${o.codigo_cc} — ${o.nombre_proyecto}`
+                          }))
+                        ]}
                         value={edit.proyecto_actual_id || ""}
-                        onChange={e => setEditRegistros(prev => ({
+                        onChange={val => setEditRegistros(prev => ({
                           ...prev,
-                          [r.id]: { ...edit, proyecto_actual_id: e.target.value }
+                          [r.id]: { ...edit, proyecto_actual_id: val }
                         }))}
-                      >
-                        <option value="">Sin asignar</option>
-                        {proyectosCompleto.data.map(o => (
-                          <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
-                        ))}
-                      </select>
+                        selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
+                      />
                     </td>
                     <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>
                       <button

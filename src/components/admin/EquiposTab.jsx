@@ -3,6 +3,7 @@ import { Plus, Pencil, QrCode, Save, X, Camera, Loader2, Trash2, MoreVertical } 
 import FormRow from "./Shared/FormRow";
 import { ESTADO_CONFIG } from "./Shared/constants";
 import QrEquipoModal from "./Shared/QrEquipoModal";
+import SearchableSelect from "./Shared/SearchableSelect";
 
 const inputStyle = {
   width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
@@ -311,13 +312,17 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             </select>
           </FormRow>
           <FormRow label="Proyecto / Obra Asociada">
-            <select style={selectStyle} value={formData.proyecto_actual_id}
-              onChange={e => setFormData(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
-              <option value="">Sin asignar / En Taller</option>
-              {proyectos.map(p => (
-                <option key={p.id} value={p.id}>{p.codigo_cc} — {p.nombre_proyecto}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={[
+                { value: "", label: "Sin asignar / En Taller" },
+                ...proyectos.map(p => ({
+                  value: p.id,
+                  label: `${p.codigo_cc} — ${p.nombre_proyecto}`
+                }))
+              ]}
+              value={formData.proyecto_actual_id || ""}
+              onChange={val => setFormData(p => ({ ...p, proyecto_actual_id: val }))}
+            />
           </FormRow>
           <FormRow label="Estado Operacional Actual">
             <select style={selectStyle} value={formData.estado_actual}
@@ -580,12 +585,17 @@ export default function EquiposTab({ hookProps }) {
                 onChange={e => setFormEquipo(p => ({ ...p, proveedor: e.target.value }))} />
             </FormRow>
             <FormRow label="Proyecto Actual">
-              <select style={selectStyle}
-                value={formEquipo.proyecto_actual_id}
-                onChange={e => setFormEquipo(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
-                <option value="">Sin asignar</option>
-                {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: "", label: "Sin asignar" },
+                  ...proyectosCompleto.data.map(o => ({
+                    value: o.id,
+                    label: `${o.codigo_cc} — ${o.nombre_proyecto}`
+                  }))
+                ]}
+                value={formEquipo.proyecto_actual_id || ""}
+                onChange={val => setFormEquipo(p => ({ ...p, proyecto_actual_id: val }))}
+              />
             </FormRow>
             <FormRow label="Seguimiento de Horas por Especialidad/Operador">
               <select style={selectStyle}

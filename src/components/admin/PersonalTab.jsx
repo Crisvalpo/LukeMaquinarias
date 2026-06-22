@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Pencil, Save, X, Trash2, MoreVertical } from "lucide-react";
 import FormRow from "./Shared/FormRow";
+import SearchableSelect from "./Shared/SearchableSelect";
 
 const inputStyle = {
   width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
@@ -199,11 +200,17 @@ export default function PersonalTab({ hookProps }) {
               </select>
             </FormRow>
             <FormRow label="Proyecto Actual">
-              <select style={selectStyle} value={formPersonal.proyecto_actual_id}
-                onChange={e => setFormPersonal(p => ({ ...p, proyecto_actual_id: e.target.value }))}>
-                <option value="">Sin asignar</option>
-                {proyectosCompleto.data.map(o => <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>)}
-              </select>
+              <SearchableSelect
+                options={[
+                  { value: "", label: "Sin asignar" },
+                  ...proyectosCompleto.data.map(o => ({
+                    value: o.id,
+                    label: `${o.codigo_cc} — ${o.nombre_proyecto}`
+                  }))
+                ]}
+                value={formPersonal.proyecto_actual_id || ""}
+                onChange={val => setFormPersonal(p => ({ ...p, proyecto_actual_id: val }))}
+              />
             </FormRow>
             <FormRow label="Foto de Perfil URL">
               <input style={inputStyle} placeholder="https://..."
@@ -285,16 +292,18 @@ export default function PersonalTab({ hookProps }) {
                         </select>
                       </td>
                       <td style={{ padding: "8px 16px" }}>
-                        <select
-                          style={{ ...selectStyle, padding: "6px 10px" }}
+                        <SearchableSelect
+                          options={[
+                            { value: "", label: "Sin asignar" },
+                            ...proyectosCompleto.data.map(o => ({
+                              value: o.id,
+                              label: `${o.codigo_cc} — ${o.nombre_proyecto}`
+                            }))
+                          ]}
                           value={formEditPersonal.proyecto_actual_id || ""}
-                          onChange={e => setFormEditPersonal(prev => ({ ...prev, proyecto_actual_id: e.target.value || null }))}
-                        >
-                          <option value="">Sin asignar</option>
-                          {proyectosCompleto.data.map(o => (
-                            <option key={o.id} value={o.id}>{o.codigo_cc} — {o.nombre_proyecto}</option>
-                          ))}
-                        </select>
+                          onChange={val => setFormEditPersonal(prev => ({ ...prev, proyecto_actual_id: val || null }))}
+                          selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
+                        />
                       </td>
                       <td style={{ padding: "8px 16px", display: "flex", gap: "4px" }}>
                         <select
