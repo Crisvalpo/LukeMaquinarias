@@ -154,13 +154,58 @@ export default async function handler(req, res) {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, message: "Falta id del personal" });
 
+    // 1. Buscar si este operador tiene algún reporte de jornada activo abierto hoy
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+    const { data: reportesActivos } = await supabase
+      .from("reportes_diarios")
+      .select("id, equipo_id")
+      .eq("operador_id", id)
+      .eq("fecha", hoy)
+      .is("horometro_final", null)
+      .is("km_final", null);
+
+    if (reportesActivos && reportesActivos.length > 0) {
+      for (const rpt of reportesActivos) {
+        // A. Eliminar evidencias vinculadas al reporte
+        await supabase
+          .from("evidencias")
+          .delete()
+          .eq("reporte_id", rpt.id);
+
+        // B. Eliminar eventos de jornada
+        await supabase
+          .from("eventos_jornada")
+          .delete()
+          .eq("reporte_id", rpt.id);
+
+        // C. Eliminar sesiones de WhatsApp
+        await supabase
+          .from("sesiones_whatsapp")
+          .delete()
+          .eq("reporte_activo_id", rpt.id);
+
+        // D. Eliminar el reporte diario
+        await supabase
+          .from("reportes_diarios")
+          .delete()
+          .eq("id", rpt.id);
+
+        // E. Liberar el equipo asignándolo de vuelta a "Disponible"
+        await supabase
+          .from("equipos")
+          .update({ estado_actual: "Disponible" })
+          .eq("id", rpt.equipo_id);
+      }
+    }
+
+    // 2. Desactivar al personal (borrado lógico)
     const { error } = await supabase
       .from("personal")
       .update({ activo: false })
       .eq("id", id);
 
     if (error) return res.status(500).json({ success: false, error: error.message });
-    return res.status(200).json({ success: true, message: "Personal eliminado exitosamente" });
+    return res.status(200).json({ success: true, message: "Personal desactivado y asignaciones activas liberadas" });
   }
 
   res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
