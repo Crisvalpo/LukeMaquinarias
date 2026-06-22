@@ -40,12 +40,24 @@ export async function handleCheckinFlow(ctx, res) {
     if (audio) {
       resultado = await procesarAudioVehiculo(
         audio.data, audio.mimeType,
-        { estado_sesion: "CHECKIN", km_inicio: null, pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa }
+        {
+          estado_sesion: "CHECKIN",
+          km_inicio: null,
+          pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa,
+          codigo_equipo: reporteCheckin?.equipos?.codigo_interno,
+          descripcion_equipo: reporteCheckin?.equipos?.descripcion_equipo
+        }
       );
     } else {
       resultado = await procesarTextoVehiculo(
         message.trim(),
-        { estado_sesion: "CHECKIN", km_inicio: null, pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa }
+        {
+          estado_sesion: "CHECKIN",
+          km_inicio: null,
+          pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa,
+          codigo_equipo: reporteCheckin?.equipos?.codigo_interno,
+          descripcion_equipo: reporteCheckin?.equipos?.descripcion_equipo
+        }
       );
     }
 
@@ -136,6 +148,8 @@ export async function handleCheckinFlow(ctx, res) {
     seguimiento_completo: seguimientoCompleto,
     tipo_seguimiento: tipoSeguimiento,
     pauta_del_dia: reporteCheckin?.equipos?.pauta_preventiva_activa,
+    codigo_equipo: reporteCheckin?.equipos?.codigo_interno,
+    descripcion_equipo: reporteCheckin?.equipos?.descripcion_equipo
   };
 
   if (audio) {

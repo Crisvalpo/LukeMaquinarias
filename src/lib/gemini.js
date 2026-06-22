@@ -28,6 +28,7 @@ export async function procesarMensajeConContexto(historialConversacion, listaEsp
   const systemInstruction = `Eres Jaime, el asistente inteligente de operaciones para el proyecto LukeMontaje (LukeEquipos) en una faena industrial chilena.
 Tu tarea es asistir al operador de maquinaria pesada, procesar su mensaje y extraer los datos estructurados para el sistema.
 
+${contexto.descripcion_equipo && contexto.codigo_equipo ? `Equipo asignado actualmente al operador: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion === "CHECKIN" && contexto.pauta_del_dia ? `Pauta preventiva del día fijada por el supervisor: "${contexto.pauta_del_dia}"` : ""}
 ${contexto.horometro_inicio ? `Horómetro de inicio registrado: ${contexto.horometro_inicio}` : ""}
 ${contexto.estado_sesion ? `Estado actual de la sesión: ${contexto.estado_sesion}` : ""}
@@ -70,6 +71,11 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - Si el operador menciona únicamente el nivel, porcentaje o cantidad del combustible del estanque (ej: "el nivel de combustible es 85 porciento", "estanque al 80%", "cargamos combustible al 100%", "80% de combustible", "tanque lleno"), SIN pedir explícitamente cerrar la jornada, terminar el turno, o despedirse, clasifica el mensaje como un hito INTERMEDIO.
    - En ese caso, usa tipo_evento "Trabajando" (o el estado que mejor describa la situación), registra el combustible_nivel_porcentaje correspondiente, y deja horometro_final y km_final en null.
    - SOLO clasifica como tipo_evento "CIERRE" si el operador dice explícitamente que termina la jornada, que ya son su hora de salida, que deja el equipo, o que cierra el turno, acompañado O NO del dato del horómetro/odómetro final.
+8. REGLAS DE RESPUESTAS A CONSULTAS COMUNES (Y EVITACIÓN DE JERGA TÉCNICA):
+   - Evita el uso de terminología técnica interna o jerga de base de datos en el campo 'mensaje_conversacional_bot'. NUNCA utilices ni repitas palabras como "estado INTERMEDIO", "estado CHECKIN", "tipo_evento", "CHECKIN", "INTERMEDIO", "CIERRE", "UUID" en tus respuestas al operador.
+   - Si el operador consulta sobre el estado de su sesión (ej. "¿estoy en sesión?", "¿tengo turno activo?"), respóndele de manera amigable y natural confirmando que su jornada está activa para el equipo asignado actual.
+   - Si el operador consulta sobre qué equipo tiene asignado (ej. "¿qué equipo tengo asignado?", "¿cuál es mi máquina?"), indícale claramente la descripción y el código del equipo asignado que ves en el contexto anterior (ej. "${contexto.descripcion_equipo || "el asignado"} con código ${contexto.codigo_equipo || ""}").
+   - Si el operador pregunta qué hitos puede informar o reportar (ej. "¿qué hitos puedo informar?", "¿qué le puedo reportar?"), explícitamente y de forma amigable listale las opciones válidas: inicio de jornada (check-in), colación, cambio de actividad (ej. indicando especialidad), detención por falla o el cierre de jornada, redactándolo de manera amigable y respetuosa en español chileno.
 
 Responde ÚNICAMENTE con un JSON válido. Esquema:
 {
@@ -156,6 +162,7 @@ Procesas el audio del CONDUCTOR de un camión de trabajo (pluma, aljibe, tolva, 
 Este equipo NO requiere Rigger ni especialidades de montaje.
 
 Contexto actual:
+${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Equipo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
 ${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
@@ -184,6 +191,11 @@ Reglas:
 - REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
   * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "Trabajando"), deja horometro_final en null, y registra combustible_nivel_porcentaje.
   * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada.
+- REGLAS DE RESPUESTAS A CONSULTAS COMUNES (Y EVITACIÓN DE JERGA TÉCNICA):
+  * Evita el uso de terminología técnica interna o jerga de base de datos en el campo 'mensaje_conversacional_bot'. NUNCA uses "estado INTERMEDIO", "estado CHECKIN", "tipo_evento", "CHECKIN", "INTERMEDIO", "CIERRE", "UUID" en tus respuestas.
+  * Si el conductor consulta sobre el estado de su sesión (ej. "¿estoy en sesión?"), respóndele de manera amigable confirmando que su jornada está activa para su camión asignado actual.
+  * Si el conductor consulta sobre qué máquina o camión tiene asignado, indícales el nombre y código del equipo de su contexto (ej. "${contexto.descripcion_equipo || "el asignado"} con código ${contexto.codigo_equipo || ""}").
+  * Si pregunta qué hitos puede reportar, lístale de manera amigable y conversacional las opciones aplicables.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -234,8 +246,14 @@ Reglas de Mapeo Semántico ESTRICTAS:
 - REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
   * Si el operador menciona únicamente el nivel, porcentaje o cantidad del combustible del estanque (ej: "el nivel de combustible es 85 porciento", "estanque al 80%", "cargamos combustible al 100%", "tanque lleno"), SIN pedir explícitamente cerrar la jornada, terminar el turno ni despedirse, clasifica el mensaje como un hito INTERMEDIO (tipo_evento "Trabajando"), deja horometro_final en null, y registra combustible_nivel_porcentaje con el valor correspondiente.
   * SOLO clasifica como "CIERRE" si el operador dice explícitamente que termina/cierra la jornada o que ya terminó su turno.
+- REGLAS DE RESPUESTAS A CONSULTAS COMUNES (Y EVITACIÓN DE JERGA TÉCNICA):
+  * Evita el uso de terminología técnica interna o jerga de base de datos en el campo 'mensaje_conversacional_bot'. NUNCA uses "estado INTERMEDIO", "estado CHECKIN", "tipo_evento", "CHECKIN", "INTERMEDIO", "CIERRE", "UUID" en tus respuestas.
+  * Si el operador consulta sobre el estado de su sesión (ej. "¿estoy en sesión?"), respóndele de manera amigable confirmando que su jornada está activa para el equipo asignado actual.
+  * Si el operador consulta sobre qué máquina tiene asignada, indícale el nombre y código del equipo de su contexto (ej. "${contexto.descripcion_equipo || "el asignado"} con código ${contexto.codigo_equipo || ""}").
+  * Si pregunta qué hitos puede reportar, lístale de manera amigable y conversacional las opciones aplicables.
 
 Contexto actual:
+${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Equipo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
 ${contexto.seguimiento_completo !== undefined ? `- seguimiento_completo: ${contexto.seguimiento_completo}` : ''}
@@ -323,6 +341,7 @@ Procesas el audio del CONDUCTOR o SUPERVISOR que toma un vehículo (camioneta, f
 Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
 
 Contexto actual:
+${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Vehículo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
 ${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
@@ -355,6 +374,11 @@ Reglas de extracción:
 - REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
   * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "En Ruta" o el estado actual correspondiente), deja km_final en null, y registra combustible_nivel_porcentaje.
   * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada o devuelve el vehículo.
+- REGLAS DE RESPUESTAS A CONSULTAS COMUNES (Y EVITACIÓN DE JERGA TÉCNICA):
+  * Evita el uso de terminología técnica interna o jerga de base de datos en el campo 'mensaje_conversacional_bot'. NUNCA uses "estado INTERMEDIO", "estado CHECKIN", "tipo_evento", "CHECKIN", "INTERMEDIO", "CIERRE", "UUID" en tus respuestas.
+  * Si el conductor consulta sobre el estado de su sesión (ej. "¿estoy en sesión?"), respóndele de manera amigable confirmando que su jornada está activa para su vehículo asignado actual.
+  * Si el conductor consulta sobre qué vehículo tiene asignado, indícale el nombre y código del vehículo de su contexto (ej. "${contexto.descripcion_equipo || "el asignado"} con código ${contexto.codigo_equipo || ""}").
+  * Si pregunta qué hitos puede reportar, lístale de manera amigable y conversacional las opciones aplicables.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -422,6 +446,7 @@ Procesas el mensaje de texto del CONDUCTOR o SUPERVISOR que toma un vehículo (c
 Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
 
 Contexto actual:
+${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Vehículo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
 ${contexto.estado_sesion === 'CHECKIN' && contexto.pauta_del_dia ? `- Pauta preventiva de seguridad para hoy: "${contexto.pauta_del_dia}"` : ''}
@@ -454,6 +479,11 @@ Reglas de extracción:
 - REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
   * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "En Ruta" o el estado actual correspondiente), deja km_final en null, y registra combustible_nivel_porcentaje.
   * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada o devuelve el vehículo.
+- REGLAS DE RESPUESTAS A CONSULTAS COMUNES (Y EVITACIÓN DE JERGA TÉCNICA):
+  * Evita el uso de terminología técnica interna o jerga de base de datos en el campo 'mensaje_conversacional_bot'. NUNCA uses "estado INTERMEDIO", "estado CHECKIN", "tipo_evento", "CHECKIN", "INTERMEDIO", "CIERRE", "UUID" en tus respuestas.
+  * Si el conductor consulta sobre el estado de su sesión (ej. "¿estoy en sesión?"), respóndele de manera amigable confirmando que su jornada está activa para su vehículo asignado actual.
+  * Si el conductor consulta sobre qué vehículo tiene asignado, indícale el nombre y código del vehículo de su contexto (ej. "${contexto.descripcion_equipo || "el asignado"} con código ${contexto.codigo_equipo || ""}").
+  * Si pregunta qué hitos puede reportar, lístale de manera amigable y conversacional las opciones aplicables.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {

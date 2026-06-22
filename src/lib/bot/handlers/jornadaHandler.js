@@ -368,7 +368,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, supervisor_id, equipos(id, codigo_interno, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+    .select("equipo_id, horometro_inicio, km_inicial, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
@@ -388,12 +388,22 @@ export async function handleJornadaFlow(ctx, res) {
     if (audio) {
       resultado = await procesarAudioVehiculo(
         audio.data, audio.mimeType,
-        { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
+        {
+          estado_sesion: estadoSesionEnv,
+          km_inicio: reporteActual?.km_inicial,
+          codigo_equipo: reporteActual?.equipos?.codigo_interno,
+          descripcion_equipo: reporteActual?.equipos?.descripcion_equipo
+        }
       );
     } else {
       resultado = await procesarTextoVehiculo(
         message.trim(),
-        { estado_sesion: estadoSesionEnv, km_inicio: reporteActual?.km_inicial }
+        {
+          estado_sesion: estadoSesionEnv,
+          km_inicio: reporteActual?.km_inicial,
+          codigo_equipo: reporteActual?.equipos?.codigo_interno,
+          descripcion_equipo: reporteActual?.equipos?.descripcion_equipo
+        }
       );
     }
   } else {
@@ -403,7 +413,9 @@ export async function handleJornadaFlow(ctx, res) {
         {
           estado_sesion: estadoSesionEnv,
           horometro_inicio: reporteActual?.horometro_inicio,
-          seguimiento_completo: seguimientoCompleto
+          seguimiento_completo: seguimientoCompleto,
+          codigo_equipo: reporteActual?.equipos?.codigo_interno,
+          descripcion_equipo: reporteActual?.equipos?.descripcion_equipo
         }
       );
     } else {
@@ -413,7 +425,9 @@ export async function handleJornadaFlow(ctx, res) {
         {
           estado_sesion: estadoSesionEnv,
           horometro_inicio: reporteActual?.horometro_inicio,
-          seguimiento_completo: seguimientoCompleto
+          seguimiento_completo: seguimientoCompleto,
+          codigo_equipo: reporteActual?.equipos?.codigo_interno,
+          descripcion_equipo: reporteActual?.equipos?.descripcion_equipo
         }
       );
     }
