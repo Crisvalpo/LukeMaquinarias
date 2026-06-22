@@ -80,11 +80,17 @@ export async function guardarMensajeChat(supabase, whatsapp_remitente, rol, cont
   return data;
 }
 
-export async function cargarHistorialGemini(supabase, whatsapp_remitente, limite = 10) {
-  const { data, error } = await supabase
+export async function cargarHistorialGemini(supabase, whatsapp_remitente, limite = 10, reporteId = null) {
+  let query = supabase
     .from("mensajes_chat")
     .select("rol, contenido")
-    .eq("whatsapp_remitente", whatsapp_remitente)
+    .eq("whatsapp_remitente", whatsapp_remitente);
+
+  if (reporteId) {
+    query = query.eq("reporte_id", reporteId);
+  }
+
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .limit(limite);
 

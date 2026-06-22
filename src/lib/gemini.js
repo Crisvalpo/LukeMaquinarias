@@ -66,6 +66,10 @@ REGLAS ESTRICTAS DE INTERACCIÓN Y RESPUESTA:
    - Si el operador confirma o declara haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
    - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en su mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
    - Si el estado_sesion NO es 'CHECKIN' o no se proporciona pauta_del_dia, establece 'pauta_confirmada' en true y no solicites confirmaciones.
+7. REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
+   - Si el operador menciona únicamente el nivel, porcentaje o cantidad del combustible del estanque (ej: "el nivel de combustible es 85 porciento", "estanque al 80%", "cargamos combustible al 100%", "80% de combustible", "tanque lleno"), SIN pedir explícitamente cerrar la jornada, terminar el turno, o despedirse, clasifica el mensaje como un hito INTERMEDIO.
+   - En ese caso, usa tipo_evento "Trabajando" (o el estado que mejor describa la situación), registra el combustible_nivel_porcentaje correspondiente, y deja horometro_final y km_final en null.
+   - SOLO clasifica como tipo_evento "CIERRE" si el operador dice explícitamente que termina la jornada, que ya son su hora de salida, que deja el equipo, o que cierra el turno, acompañado O NO del dato del horómetro/odómetro final.
 
 Responde ÚNICAMENTE con un JSON válido. Esquema:
 {
@@ -177,6 +181,9 @@ Reglas:
   - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' in true.
   - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' in false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
   - Si no hay pauta preventiva, establece 'pauta_confirmada' in true.
+- REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
+  * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "Trabajando"), deja horometro_final en null, y registra combustible_nivel_porcentaje.
+  * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -224,6 +231,9 @@ Reglas de Mapeo Semántico ESTRICTAS:
   - Si el operador confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el operador no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
   - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
+- REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
+  * Si el operador menciona únicamente el nivel, porcentaje o cantidad del combustible del estanque (ej: "el nivel de combustible es 85 porciento", "estanque al 80%", "cargamos combustible al 100%", "tanque lleno"), SIN pedir explícitamente cerrar la jornada, terminar el turno ni despedirse, clasifica el mensaje como un hito INTERMEDIO (tipo_evento "Trabajando"), deja horometro_final en null, y registra combustible_nivel_porcentaje con el valor correspondiente.
+  * SOLO clasifica como "CIERRE" si el operador dice explícitamente que termina/cierra la jornada o que ya terminó su turno.
 
 Contexto actual:
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
@@ -342,6 +352,9 @@ Reglas de extracción:
   - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el audio, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
   - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
+- REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
+  * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "En Ruta" o el estado actual correspondiente), deja km_final en null, y registra combustible_nivel_porcentaje.
+  * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada o devuelve el vehículo.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {
@@ -438,6 +451,9 @@ Reglas de extracción:
   - Si el conductor confirma haber revisado la pauta de hoy, establece 'pauta_confirmada' en true.
   - Si hay una pauta activa pero el conductor no hace mención alguna a su cumplimiento en el mensaje, establece 'pauta_confirmada' en false, y en 'mensaje_conversacional_bot' solicítale cortésmente que confirme si realizó la revisión de seguridad antes de continuar (mencionando la pauta de forma breve).
   - Si el estado_sesion NO es 'CHECKIN' o no hay pauta preventiva, establece 'pauta_confirmada' en true.
+- REGLA CRÍTICA - Nivel de Combustible NO es Cierre de Jornada:
+  * Si el conductor menciona únicamente el nivel, porcentaje o cantidad del combustible (ej: "nivel de combustible al 85%", "estanque lleno", "cargamos al 100%"), SIN pedir cerrar la jornada o terminar el turno, clasifica el mensaje como hito INTERMEDIO (tipo_evento "En Ruta" o el estado actual correspondiente), deja km_final en null, y registra combustible_nivel_porcentaje.
+  * SOLO clasifica como "CIERRE" si el conductor dice explícitamente que termina/cierra la jornada o devuelve el vehículo.
 
 Respuesta ÚNICAMENTE en JSON válido:
 {

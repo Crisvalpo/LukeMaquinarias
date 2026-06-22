@@ -129,7 +129,7 @@ export async function handleCheckinFlow(ctx, res) {
     : message.trim();
 
   const msgUsuario = await guardarMensajeChat(supabase, phoneClean, "user", transcripcionEntrada, tipoEntradaLog, sesion.reporte_activo_id);
-  const historial = await cargarHistorialGemini(supabase, phoneClean);
+  const historial = await cargarHistorialGemini(supabase, phoneClean, 10, sesion.reporte_activo_id);
 
   const contextoCheckin = {
     estado_sesion: "CHECKIN",

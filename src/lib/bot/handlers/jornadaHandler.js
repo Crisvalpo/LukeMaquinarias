@@ -379,7 +379,7 @@ export async function handleJornadaFlow(ctx, res) {
   const tipoMsgC = audio ? "audio" : "texto";
 
   const msgUsuarioC = await guardarMensajeChat(supabase, phoneClean, "user", contenidoUsuario, tipoMsgC, sesion.reporte_activo_id);
-  const historialC = await cargarHistorialGemini(supabase, phoneClean);
+  const historialC = await cargarHistorialGemini(supabase, phoneClean, 10, sesion.reporte_activo_id);
 
   let resultado;
   const estadoSesionEnv = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" ? "CIERRE" : "INTERMEDIO";
