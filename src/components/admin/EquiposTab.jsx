@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Plus, Pencil, QrCode, Save, X, Camera, Loader2 } from "lucide-react";
+import { Plus, Pencil, QrCode, Save, X, Camera, Loader2, Trash2 } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 import { ESTADO_CONFIG } from "./Shared/constants";
 import QrEquipoModal from "./Shared/QrEquipoModal";
@@ -511,7 +511,8 @@ export default function EquiposTab({ hookProps }) {
     setQrEquipo,
     saving,
     showMsg,
-    handleSubmit
+    handleSubmit,
+    handleDelete
   } = hookProps;
 
   const [showForm, setShowForm] = useState(false);
@@ -812,6 +813,17 @@ export default function EquiposTab({ hookProps }) {
                       }}
                     >
                       <QrCode size={11} /> QR
+                    </button>
+                    <button
+                      onClick={() => handleDelete("/api/equipos", eq.id, () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+                      style={{
+                        background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
+                        color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
+                        fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                        display: "inline-flex", alignItems: "center", gap: "4px"
+                      }}
+                    >
+                      <Trash2 size={11} /> Eliminar
                     </button>
                   </td>
                 </tr>

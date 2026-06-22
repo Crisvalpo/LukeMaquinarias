@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Pencil, Save, X } from "lucide-react";
+import { Plus, Pencil, Save, X, Trash2 } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 
 const inputStyle = {
@@ -109,7 +109,8 @@ export default function ProyectosTab({ hookProps }) {
     setFormEditProyecto,
     saving,
     handleSubmit,
-    handleGuardarProyecto
+    handleGuardarProyecto,
+    handleDelete
   } = hookProps;
 
   const [showForm, setShowForm] = useState(false);
@@ -290,6 +291,18 @@ export default function ProyectosTab({ hookProps }) {
                           }}
                         >
                           <Pencil size={10} /> Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete("/api/proyectos", o.id, () => { proyectosPaginado.refresh(); proyectosCompleto.refresh(); })}
+                          style={{
+                            background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
+                            color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
+                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", gap: "4px",
+                            marginLeft: "8px"
+                          }}
+                        >
+                          <Trash2 size={10} /> Eliminar
                         </button>
                       </td>
                     </>

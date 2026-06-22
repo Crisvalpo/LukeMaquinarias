@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { FileText, List, HardHat, Users, ChevronDown, ChevronUp, RefreshCw, Search } from "lucide-react";
+import { FileText, List, HardHat, Users, ChevronDown, ChevronUp, RefreshCw, Search, Trash2 } from "lucide-react";
 
-function ExpandedReportList({ type, id }) {
+function ExpandedReportList({ type, id, handleDelete }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -73,7 +73,7 @@ function ExpandedReportList({ type, id }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
-                {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "PDF"].map(h => (
+                {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "PDF", handleDelete ? "Acciones" : null].filter(Boolean).map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -118,6 +118,21 @@ function ExpandedReportList({ type, id }) {
                       <span style={{ color: "#334155", fontSize: "11px" }}>Sin PDF</span>
                     )}
                   </td>
+                  {handleDelete && (
+                    <td style={{ padding: "10px 14px" }}>
+                      <button
+                        onClick={() => handleDelete("/api/reportes", r.id, fetchReports)}
+                        style={{
+                          background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
+                          color: "#ef4444", borderRadius: "6px", padding: "4px 8px",
+                          fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                          display: "inline-flex", alignItems: "center", gap: "4px"
+                        }}
+                      >
+                        <Trash2 size={10} /> Eliminar
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -171,7 +186,7 @@ function ExpandedReportList({ type, id }) {
 }
 
 export default function ReportesTab({ hookProps }) {
-  const { reportes } = hookProps;
+  const { reportes, handleDelete } = hookProps;
   const [viewMode, setViewMode] = useState("lista"); // 'lista', 'equipo', 'usuario'
   
   // Estados para búsqueda local en agrupaciones
@@ -341,7 +356,7 @@ export default function ReportesTab({ hookProps }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
-                  {["Fecha", "Equipo", "Operador", "Hr. Inicio", "Hr. Final", "Horas", "PDF"].map(h => (
+                  {["Fecha", "Equipo", "Operador", "Hr. Inicio", "Hr. Final", "Horas", "PDF", "Acciones"].map(h => (
                     <th key={h} style={{ padding: "14px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -349,7 +364,7 @@ export default function ReportesTab({ hookProps }) {
               <tbody>
                 {reportes.loading ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
+                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                         <RefreshCw className="spin-icon" size={16} />
                         <span>Cargando listado de reportes...</span>
@@ -358,7 +373,7 @@ export default function ReportesTab({ hookProps }) {
                   </tr>
                 ) : reportes.data.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
+                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
                       No se encontraron reportes con los filtros seleccionados.
                     </td>
                   </tr>
@@ -396,6 +411,19 @@ export default function ReportesTab({ hookProps }) {
                         ) : (
                           <span style={{ color: "#1c2e52", fontSize: "12px" }}>Sin PDF</span>
                         )}
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <button
+                          onClick={() => handleDelete("/api/reportes", r.id, () => reportes.refresh())}
+                          style={{
+                            background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
+                            color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
+                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", gap: "4px"
+                          }}
+                        >
+                          <Trash2 size={11} /> Eliminar
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -513,7 +541,7 @@ export default function ReportesTab({ hookProps }) {
                     </div>
                     {isExpanded && (
                       <div style={{ padding: "18px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)" }}>
-                        <ExpandedReportList type="equipo" id={eq.id} />
+                        <ExpandedReportList type="equipo" id={eq.id} handleDelete={handleDelete} />
                       </div>
                     )}
                   </div>
@@ -591,7 +619,7 @@ export default function ReportesTab({ hookProps }) {
                     </div>
                     {isExpanded && (
                       <div style={{ padding: "18px", background: "var(--bg-sidebar)", borderTop: "1px solid var(--border-sidebar)" }}>
-                        <ExpandedReportList type="operador" id={op.id} />
+                        <ExpandedReportList type="operador" id={op.id} handleDelete={handleDelete} />
                       </div>
                     )}
                   </div>
