@@ -34,6 +34,25 @@ export default async function handler(req, res) {
     const { id } = req.query;
     if (!id) return res.status(400).json({ success: false, message: "Falta id del reporte" });
 
+    // 1. Eliminar evidencias vinculadas al reporte
+    await supabase
+      .from("evidencias")
+      .delete()
+      .eq("reporte_id", id);
+
+    // 2. Eliminar eventos de jornada del reporte
+    await supabase
+      .from("eventos_jornada")
+      .delete()
+      .eq("reporte_id", id);
+
+    // 3. Eliminar sesiones de WhatsApp que tengan este reporte activo
+    await supabase
+      .from("sesiones_whatsapp")
+      .delete()
+      .eq("reporte_activo_id", id);
+
+    // 4. Finalmente, eliminar el reporte diario
     const { error } = await supabase
       .from("reportes_diarios")
       .delete()
