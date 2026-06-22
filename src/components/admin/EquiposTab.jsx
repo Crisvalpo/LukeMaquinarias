@@ -315,7 +315,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             <SearchableSelect
               options={[
                 { value: "", label: "Sin asignar / En Taller" },
-                ...proyectos.map(p => ({
+                ...(proyectos || []).map(p => ({
                   value: p.id,
                   label: `${p.codigo_cc} — ${p.nombre_proyecto}`
                 }))
@@ -588,7 +588,7 @@ export default function EquiposTab({ hookProps }) {
               <SearchableSelect
                 options={[
                   { value: "", label: "Sin asignar" },
-                  ...proyectosCompleto.data.map(o => ({
+                  ...(proyectosCompleto?.data || []).map(o => ({
                     value: o.id,
                     label: `${o.codigo_cc} — ${o.nombre_proyecto}`
                   }))

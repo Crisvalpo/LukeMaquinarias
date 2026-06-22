@@ -203,7 +203,7 @@ export default function PersonalTab({ hookProps }) {
               <SearchableSelect
                 options={[
                   { value: "", label: "Sin asignar" },
-                  ...proyectosCompleto.data.map(o => ({
+                  ...(proyectosCompleto?.data || []).map(o => ({
                     value: o.id,
                     label: `${o.codigo_cc} — ${o.nombre_proyecto}`
                   }))
@@ -295,7 +295,7 @@ export default function PersonalTab({ hookProps }) {
                         <SearchableSelect
                           options={[
                             { value: "", label: "Sin asignar" },
-                            ...proyectosCompleto.data.map(o => ({
+                            ...(proyectosCompleto?.data || []).map(o => ({
                               value: o.id,
                               label: `${o.codigo_cc} — ${o.nombre_proyecto}`
                             }))
