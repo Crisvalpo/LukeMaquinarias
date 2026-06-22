@@ -36,6 +36,52 @@ async function downloadStorageImage(storagePath) {
   }
 }
 
+// Filtro de limpieza para sanitizar strings y remover retazos de markdown o LaTeX
+function sanitizarTexto(texto) {
+  if (!texto) return "";
+  return texto
+    // Eliminar fórmulas matemáticas estilo LaTeX como $B=\overline{UI}$ o $\emptyset=UI$ o similares
+    .replace(/\$[^\$]+\$/g, "")
+    // Eliminar markdown como asteriscos, guiones bajos excesivos, etc.
+    .replace(/\*\*+/g, "")
+    .replace(/__+/g, "")
+    .replace(/`/g, "")
+    .trim();
+}
+
+// Calcula la duración real entre el CHECKIN y el CIERRE
+function calcularDuracionEfectiva(eventos, horasGuardadas) {
+  if (!eventos || eventos.length === 0) {
+    return horasGuardadas ? `${horasGuardadas} hrs` : "—";
+  }
+  
+  // Buscar hito de check-in y cierre
+  const checkinEvent = eventos.find(e => e.estado_hito === "CHECKIN");
+  const checkoutEvent = eventos.find(e => e.estado_hito === "CIERRE");
+  
+  if (checkinEvent && checkoutEvent) {
+    const inicio = new Date(checkinEvent.hora_evento);
+    const fin = new Date(checkoutEvent.hora_evento);
+    const difMs = fin - inicio;
+    
+    if (difMs > 0) {
+      const totalMinutos = Math.floor(difMs / 60000);
+      const horas = Math.floor(totalMinutos / 60);
+      const minutos = totalMinutos % 60;
+      
+      if (horas === 0) {
+        return `${minutos} min`;
+      } else if (minutos === 0) {
+        return `${horas} hrs`;
+      } else {
+        return `${horas}h ${minutos}m`;
+      }
+    }
+  }
+  
+  return horasGuardadas ? `${horasGuardadas} hrs` : "—";
+}
+
 /**
  * Genera el PDF del reporte diario de jornada.
  * Guarda el archivo en /public/reportes/YYYY/MM/[id_reporte].pdf
@@ -66,11 +112,12 @@ export async function generarReportePDF({
       const publicUrl = `/reportes/${anio}/${mes}/${fileName}`;
 
       // ============================================================
-      // CONFIGURACIÓN DEL DOCUMENTO
+      // CONFIGURACIÓN DEL DOCUMENTO (con bufferPages para paginación)
       // ============================================================
       const doc = new PDFDocument({
         size: "A4",
         margin: 50,
+        bufferPages: true,
         info: {
           Title: `Reporte Diario - ${equipo.descripcion_equipo} - ${reporte.fecha}`,
           Author: "LukeEquipos Sistema de Control Operacional",
@@ -104,40 +151,54 @@ export async function generarReportePDF({
       const W = doc.page.width - 100; // ancho útil
 
       // ============================================================
-      // CABECERA
+      // CABECERA CORPORATIVA
       // ============================================================
-      doc.rect(50, 50, W, 80).fill(AZUL_OSCURO);
+      const pathLogo = path.join(process.cwd(), "public", "logo-eimisa.png");
+      if (fs.existsSync(pathLogo)) {
+        doc.image(pathLogo, 54, 55, { width: 120 });
+      } else {
+        // Fallback si la imagen no se encontrara
+        doc.fontSize(16).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("EIMISA", 54, 60);
+        doc.fontSize(9).font("Helvetica").fillColor("#64748b").text("LukeEquipos", 54, 78);
+      }
 
+      // Título a la derecha
       doc
-        .fillColor("white")
-        .fontSize(20)
+        .fillColor(AZUL_OSCURO)
+        .fontSize(16)
         .font("Helvetica-Bold")
-        .text("REPORTE DIARIO DE JORNADA", 70, 65);
-
-      doc
-        .fontSize(11)
-        .font("Helvetica")
-        .text("LukeEquipos — Sistema de Control Operacional", 70, 90);
+        .text("REPORTE DIARIO DE JORNADA", 190, 58, { width: W - 140 });
 
       doc
         .fontSize(10)
-        .text(`Generado: ${new Date().toLocaleString("es-CL")}`, 70, 108);
+        .font("Helvetica")
+        .fillColor("#475569")
+        .text("LukeEquipos — Sistema de Control Operacional", 190, 78);
 
-      // Código de equipo en cabecera
+      doc
+        .fontSize(8)
+        .fillColor("#64748b")
+        .text(`Generado: ${new Date().toLocaleString("es-CL")}`, 190, 93);
+
+      // Código de equipo alineado a la derecha
       doc
         .fontSize(14)
         .font("Helvetica-Bold")
         .fillColor(NARANJA)
-        .text(equipo.codigo_interno, doc.page.width - 170, 75, { align: "right" });
+        .text(equipo.codigo_interno, 50, 68, { align: "right", width: W });
+
+      // Línea divisoria inferior de la cabecera
+      doc.moveTo(50, 115).lineTo(50 + W, 115).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
 
       // ============================================================
       // SECCIÓN 1: DATOS DEL EQUIPO Y PERSONAL
       // ============================================================
-      let y = 150;
+      let y = 140;
 
-      doc.fontSize(12).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("INFORMACIÓN DEL TURNO", 50, y);
-      doc.moveTo(50, y + 16).lineTo(50 + W, y + 16).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
-      y += 28;
+      // Banner de sección con color sólido
+      doc.rect(50, y, W, 22).fill(AZUL_OSCURO);
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("white").text("INFORMACIÓN DEL TURNO", 60, y + 6);
+      y += 32;
 
       const filaInfo = (label, value, x = 50, yPos = y) => {
         doc.fontSize(9).font("Helvetica-Bold").fillColor("#64748b").text(label.toUpperCase(), x, yPos);
@@ -157,14 +218,15 @@ export async function generarReportePDF({
       // ============================================================
       // SECCIÓN 2: HORÓMETROS Y COMBUSTIBLE
       // ============================================================
-      doc.rect(50, y, W, 4).fill(GRIS_CLARO);
-      y += 14;
-      doc.fontSize(12).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("HORÓMETROS Y COMBUSTIBLE", 50, y);
-      doc.moveTo(50, y + 16).lineTo(50 + W, y + 16).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
-      y += 28;
+      doc.rect(50, y, W, 22).fill(AZUL_OSCURO);
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("white").text("HORÓMETROS Y COMBUSTIBLE", 60, y + 6);
+      y += 32;
+
+      // Calcular duración efectiva real
+      const horasEfectivasStr = calcularDuracionEfectiva(eventos, reporte.horas_trabajadas);
 
       // Caja de métricas
-      const boxW = (W - 20) / 4;
+      const boxW = (W - 18) / 4; 
       const esVehiculo = equipo.tipo_seguimiento === 'vehiculo';
       const metricas = esVehiculo
         ? [
@@ -176,50 +238,81 @@ export async function generarReportePDF({
         : [
             { label: "Hr. Inicio", value: reporte.horometro_inicio?.toLocaleString("es-CL") || "—" },
             { label: "Hr. Final", value: reporte.horometro_final?.toLocaleString("es-CL") || "—" },
-            { label: "Horas Trabajadas", value: reporte.horas_trabajadas ? `${reporte.horas_trabajadas} hrs` : "—" },
+            { label: "Horas Trabajadas", value: horasEfectivasStr },
             { label: "Combustible", value: reporte.petroleo_litros ? `${reporte.petroleo_litros} L` : "—" },
           ];
 
       metricas.forEach((m, i) => {
         const bx = 50 + i * (boxW + 6);
-        doc.rect(bx, y, boxW, 50).fill(i % 2 === 0 ? GRIS_CLARO : "white").stroke("#e2e8f0");
-        doc.fontSize(8).font("Helvetica-Bold").fillColor("#94a3b8").text(m.label.toUpperCase(), bx + 8, y + 8);
-        doc.fontSize(15).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text(m.value, bx + 8, y + 22);
+        doc.rect(bx, y, boxW, 55).fill(i % 2 === 0 ? GRIS_CLARO : "white").stroke("#e2e8f0");
+        doc.fontSize(7.5).font("Helvetica-Bold").fillColor("#64748b").text(m.label.toUpperCase(), bx + 8, y + 8);
+        
+        // Ajustar tamaño de fuente dinámicamente si el valor es largo
+        const length = String(m.value).length;
+        const fontSizeVal = length > 12 ? 8.5 : (length > 8 ? 10.5 : 13);
+        
+        doc.fontSize(fontSizeVal).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text(m.value, bx + 8, y + 24, { width: boxW - 16 });
       });
-      y += 68;
+      y += 75;
 
       // ============================================================
       // SECCIÓN 3: LÍNEA DE TIEMPO DE HITOS
       // ============================================================
-      doc.fontSize(12).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("LÍNEA DE TIEMPO DE JORNADA", 50, y);
-      doc.moveTo(50, y + 16).lineTo(50 + W, y + 16).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
-      y += 28;
+      doc.rect(50, y, W, 22).fill(AZUL_OSCURO);
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("white").text("LÍNEA DE TIEMPO DE JORNADA", 60, y + 6);
+      y += 32;
 
       if (eventos && eventos.length > 0) {
         // Encabezados de tabla
         doc.rect(50, y, W, 20).fill(AZUL_OSCURO);
-        doc.fontSize(9).font("Helvetica-Bold").fillColor("white");
-        doc.text("HORA", 58, y + 6);
-        doc.text("ESTADO", 158, y + 6);
-        doc.text(esVehiculo ? "INFO ADICIONAL" : "ESPECIALIDAD", 308, y + 6);
-        doc.text("NOTA", 458, y + 6);
+        doc.fontSize(8.5).font("Helvetica-Bold").fillColor("white");
+        
+        const colHoraX = 55;
+        const colEstadoX = 125;
+        const colEspecX = 245;
+        const colNotaX = 365;
+        
+        const colHoraW = 60;
+        const colEstadoW = 110;
+        const colEspecW = 110;
+        const colNotaW = W - (colHoraW + colEstadoW + colEspecW) - 10;
+        
+        doc.text("HORA", colHoraX, y + 6, { width: colHoraW });
+        doc.text("ESTADO", colEstadoX, y + 6, { width: colEstadoW });
+        doc.text(esVehiculo ? "INFO ADICIONAL" : "ESPECIALIDAD", colEspecX, y + 6, { width: colEspecW });
+        doc.text("NOTA", colNotaX, y + 6, { width: colNotaW });
+        
         y += 20;
 
         eventos.forEach((ev, i) => {
           const hora = new Date(ev.hora_evento).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
           const bgColor = i % 2 === 0 ? GRIS_CLARO : "white";
+          
           doc.rect(50, y, W, 22).fill(bgColor).stroke("#e2e8f0");
 
-          doc.fontSize(9).font("Helvetica").fillColor(AZUL_OSCURO).text(hora, 58, y + 7);
-          doc.fillColor(colorEstado(ev.estado_hito)).font("Helvetica-Bold").text(ev.estado_hito, 158, y + 7);
-          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(esVehiculo ? "—" : (ev.especialidad_nombre || "—"), 308, y + 7);
-          doc.text((ev.nota_transcripcion || "").slice(0, 40) + (ev.nota_transcripcion?.length > 40 ? "…" : ""), 458, y + 7);
+          doc.fontSize(8.5).font("Helvetica").fillColor(AZUL_OSCURO).text(hora, colHoraX, y + 7, { width: colHoraW });
+          doc.fillColor(colorEstado(ev.estado_hito)).font("Helvetica-Bold").text(ev.estado_hito, colEstadoX, y + 7, { width: colEstadoW });
+          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(esVehiculo ? "—" : (ev.especialidad_nombre || "—"), colEspecX, y + 7, { width: colEspecW });
+          
+          // Sanitizar y limpiar la nota para evitar caracteres extraños o LaTeX
+          const notaLimpia = sanitizarTexto(ev.nota_transcripcion || "—");
+          doc.text(notaLimpia, colNotaX, y + 7, { width: colNotaW, height: 12, ellipsis: true });
+          
           y += 22;
 
           // Nueva página si se agota el espacio
-          if (y > doc.page.height - 150) {
+          if (y > doc.page.height - 120) {
             doc.addPage();
             y = 50;
+            
+            // Repetir encabezados en nueva página
+            doc.rect(50, y, W, 20).fill(AZUL_OSCURO);
+            doc.fontSize(8.5).font("Helvetica-Bold").fillColor("white");
+            doc.text("HORA", colHoraX, y + 6, { width: colHoraW });
+            doc.text("ESTADO", colEstadoX, y + 6, { width: colEstadoW });
+            doc.text(esVehiculo ? "INFO ADICIONAL" : "ESPECIALIDAD", colEspecX, y + 6, { width: colEspecW });
+            doc.text("NOTA", colNotaX, y + 6, { width: colNotaW });
+            y += 20;
           }
         });
       } else {
@@ -234,54 +327,105 @@ export async function generarReportePDF({
         y += 15;
         if (y > doc.page.height - 200) { doc.addPage(); y = 50; }
 
-        doc.fontSize(12).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("EVIDENCIAS FOTOGRÁFICAS", 50, y);
-        doc.moveTo(50, y + 16).lineTo(50 + W, y + 16).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
-        y += 28;
+        doc.rect(50, y, W, 22).fill(AZUL_OSCURO);
+        doc.fontSize(10).font("Helvetica-Bold").fillColor("white").text("EVIDENCIAS FOTOGRÁFICAS", 60, y + 6);
+        y += 32;
 
         for (const [i, ev] of evidencias.entries()) {
-          if (y > doc.page.height - 180) { doc.addPage(); y = 50; }
+          // Verificar si cabe el título de la evidencia y la imagen
+          if (y > doc.page.height - 240) { doc.addPage(); y = 50; }
 
-          doc.rect(50, y, W, 1).fill("#e2e8f0");
-          doc.fontSize(9).font("Helvetica-Bold").fillColor("#64748b")
-            .text(`EVIDENCIA ${i + 1}`, 50, y + 5);
-          doc.fontSize(10).font("Helvetica").fillColor(AZUL_OSCURO)
-            .text(ev.descripcion_analisis_ia || "Sin análisis IA disponible.", 50, y + 18, { width: W });
+          doc.rect(50, y, W, 1).fill("#cbd5e1");
+          y += 10;
+          
+          doc.fontSize(9.5).font("Helvetica-Bold").fillColor("#475569").text(`EVIDENCIA ${i + 1}`, 50, y);
+          y += 15;
 
           // Intentar embeber imagen desde Supabase Storage
+          let imagenDibujada = false;
           try {
             if (ev.local_storage_path && ev.local_storage_path !== 'upload-error') {
               const imageBuffer = await downloadStorageImage(ev.local_storage_path);
               if (imageBuffer) {
-                doc.image(imageBuffer, 50, y + 50, { width: 150, height: 100 });
-                y += 165;
-              } else {
-                doc.fontSize(9).fillColor("#94a3b8").text("[Imagen no disponible]", 50, y + 50);
-                y += 70;
+                // Centrar la imagen en un recuadro redondeado delgado
+                const boxW = 220;
+                const boxH = 170;
+                const boxX = 50 + (W - boxW) / 2;
+                const boxY = y;
+                
+                doc.roundedRect(boxX, boxY, boxW, boxH, 8).lineWidth(1).strokeColor("#cbd5e1").stroke();
+                doc.image(imageBuffer, boxX + 10, boxY + 10, { width: boxW - 20, height: boxH - 20 });
+                
+                y += boxH + 15;
+                imagenDibujada = true;
               }
-            } else {
-              y += 50;
             }
-          } catch {
-            y += 50;
+          } catch (errImg) {
+            console.error("[pdf-generator] Error embebiendo imagen:", errImg.message);
           }
+
+          if (!imagenDibujada) {
+            doc.fontSize(9).font("Helvetica-Oblique").fillColor("#94a3b8").text("[Fotografía de evidencia no disponible en este momento]", 50, y);
+            y += 20;
+          }
+
+          // Verificar si cabe el análisis técnico
+          if (y > doc.page.height - 120) { doc.addPage(); y = 50; }
+
+          doc.fontSize(9.5).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("Análisis Técnico de Inspección:", 50, y);
+          y += 15;
+
+          // Renderizar el análisis estructurado línea por línea
+          const descripcionAnalisis = ev.descripcion_analisis_ia || "Sin análisis IA disponible.";
+          const lineas = descripcionAnalisis.split("\n");
+          
+          lineas.forEach(linea => {
+            if (y > doc.page.height - 60) { doc.addPage(); y = 50; }
+            
+            // Sanitizar la línea y verificar si es un encabezado/título de sección
+            const lineaSanitizada = sanitizarTexto(linea);
+            if (lineaSanitizada.trim().length === 0) return;
+            
+            const esTituloSec = /^\d+\.\s|Descripción técnica|Detección de anomalías|Nivel de urgencia/i.test(lineaSanitizada);
+            
+            doc.fontSize(9)
+               .font(esTituloSec ? "Helvetica-Bold" : "Helvetica")
+               .fillColor(AZUL_OSCURO)
+               .text(lineaSanitizada, 50, y, { width: W, lineGap: 3 });
+               
+            y += doc.heightOfString(lineaSanitizada, { width: W, lineGap: 3 }) + 3;
+          });
+          
+          y += 15;
         }
       }
 
       // ============================================================
-      // PIE DE PÁGINA
+      // GENERACIÓN GLOBAL DE PIE DE PÁGINA (Paginación Dinámica)
       // ============================================================
-      const bottomY = doc.page.height - 60;
-      doc.rect(50, bottomY, W, 40).fill(AZUL_OSCURO);
-      doc
-        .fontSize(8)
-        .fillColor("white")
-        .font("Helvetica")
-        .text(
-          `LukeEquipos | Reporte: ${reporte.id} | Equipo: ${equipo.codigo_interno} | Operador: ${operador.nombre_completo}`,
-          60,
-          bottomY + 15,
-          { width: W - 20, align: "center" }
-        );
+      const range = doc.bufferedPageRange();
+      for (let i = range.start; i < range.start + range.count; i++) {
+        doc.switchToPage(i);
+        
+        const pageNum = i + 1;
+        const totalPages = range.count;
+        const bottomY = doc.page.height - 40;
+        
+        // Línea divisoria gris
+        doc.moveTo(50, bottomY - 5)
+           .lineTo(50 + W, bottomY - 5)
+           .strokeColor("#e2e8f0")
+           .lineWidth(1)
+           .stroke();
+        
+        doc.fontSize(8).font("Helvetica").fillColor("#64748b");
+        
+        // ID de reporte y operador a la izquierda
+        doc.text(`ID Reporte: ${reporte.id} | Operador: ${operador.nombre_completo}`, 50, bottomY, { width: W - 100, align: "left" });
+        
+        // Paginación a la derecha
+        doc.text(`Página ${pageNum} de ${totalPages}`, 50 + W - 100, bottomY, { width: 100, align: "right" });
+      }
 
       doc.end();
 
