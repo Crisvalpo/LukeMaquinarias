@@ -64,21 +64,46 @@ export default async function handler(req, res) {
         const nombreFinal = nombre_completo || registro.nombre_completo;
         const rolFinal = rol_solicitado || registro.rol_solicitado || "Operador";
 
-        // A. Insertar en personal
-        const { error: errInsert } = await supabase
+        // A. Verificar si el RUT ya existe en la base de datos (activo o inactivo)
+        const cleanRut = rut.trim();
+        const { data: existente } = await supabase
           .from("personal")
-          .insert({
-            rut: rut.trim(),
-            nombre_completo: nombreFinal.trim(),
-            whatsapp: registro.whatsapp,
-            rol: rolFinal,
-            activo: true,
-            proyecto_actual_id: proyecto_actual_id || null
-          });
+          .select("id")
+          .eq("rut", cleanRut)
+          .maybeSingle();
 
-        if (errInsert) {
-          console.error("[api/registros] Error insertando personal:", errInsert.message);
-          return res.status(500).json({ success: false, error: `Error al crear personal: ${errInsert.message}` });
+        let errUpsert;
+        if (existente) {
+          // Si ya existe (inactivo o activo), lo actualizamos y lo reactivamos
+          const { error } = await supabase
+            .from("personal")
+            .update({
+              nombre_completo: nombreFinal.trim(),
+              whatsapp: registro.whatsapp,
+              rol: rolFinal,
+              activo: true, // Reactivar
+              proyecto_actual_id: proyecto_actual_id || null
+            })
+            .eq("id", existente.id);
+          errUpsert = error;
+        } else {
+          // Si no existe, hacemos la inserción normal
+          const { error } = await supabase
+            .from("personal")
+            .insert({
+              rut: cleanRut,
+              nombre_completo: nombreFinal.trim(),
+              whatsapp: registro.whatsapp,
+              rol: rolFinal,
+              activo: true,
+              proyecto_actual_id: proyecto_actual_id || null
+            });
+          errUpsert = error;
+        }
+
+        if (errUpsert) {
+          console.error("[api/registros] Error guardando personal (upsert):", errUpsert.message);
+          return res.status(500).json({ success: false, error: `Error al guardar personal: ${errUpsert.message}` });
         }
 
         // B. Actualizar solicitud

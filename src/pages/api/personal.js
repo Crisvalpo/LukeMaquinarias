@@ -75,23 +75,57 @@ export default async function handler(req, res) {
     const cleanProyectoId = proyecto_actual_id === "" ? null : proyecto_actual_id;
     const formattedRut = formatRut(rut);
 
-    const { data, error } = await supabase
+    // 1. Verificar si el RUT ya existe en la base de datos (activo o inactivo)
+    const { data: existente } = await supabase
       .from("personal")
-      .insert({
-        rut: formattedRut,
-        nombre_completo,
-        whatsapp,
-        rol,
-        turno_tipo: turno_tipo || "14x14",
-        jornada_tipo: jornada_tipo || "Dia",
-        proyecto_actual_id: cleanProyectoId,
-        foto_url: foto_url || null
-      })
-      .select()
-      .single();
+      .select("id, activo")
+      .eq("rut", formattedRut)
+      .maybeSingle();
 
-    if (error) return res.status(500).json({ success: false, error: error.message });
-    return res.status(201).json({ success: true, data });
+    let resultado;
+    if (existente) {
+      // Si ya existe, lo reactivamos y actualizamos con la nueva información
+      const { data: updateData, error: updateError } = await supabase
+        .from("personal")
+        .update({
+          nombre_completo,
+          whatsapp,
+          rol,
+          turno_tipo: turno_tipo || "14x14",
+          jornada_tipo: jornada_tipo || "Dia",
+          proyecto_actual_id: cleanProyectoId,
+          foto_url: foto_url || null,
+          activo: true // Reactivar
+        })
+        .eq("id", existente.id)
+        .select()
+        .single();
+
+      if (updateError) return res.status(500).json({ success: false, error: updateError.message });
+      resultado = updateData;
+    } else {
+      // Si no existe, creamos el registro normalmente
+      const { data: insertData, error: insertError } = await supabase
+        .from("personal")
+        .insert({
+          rut: formattedRut,
+          nombre_completo,
+          whatsapp,
+          rol,
+          turno_tipo: turno_tipo || "14x14",
+          jornada_tipo: jornada_tipo || "Dia",
+          proyecto_actual_id: cleanProyectoId,
+          foto_url: foto_url || null,
+          activo: true
+        })
+        .select()
+        .single();
+
+      if (insertError) return res.status(500).json({ success: false, error: insertError.message });
+      resultado = insertData;
+    }
+
+    return res.status(existente ? 200 : 201).json({ success: true, data: resultado });
   }
 
   if (req.method === "PATCH") {
