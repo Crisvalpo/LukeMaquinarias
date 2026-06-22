@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Pencil, Save, X, Trash2 } from "lucide-react";
+import { Plus, Pencil, Save, X, Trash2, MoreVertical } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 
 const inputStyle = {
@@ -125,6 +125,7 @@ export default function PersonalTab({ hookProps }) {
   } = hookProps;
 
   const [showForm, setShowForm] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   const rolColors = { "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
 
@@ -384,41 +385,85 @@ export default function PersonalTab({ hookProps }) {
                       <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
                         {p.turno_tipo} · {p.jornada_tipo}
                       </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "12px 16px", position: "relative" }}>
                         <button
-                          onClick={() => {
-                            setEditingPersonalId(p.id);
-                            setFormEditPersonal({
-                              nombre_completo: p.nombre_completo,
-                              rut: p.rut,
-                              whatsapp: p.whatsapp,
-                              rol: p.rol,
-                              proyecto_actual_id: p.proyecto_actual_id,
-                              turno_tipo: p.turno_tipo || "14x14",
-                              jornada_tipo: p.jornada_tipo || "Dia",
-                              foto_url: p.foto_url || ""
-                            });
-                          }}
+                          onClick={() => setActiveMenuId(activeMenuId === p.id ? null : p.id)}
                           style={{
-                            background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
-                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                            display: "inline-flex", alignItems: "center", gap: "4px"
+                            background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
+                            color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 8px",
+                            cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center"
                           }}
                         >
-                          <Pencil size={10} /> Editar
+                          <MoreVertical size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete("/api/personal", p.id, () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
-                          style={{
-                            background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
-                            color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
-                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                            display: "inline-flex", alignItems: "center", gap: "4px",
-                            marginLeft: "8px"
-                          }}
-                        >
-                          <Trash2 size={10} /> Eliminar
-                        </button>
+                        {activeMenuId === p.id && (
+                          <>
+                            <div 
+                              style={{ position: "fixed", inset: 0, zIndex: 998 }} 
+                              onClick={() => setActiveMenuId(null)} 
+                            />
+                            <div style={{
+                              position: "absolute",
+                              right: "16px",
+                              top: "40px",
+                              background: "var(--bg-container, #1e293b)",
+                              border: "1px solid var(--border-container, #334155)",
+                              borderRadius: "8px",
+                              boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                              zIndex: 999,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                              padding: "6px",
+                              minWidth: "120px"
+                            }}>
+                              <button
+                                onClick={() => {
+                                  setEditingPersonalId(p.id);
+                                  setFormEditPersonal({
+                                    nombre_completo: p.nombre_completo,
+                                    rut: p.rut,
+                                    whatsapp: p.whatsapp,
+                                    rol: p.rol,
+                                    proyecto_actual_id: p.proyecto_actual_id,
+                                    turno_tipo: p.turno_tipo || "14x14",
+                                    jornada_tipo: p.jornada_tipo || "Dia",
+                                    foto_url: p.foto_url || ""
+                                  });
+                                  setActiveMenuId(null);
+                                }}
+                                style={{
+                                  background: "transparent", border: "none",
+                                  color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                  display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <Pencil size={12} color="var(--color-primary)" />
+                                <span>Editar</span>
+                              </button>
+                              <hr style={{ border: "none", borderTop: "1px solid var(--border-container, #334155)", margin: "4px 0" }} />
+                              <button
+                                onClick={() => { handleDelete("/api/personal", p.id, () => { personalPaginado.refresh(); personalCompleto.refresh(); }); setActiveMenuId(null); }}
+                                style={{
+                                  background: "transparent", border: "none",
+                                  color: "#ef4444", borderRadius: "6px", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                  display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <Trash2 size={12} />
+                                <span>Eliminar</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </>
                   )}

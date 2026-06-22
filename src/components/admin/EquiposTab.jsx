@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { Plus, Pencil, QrCode, Save, X, Camera, Loader2, Trash2 } from "lucide-react";
+import { Plus, Pencil, QrCode, Save, X, Camera, Loader2, Trash2, MoreVertical } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 import { ESTADO_CONFIG } from "./Shared/constants";
 import QrEquipoModal from "./Shared/QrEquipoModal";
@@ -516,6 +516,7 @@ export default function EquiposTab({ hookProps }) {
   } = hookProps;
 
   const [showForm, setShowForm] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   const equiposAgrupados = React.useMemo(() => {
     const groups = {};
@@ -530,24 +531,22 @@ export default function EquiposTab({ hookProps }) {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Equipos</h1>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            style={{
-              background: showForm ? "rgba(0,0,0,0.08)" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))",
-              border: showForm ? "1px solid var(--border-container)" : "none",
-              color: "white", borderRadius: "8px", padding: "6px 14px",
-              cursor: "pointer", fontWeight: 700, fontSize: "12px",
-              display: "flex", alignItems: "center", gap: "6px",
-              boxShadow: "none",
-              transition: "all 0.2s"
-            }}
-          >
-            {showForm ? <X size={14} /> : <Plus size={14} />}
-            {showForm ? "Ocultar Formulario" : "Agregar Equipo"}
-          </button>
-        </div>
+        <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 800 }}>Gestión de Equipos</h1>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          style={{
+            background: showForm ? "rgba(0,0,0,0.08)" : "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))",
+            border: showForm ? "1px solid var(--border-container)" : "none",
+            color: "white", borderRadius: "8px", padding: "6px 14px",
+            cursor: "pointer", fontWeight: 700, fontSize: "12px",
+            display: "flex", alignItems: "center", gap: "6px",
+            boxShadow: "none",
+            transition: "all 0.2s"
+          }}
+        >
+          {showForm ? <X size={14} /> : <Plus size={14} />}
+          {showForm ? "Ocultar Formulario" : "Agregar Equipo"}
+        </button>
       </div>
 
       {/* Formulario nuevo equipo */}
@@ -791,40 +790,87 @@ export default function EquiposTab({ hookProps }) {
                       );
                     })()}
                   </td>
-                  <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>
+                  <td style={{ padding: "12px 16px", position: "relative" }}>
                     <button
-                      onClick={() => setEditEquipo(eq)}
-                      style={{
-                        background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)",
-                        color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
-                        fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                        display: "inline-flex", alignItems: "center", gap: "4px"
-                      }}
-                    >
-                      <Pencil size={11} /> Editar
-                    </button>
-                    <button
-                      onClick={() => setQrEquipo(eq)}
+                      onClick={() => setActiveMenuId(activeMenuId === eq.id ? null : eq.id)}
                       style={{
                         background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
-                        color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 12px",
-                        fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                        display: "inline-flex", alignItems: "center", gap: "4px"
+                        color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 8px",
+                        cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center"
                       }}
                     >
-                      <QrCode size={11} /> QR
+                      <MoreVertical size={16} />
                     </button>
-                    <button
-                      onClick={() => handleDelete("/api/equipos", eq.id, () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
-                      style={{
-                        background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
-                        color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
-                        fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                        display: "inline-flex", alignItems: "center", gap: "4px"
-                      }}
-                    >
-                      <Trash2 size={11} /> Eliminar
-                    </button>
+                    {activeMenuId === eq.id && (
+                      <>
+                        <div 
+                          style={{ position: "fixed", inset: 0, zIndex: 998 }} 
+                          onClick={() => setActiveMenuId(null)} 
+                        />
+                        <div style={{
+                          position: "absolute",
+                          right: "16px",
+                          top: "40px",
+                          background: "var(--bg-container, #1e293b)",
+                          border: "1px solid var(--border-container, #334155)",
+                          borderRadius: "8px",
+                          boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                          zIndex: 999,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                          padding: "6px",
+                          minWidth: "120px"
+                        }}>
+                          <button
+                            onClick={() => { setEditEquipo(eq); setActiveMenuId(null); }}
+                            style={{
+                              background: "transparent", border: "none",
+                              color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                              fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <Pencil size={12} color="var(--color-primary)" />
+                            <span>Editar</span>
+                          </button>
+                          <button
+                            onClick={() => { setQrEquipo(eq); setActiveMenuId(null); }}
+                            style={{
+                              background: "transparent", border: "none",
+                              color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                              fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <QrCode size={12} />
+                            <span>Código QR</span>
+                          </button>
+                          <hr style={{ border: "none", borderTop: "1px solid var(--border-container, #334155)", margin: "4px 0" }} />
+                          <button
+                            onClick={() => { handleDelete("/api/equipos", eq.id, () => { equiposPaginado.refresh(); equiposCompleto.refresh(); }); setActiveMenuId(null); }}
+                            style={{
+                              background: "transparent", border: "none",
+                              color: "#ef4444", borderRadius: "6px", padding: "8px 12px",
+                              fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                              textAlign: "left"
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                          >
+                            <Trash2 size={12} />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </td>
                 </tr>
               );

@@ -4,6 +4,7 @@ import { FileText, List, HardHat, Users, ChevronDown, ChevronUp, RefreshCw, Sear
 function ExpandedReportList({ type, id, handleDelete }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeSubMenuId, setActiveSubMenuId] = useState(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const limit = 10;
@@ -73,7 +74,7 @@ function ExpandedReportList({ type, id, handleDelete }) {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
-                {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "PDF", handleDelete ? "Acciones" : null].filter(Boolean).map(h => (
+                {["Fecha", type === "equipo" ? "Operador" : "Equipo", "Hr. Inicio", "Hr. Final", "Horas", "Acciones"].map(h => (
                   <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -97,42 +98,90 @@ function ExpandedReportList({ type, id, handleDelete }) {
                   <td style={{ padding: "10px 14px", color: r.horas_trabajadas ? "#16a34a" : "#64748b", fontWeight: 700, fontSize: "12px" }}>
                     {r.horas_trabajadas ? `${r.horas_trabajadas} hrs` : "—"}
                   </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    {r.pdf_url ? (
-                      <a
-                        href={r.pdf_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "4px 8px",
-                          fontSize: "11px", fontWeight: 700, textDecoration: "none",
-                          display: "inline-flex", alignItems: "center", gap: "4px",
-                          transition: "background 0.2s"
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
-                        onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}
-                      >
-                        <FileText size={10} /> PDF
-                      </a>
-                    ) : (
-                      <span style={{ color: "#334155", fontSize: "11px" }}>Sin PDF</span>
+                  <td style={{ padding: "10px 14px", position: "relative" }}>
+                    <button
+                      onClick={() => setActiveSubMenuId(activeSubMenuId === r.id ? null : r.id)}
+                      style={{
+                        background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
+                        color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 8px",
+                        cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center"
+                      }}
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                    {activeSubMenuId === r.id && (
+                      <>
+                        <div 
+                          style={{ position: "fixed", inset: 0, zIndex: 998 }} 
+                          onClick={() => setActiveSubMenuId(null)} 
+                        />
+                        <div style={{
+                          position: "absolute",
+                          right: "14px",
+                          top: "35px",
+                          background: "var(--bg-container, #1e293b)",
+                          border: "1px solid var(--border-container, #334155)",
+                          borderRadius: "8px",
+                          boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                          zIndex: 999,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "4px",
+                          padding: "6px",
+                          minWidth: "120px"
+                        }}>
+                          {r.pdf_url ? (
+                            <a
+                              href={r.pdf_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setActiveSubMenuId(null)}
+                              style={{
+                                background: "transparent", border: "none",
+                                color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                                fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                textAlign: "left", textDecoration: "none", boxSizing: "border-box"
+                              }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            >
+                              <FileText size={12} color="var(--color-primary)" />
+                              <span>Ver PDF</span>
+                            </a>
+                          ) : (
+                            <div style={{
+                              color: "var(--color-text-muted)", padding: "8px 12px",
+                              fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px"
+                            }}>
+                              <FileText size={12} style={{ opacity: 0.5 }} />
+                              <span>Sin PDF</span>
+                            </div>
+                          )}
+                          {handleDelete && (
+                            <>
+                              <hr style={{ border: "none", borderTop: "1px solid var(--border-container, #334155)", margin: "4px 0" }} />
+                              <button
+                                onClick={() => { handleDelete("/api/reportes", r.id, fetchReports); setActiveSubMenuId(null); }}
+                                style={{
+                                  background: "transparent", border: "none",
+                                  color: "#ef4444", borderRadius: "6px", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                  display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <Trash2 size={12} />
+                                <span>Eliminar</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </>
                     )}
                   </td>
-                  {handleDelete && (
-                    <td style={{ padding: "10px 14px" }}>
-                      <button
-                        onClick={() => handleDelete("/api/reportes", r.id, fetchReports)}
-                        style={{
-                          background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
-                          color: "#ef4444", borderRadius: "6px", padding: "4px 8px",
-                          fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                          display: "inline-flex", alignItems: "center", gap: "4px"
-                        }}
-                      >
-                        <Trash2 size={10} /> Eliminar
-                      </button>
-                    </td>
-                  )}
                 </tr>
               ))}
             </tbody>
@@ -188,6 +237,7 @@ function ExpandedReportList({ type, id, handleDelete }) {
 export default function ReportesTab({ hookProps }) {
   const { reportes, handleDelete } = hookProps;
   const [viewMode, setViewMode] = useState("lista"); // 'lista', 'equipo', 'usuario'
+  const [activeMenuId, setActiveMenuId] = useState(null);
   
   // Estados para búsqueda local en agrupaciones
   const [eqSearch, setEqSearch] = useState("");
@@ -356,7 +406,7 @@ export default function ReportesTab({ hookProps }) {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border-container)" }}>
-                  {["Fecha", "Equipo", "Operador", "Hr. Inicio", "Hr. Final", "Horas", "PDF", "Acciones"].map(h => (
+                  {["Fecha", "Equipo", "Operador", "Hr. Inicio", "Hr. Final", "Horas", "Acciones"].map(h => (
                     <th key={h} style={{ padding: "14px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
                   ))}
                 </tr>
@@ -364,7 +414,7 @@ export default function ReportesTab({ hookProps }) {
               <tbody>
                 {reportes.loading ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
+                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                         <RefreshCw className="spin-icon" size={16} />
                         <span>Cargando listado de reportes...</span>
@@ -373,7 +423,7 @@ export default function ReportesTab({ hookProps }) {
                   </tr>
                 ) : reportes.data.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
+                    <td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
                       No se encontraron reportes con los filtros seleccionados.
                     </td>
                   </tr>
@@ -391,39 +441,85 @@ export default function ReportesTab({ hookProps }) {
                       <td style={{ padding: "12px 16px", color: r.horas_trabajadas ? "#16a34a" : "#64748b", fontWeight: 700, fontSize: "13px" }}>
                         {r.horas_trabajadas ? `${r.horas_trabajadas} hrs` : "—"}
                       </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        {r.pdf_url ? (
-                          <a
-                            href={r.pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              background: "rgba(16, 185, 129, 0.1)", border: "1px solid var(--color-primary)", color: "var(--color-primary-hover)", borderRadius: "6px", padding: "6px 12px",
-                              fontSize: "11px", fontWeight: 700, textDecoration: "none",
-                              display: "inline-flex", alignItems: "center", gap: "4px",
-                              transition: "background 0.2s"
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = "#2563eb"}
-                            onMouseLeave={e => e.currentTarget.style.background = "#1e3a5f"}
-                          >
-                            <FileText size={10} /> Descargar
-                          </a>
-                        ) : (
-                          <span style={{ color: "#1c2e52", fontSize: "12px" }}>Sin PDF</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "12px 16px", position: "relative" }}>
                         <button
-                          onClick={() => handleDelete("/api/reportes", r.id, () => reportes.refresh())}
+                          onClick={() => setActiveMenuId(activeMenuId === r.id ? null : r.id)}
                           style={{
-                            background: "rgba(239, 68, 68, 0.1)", border: "1px solid #ef4444",
-                            color: "#ef4444", borderRadius: "6px", padding: "6px 12px",
-                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
-                            display: "inline-flex", alignItems: "center", gap: "4px"
+                            background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
+                            color: "var(--color-text-muted)", borderRadius: "6px", padding: "6px 8px",
+                            cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center"
                           }}
                         >
-                          <Trash2 size={11} /> Eliminar
+                          <MoreVertical size={16} />
                         </button>
+                        {activeMenuId === r.id && (
+                          <>
+                            <div 
+                              style={{ position: "fixed", inset: 0, zIndex: 998 }} 
+                              onClick={() => setActiveMenuId(null)} 
+                            />
+                            <div style={{
+                              position: "absolute",
+                              right: "16px",
+                              top: "40px",
+                              background: "var(--bg-container, #1e293b)",
+                              border: "1px solid var(--border-container, #334155)",
+                              borderRadius: "8px",
+                              boxShadow: "0 10px 25px rgba(0,0,0,0.3)",
+                              zIndex: 999,
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                              padding: "6px",
+                              minWidth: "120px"
+                            }}>
+                              {r.pdf_url ? (
+                                <a
+                                  href={r.pdf_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => setActiveMenuId(null)}
+                                  style={{
+                                    background: "transparent", border: "none",
+                                    color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                                    fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                    display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                    textAlign: "left", textDecoration: "none", boxSizing: "border-box"
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                                >
+                                  <FileText size={12} color="var(--color-primary)" />
+                                  <span>Ver PDF</span>
+                                </a>
+                              ) : (
+                                <div style={{
+                                  color: "var(--color-text-muted)", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px"
+                                }}>
+                                  <FileText size={12} style={{ opacity: 0.5 }} />
+                                  <span>Sin PDF</span>
+                                </div>
+                              )}
+                              <hr style={{ border: "none", borderTop: "1px solid var(--border-container, #334155)", margin: "4px 0" }} />
+                              <button
+                                onClick={() => { handleDelete("/api/reportes", r.id, () => reportes.refresh()); setActiveMenuId(null); }}
+                                style={{
+                                  background: "transparent", border: "none",
+                                  color: "#ef4444", borderRadius: "6px", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                  display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <Trash2 size={12} />
+                                <span>Eliminar</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))
