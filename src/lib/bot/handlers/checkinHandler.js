@@ -82,6 +82,9 @@ export async function handleCheckinFlow(ctx, res) {
     if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
       eqUpdateVeh.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
     }
+    if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada !== false) {
+      eqUpdateVeh.pauta_preventiva_activa = null;
+    }
     if (Object.keys(eqUpdateVeh).length > 0) {
       await supabase.from("equipos")
         .update(eqUpdateVeh)
@@ -183,6 +186,9 @@ export async function handleCheckinFlow(ctx, res) {
   if (horometroInicio) eqUpdateStandard.ultimo_horometro = horometroInicio;
   if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
     eqUpdateStandard.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  }
+  if (reporteCheckin?.equipos?.pauta_preventiva_activa && resultado.pauta_confirmada !== false) {
+    eqUpdateStandard.pauta_preventiva_activa = null;
   }
   if (Object.keys(eqUpdateStandard).length > 0) {
     await supabase.from("equipos")

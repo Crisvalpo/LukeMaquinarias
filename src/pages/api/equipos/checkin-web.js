@@ -122,6 +122,10 @@ export default async function handler(req, res) {
       ultima_ubicacion_fecha: new Date().toISOString()
     };
 
+    if (pautaConfirmada) {
+      eqUpdate.pauta_preventiva_activa = null;
+    }
+
     if (combustibleNivel !== undefined && combustibleNivel !== null) {
       eqUpdate.combustible_nivel_porcentaje = combustibleNivel;
     }
