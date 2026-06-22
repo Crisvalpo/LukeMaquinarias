@@ -496,19 +496,19 @@ Respuesta ÚNICAMENTE en JSON válido:
 // FUNCIÓN: Analizar imagen de evidencia con Gemini Vision
 // ================================================================
 
-export async function analizarImagenEvidencia(imageBase64, mimeType, contextoEquipo = "") {
+export async function analizarImagenEvidencia(imageBase64, mimeType, contextoEquipo = "", comentarioOperador = "") {
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
 
-  const prompt = `Eres un inspector técnico de maquinaria pesada en una faena industrial chilena.
-Analiza esta imagen de evidencia enviada por el operador${contextoEquipo ? ` del equipo ${contextoEquipo}` : ''}.
+  const prompt = `Eres un inspector técnico experto en prevención de riesgos y mantenimiento de maquinaria pesada en una obra civil/faena industrial chilena.
+Se te proporciona una imagen de evidencia de terreno enviada por el operador${contextoEquipo ? ` del equipo ${contextoEquipo}` : ''}.${comentarioOperador ? ` El operador describe la situación o maniobra como: "${comentarioOperador}".` : ''}
 
-Proporciona:
-1. Descripción técnica de lo que se observa (máximo 3 oraciones)
-2. Si detectas alguna anomalía, falla, fuga, daño estructural o condición de riesgo
-3. Nivel de urgencia: NORMAL, ATENCIÓN o CRÍTICO
+Analiza visualmente la imagen y genera un reporte breve y estructurado estrictamente de la siguiente manera:
+1. Descripción técnica de lo que se observa en la imagen (sé específico y claro sobre la maquinaria, carga, maniobra o el entorno).
+2. Detección de anomalías: Indica si observas cualquier falla, fuga de fluidos, daño estructural, desgaste o condición insegura. Si no hay anomalías, indícalo claramente.
+3. Nivel de urgencia: NORMAL (operación segura), ATENCIÓN (requiere revisión preventiva) o CRÍTICO (riesgo inminente, detener equipo).
 
-Responde en español técnico chileno, de forma concisa y directa.`;
+Responde en español de Chile de forma directa, profesional y muy breve (máximo 4 líneas en total). No incluyas plantillas de ejemplo, introducciones ni explicaciones adicionales.`;
 
   const payload = {
     contents: [

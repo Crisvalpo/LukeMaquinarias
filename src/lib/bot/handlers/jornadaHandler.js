@@ -298,11 +298,23 @@ export async function handleJornadaFlow(ctx, res) {
 
     const storagePath = await uploadImagenStorage(supabase, image.data, image.mimeType);
 
-    const { analisis, esCritico } = await analizarImagenEvidencia(
-      image.data,
-      image.mimeType,
-      equipoData?.descripcion_equipo
-    );
+    let analisis = "Imagen registrada como evidencia del operador. No se pudo generar el análisis automático en este momento.";
+    let esCritico = false;
+
+    try {
+      const resIA = await analizarImagenEvidencia(
+        image.data,
+        image.mimeType,
+        equipoData?.descripcion_equipo,
+        message
+      );
+      if (resIA) {
+        analisis = resIA.analisis || analisis;
+        esCritico = !!resIA.esCritico;
+      }
+    } catch (errIA) {
+      console.error("[jornadaHandler] Error al analizar imagen con Gemini Vision:", errIA.message, errIA.stack);
+    }
 
     await supabase.from("evidencias").insert({
       reporte_id: sesion.reporte_activo_id,

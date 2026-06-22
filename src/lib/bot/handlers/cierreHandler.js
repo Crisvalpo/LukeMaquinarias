@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { enviarMensajeWhatsApp } from "../services/messageService";
+import { enviarMensajeWhatsApp, guardarMensajeChat } from "../services/messageService";
 import { generarReportePDF } from "../../pdf-generator";
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
@@ -14,6 +14,44 @@ export async function handleCierreFlow(ctx, res) {
 
   const horometroFinal = resultado.horometro_final;
   const kmFinal = resultado.km_final;
+
+  const esVehiculo = tipoSeguimiento === 'vehiculo';
+  const lecturaFinal = esVehiculo ? kmFinal : horometroFinal;
+  const lecturaInicio = esVehiculo ? (reporteActual?.km_inicial || 0) : (reporteActual?.horometro_inicio || 0);
+  const nombreLectura = esVehiculo ? 'odómetro (kilometraje) final' : 'horómetro final';
+  const unidadLectura = esVehiculo ? 'km' : 'hrs';
+
+  // 1. Validar que la lectura final no sea nula ni indefinida
+  if (lecturaFinal === null || lecturaFinal === undefined) {
+    await supabase
+      .from("sesiones_whatsapp")
+      .update({ estado_espera: "ESPERANDO_CHECKOUT_AUDIO", updated_at: new Date().toISOString() })
+      .eq("id", sesion.id);
+
+    const ejemploCierre = esVehiculo
+      ? `_"Cierre, kilometraje final 84.500, sin carga de combustible"_`
+      : `_"Cierre, horómetro final 11.005, sin combustible"_`;
+
+    const msgError = `⚠️ *Lectura final obligatoria*\n\nHola ${personal.nombre_completo}, para cerrar tu jornada es **estrictamente necesario** que nos indiques el **${nombreLectura}** del equipo.\n\nPor favor, envíalo por audio o texto.\n\n_Ejemplo: ${ejemploCierre}_`;
+
+    await guardarMensajeChat(supabase, phoneClean, "model", msgError, "texto", sesion.reporte_activo_id);
+    await enviarMensajeWhatsApp(jid, phoneClean, msgError, !!audio, geminiKey);
+    return res.status(200).json({ success: true, action: "LECTURA_FINAL_REQUERIDA" });
+  }
+
+  // 2. Validar que la lectura final no sea menor a la inicial
+  if (lecturaFinal < lecturaInicio) {
+    await supabase
+      .from("sesiones_whatsapp")
+      .update({ estado_espera: "ESPERANDO_CHECKOUT_AUDIO", updated_at: new Date().toISOString() })
+      .eq("id", sesion.id);
+
+    const msgError = `⚠️ *Lectura final inválida*\n\nEl **${nombreLectura}** indicado (*${lecturaFinal.toLocaleString("es-CL")} ${unidadLectura}*) es menor que el valor de inicio (*${lecturaInicio.toLocaleString("es-CL")} ${unidadLectura}*).\n\nPor favor, verifica el tablero e indica el valor correcto por audio o texto.`;
+
+    await guardarMensajeChat(supabase, phoneClean, "model", msgError, "texto", sesion.reporte_activo_id);
+    await enviarMensajeWhatsApp(jid, phoneClean, msgError, !!audio, geminiKey);
+    return res.status(200).json({ success: true, action: "LECTURA_FINAL_INVALIDA" });
+  }
 
   const esFalla = resultado.es_falla_critica || resultado.tipo_evento === "Detenido por Falla";
   const estadoFinalCierre = esFalla ? "Detenido por Falla" : "Disponible";
