@@ -27,7 +27,8 @@ export default async function handler(req, res) {
 
     let query = supabase
       .from("personal")
-      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" });
+      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" })
+      .eq("activo", true);
 
     // Filtrar por búsqueda si se provee
     if (search && search.trim() !== "") {
@@ -121,7 +122,7 @@ export default async function handler(req, res) {
 
     const { error } = await supabase
       .from("personal")
-      .delete()
+      .update({ activo: false })
       .eq("id", id);
 
     if (error) return res.status(500).json({ success: false, error: error.message });
