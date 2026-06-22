@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText, List, HardHat, Users, ChevronDown, ChevronUp, RefreshCw, Search, Trash2 } from "lucide-react";
+import { FileText, List, HardHat, Users, ChevronDown, ChevronUp, RefreshCw, Search, Trash2, MoreVertical } from "lucide-react";
 
 function ExpandedReportList({ type, id, handleDelete }) {
   const [reports, setReports] = useState([]);
