@@ -2,7 +2,7 @@ import React from "react";
 import Head from "next/head";
 import Link from "next/link";
 import {
-  LayoutGrid, MapPin, HardHat, Building2, Users, FileText, MessageSquare
+  LayoutGrid, MapPin, HardHat, Building2, Users, FileText, MessageSquare, CalendarDays
 } from "lucide-react";
 import { useAdminMaquinaria } from "../components/admin/hooks/useAdminMaquinaria";
 import ConsoleTab from "../components/admin/ConsoleTab";
@@ -13,6 +13,7 @@ import ProyectosTab from "../components/admin/ProyectosTab";
 import PersonalTab from "../components/admin/PersonalTab";
 import RegistrosTab from "../components/admin/RegistrosTab";
 import ReportesTab from "../components/admin/ReportesTab";
+import PlanificacionPodTab from "../components/admin/PlanificacionPodTab";
 
 export default function AdminMaquinaria() {
   const hookProps = useAdminMaquinaria();
@@ -26,6 +27,7 @@ export default function AdminMaquinaria() {
     { id: "personal", label: "Personal", icon: Users },
     { id: "registros", label: "Registros", icon: Users },
     { id: "reportes", label: "Reportes", icon: FileText },
+    { id: "pod", label: "Plan POD", icon: CalendarDays },
   ];
 
   const renderActiveTab = () => {
@@ -44,6 +46,8 @@ export default function AdminMaquinaria() {
         return <RegistrosTab hookProps={hookProps} />;
       case "reportes":
         return <ReportesTab hookProps={hookProps} />;
+      case "pod":
+        return <PlanificacionPodTab hookProps={hookProps} />;
       default:
         return <ConsoleTab hookProps={hookProps} />;
     }

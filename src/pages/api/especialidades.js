@@ -14,19 +14,34 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { nombre_oficial, descripcion } = req.body;
+    const { nombre_oficial, descripcion, color } = req.body;
     if (!nombre_oficial) {
       return res.status(400).json({ success: false, message: "Falta nombre_oficial" });
     }
 
     const { data, error } = await supabase
       .from("especialidades")
-      .insert({ nombre_oficial, descripcion })
+      .insert({ nombre_oficial, descripcion, color: color || "#6b7280" })
       .select()
       .single();
 
     if (error) return res.status(500).json({ success: false, error: error.message });
     return res.status(201).json({ success: true, data });
+  }
+
+  if (req.method === "PATCH") {
+    const { id, color } = req.body;
+    if (!id || !color) return res.status(400).json({ success: false, message: "Faltan id o color" });
+
+    const { data, error } = await supabase
+      .from("especialidades")
+      .update({ color })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) return res.status(500).json({ success: false, error: error.message });
+    return res.status(200).json({ success: true, data });
   }
 
   if (req.method === "DELETE") {
@@ -42,6 +57,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, message: "Especialidad eliminada exitosamente" });
   }
 
-  res.setHeader("Allow", ["GET", "POST", "DELETE"]);
+  res.setHeader("Allow", ["GET", "POST", "PATCH", "DELETE"]);
   return res.status(405).json({ success: false, message: "Método no permitido" });
 }
