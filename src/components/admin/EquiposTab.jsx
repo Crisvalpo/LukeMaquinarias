@@ -665,35 +665,45 @@ export default function EquiposTab({ hookProps }) {
       />
 
       {/* Tabla equipos */}
-      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", overflow: "visible", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
-              {["Código", "Descripción", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map(h => (
-                <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+            <tr style={{ background: "var(--bg-sidebar)" }}>
+              {["Código", "Descripción", "Estado", "Clasif. Comercial", "Combustible", "Acciones"].map((h, idx, arr) => (
+                <th key={h} style={{
+                  padding: "12px 16px",
+                  textAlign: "left",
+                  color: "var(--color-text-muted)",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  borderBottom: "1px solid var(--border-container)",
+                  borderTopLeftRadius: idx === 0 ? "var(--border-radius-base)" : "0",
+                  borderTopRightRadius: idx === arr.length - 1 ? "var(--border-radius-base)" : "0"
+                }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {Object.entries(equiposAgrupados).map(([proyecto, items]) => (
               <React.Fragment key={proyecto}>
-                <tr style={{ background: "var(--bg-sidebar)", borderBottom: "1px solid var(--border-container)" }}>
-                  <td colSpan={6} style={{ padding: "8px 16px", color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                <tr style={{ background: "var(--bg-sidebar)" }}>
+                  <td colSpan={6} style={{ padding: "8px 16px", color: "var(--color-primary-hover)", fontWeight: 700, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.5px", borderBottom: "1px solid var(--border-container)" }}>
                     📍 {proyecto} ({items.length} {items.length === 1 ? "equipo" : "equipos"})
                   </td>
                 </tr>
                 {items.map((eq, i) => {
                   const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
                   return (
-                    <tr key={eq.id} style={{ borderBottom: "1px solid var(--border-container)", background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
-                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px" }}>{eq.codigo_interno}</td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px" }}>{eq.descripcion_equipo}</td>
-                      <td style={{ padding: "12px 16px" }}>
+                    <tr key={eq.id} style={{ background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
+                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>{eq.codigo_interno}</td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>{eq.descripcion_equipo}</td>
+                      <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                       {cfg.label}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 16px" }}>
+                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                     {(() => {
                       const esArriendo = eq.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO";
                       const estaArrendado = esArriendo && eq.arriendo_cliente && eq.arriendo_cliente.trim() !== "";
@@ -776,7 +786,7 @@ export default function EquiposTab({ hookProps }) {
                       );
                     })()}
                   </td>
-                  <td style={{ padding: "12px 16px" }}>
+                  <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                     {(() => {
                       const nivel = eq.combustible_nivel_porcentaje;
                       if (nivel === undefined || nivel === null) return <span style={{ color: "#475569", fontSize: "12px" }}>—</span>;
@@ -800,7 +810,7 @@ export default function EquiposTab({ hookProps }) {
                       );
                     })()}
                   </td>
-                  <td style={{ padding: "12px 16px", position: "relative" }}>
+                  <td style={{ padding: "12px 16px", position: "relative", borderBottom: "1px solid var(--border-container)", zIndex: activeMenuId === eq.id ? 10 : "auto" }}>
                     <button
                       onClick={() => setActiveMenuId(activeMenuId === eq.id ? null : eq.id)}
                       style={{

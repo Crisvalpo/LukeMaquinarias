@@ -666,3 +666,112 @@ Debes retornar estrictamente un JSON con este formato:
     return { es_consulta_pdf: false, fecha_solicitada: null };
   }
 }
+
+// ================================================================
+// FUNCIÓN: Transcribir audio del supervisor a texto limpio
+// ================================================================
+export async function transcribirAudioSupervisor(audioBase64, mimeType) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const payload = {
+    contents: [{
+      parts: [
+        { text: "Transcribe este audio de voz a texto limpio y directo en español. No agregues saludos, explicaciones, ni etiquetas. Solo la transcripción literal del mensaje." },
+        {
+          inlineData: {
+            mimeType: mimeType || "audio/ogg; codecs=opus",
+            data: audioBase64,
+          },
+        },
+      ],
+    }],
+    generationConfig: {
+      temperature: 0.0,
+    },
+  };
+
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error transcribiendo audio de supervisor: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+}
+
+// ================================================================
+// FUNCIÓN: Procesar la declaración de carga de plataforma en el cierre
+// ================================================================
+export async function procesarDeclaracionCarga(texto, especialidades) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const listaEspecialidades = especialidades
+    .map(e => `- ID: ${e.id} | Nombre: ${e.nombre_oficial}`)
+    .join("\n");
+
+  const prompt = `Analiza la declaración del operador sobre los materiales que quedan cargados en la plataforma del camión/equipo.
+Lista oficial de especialidades:
+${listaEspecialidades}
+
+Tu tarea es identificar a qué especialidad corresponde la carga y extraer un detalle breve del material/piezas cargadas.
+Mapeo de especialidades habituales:
+- "cañerías", "tuberías", "líneas", "piping" -> Piping
+- "fierros", "estructuras", "vigas", "perfiles" -> Estructuras
+- "hormigón", "concreto", "obras civiles" -> Obras Civiles
+
+Responde ÚNICAMENTE con un JSON válido que contenga:
+{
+  "especialidad_detectada": "Nombre_oficial_o_null",
+  "especialidad_id": "UUID_o_null",
+  "detalle": "Detalle breve de las piezas o carga declarada (máximo 80 caracteres), o null si no se describe"
+}`;
+
+  const payload = {
+    contents: [{
+      parts: [
+        { text: prompt },
+        { text: texto }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: "application/json",
+    }
+  };
+
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error al procesar declaración de carga: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return { especialidad_detectada: null, especialidad_id: null, detalle: null };
+  }
+}
+

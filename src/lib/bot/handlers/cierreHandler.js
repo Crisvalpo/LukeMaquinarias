@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { enviarMensajeWhatsApp, guardarMensajeChat } from "../services/messageService";
 import { generarReportePDF } from "../../pdf-generator";
+import { procesarDeclaracionCarga } from "../../gemini";
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
 
@@ -53,10 +54,80 @@ export async function handleCierreFlow(ctx, res) {
     return res.status(200).json({ success: true, action: "LECTURA_FINAL_INVALIDA" });
   }
 
+  // 3. Flujo de Control de Plataforma (Cargada/Limpia)
+  if (sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA" && sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
+    // Guardar lecturas validadas en el reporte de forma temporal para no perderlas
+    const updateTemp = {};
+    if (horometroFinal) updateTemp.horometro_final = horometroFinal;
+    if (kmFinal) updateTemp.km_final = kmFinal;
+    if (resultado.petroleo_litros) updateTemp.petroleo_litros = resultado.petroleo_litros;
+    if (resultado.horometro_carga_combustible) updateTemp.horometro_carga_combustible = resultado.horometro_carga_combustible;
+    if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
+      updateTemp.combustible_final_porcentaje = resultado.combustible_nivel_porcentaje;
+      updateTemp.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+    }
+    if (Object.keys(updateTemp).length > 0) {
+      await supabase.from("reportes_diarios").update(updateTemp).eq("id", sesion.reporte_activo_id);
+    }
+
+    // Cambiar a estado de espera de plataforma
+    await supabase
+      .from("sesiones_whatsapp")
+      .update({ estado_espera: "ESPERANDO_CHECKOUT_PLATAFORMA", updated_at: new Date().toISOString() })
+      .eq("id", sesion.id);
+
+    const msgPlat = `📋 *Control de Cierre de Plataforma*:\n\n¿La plataforma del equipo queda **Cargada** o **Limpia**?\n\nPor favor, responde indicando una de las opciones.`;
+    await guardarMensajeChat(supabase, phoneClean, "model", msgPlat, "texto", sesion.reporte_activo_id);
+    await enviarMensajeWhatsApp(jid, phoneClean, msgPlat, !!audio, geminiKey);
+    return res.status(200).json({ success: true, action: "ESPERANDO_PLATAFORMA" });
+  }
+
+  let platEstado = 'Limpia';
+  let platEspId = null;
+  let platDetalle = null;
+
+  if (sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA") {
+    const respOp = (resultado.detalles_texto || ctx.message || "").toLowerCase();
+    
+    if (respOp.includes("limpia") || respOp.includes("limpio")) {
+      platEstado = 'Limpia';
+    } else if (respOp.includes("cargada") || respOp.includes("cargado")) {
+      await supabase
+        .from("sesiones_whatsapp")
+        .update({ estado_espera: "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE", updated_at: new Date().toISOString() })
+        .eq("id", sesion.id);
+
+      const msgDet = `Indica la especialidad bajo la cual se retienen los materiales (ej: *Piping*, *Estructuras*) y un breve detalle de la carga (ej: *Vigas eje 4*).`;
+      await guardarMensajeChat(supabase, phoneClean, "model", msgDet, "texto", sesion.reporte_activo_id);
+      await enviarMensajeWhatsApp(jid, phoneClean, msgDet, !!audio, geminiKey);
+      return res.status(200).json({ success: true, action: "ESPERANDO_DETALLE_PLATAFORMA" });
+    } else {
+      const msgErrorPlat = `⚠️ *Respuesta no reconocida.*\n\nPor favor, indica claramente si la plataforma queda **Cargada** o **Limpia**.`;
+      await guardarMensajeChat(supabase, phoneClean, "model", msgErrorPlat, "texto", sesion.reporte_activo_id);
+      await enviarMensajeWhatsApp(jid, phoneClean, msgErrorPlat, !!audio, geminiKey);
+      return res.status(200).json({ success: true, action: "ESPERANDO_PLATAFORMA_REINTENTO" });
+    }
+  } else if (sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
+    const respOp = resultado.detalles_texto || ctx.message || "";
+    
+    try {
+      const { data: especialidades } = await supabase.from("especialidades").select("*");
+      const dec = await procesarDeclaracionCarga(respOp, especialidades || []);
+      
+      platEstado = 'Cargada';
+      platEspId = dec.especialidad_id;
+      platDetalle = dec.detalle;
+    } catch (errDec) {
+      console.error("[cierreHandler] Error procesando declaracion carga con Gemini:", errDec.message);
+      platEstado = 'Cargada';
+      platDetalle = respOp.substring(0, 80);
+    }
+  }
+
   const esFalla = resultado.es_falla_critica || resultado.tipo_evento === "Detenido por Falla";
   const estadoFinalCierre = esFalla ? "Detenido por Falla" : "Disponible";
 
-  // Actualizar reporte con datos de cierre
+  // Actualizar reporte con datos de cierre finales
   const updateData = { estado_final: esFalla ? "Detenido por Falla" : "Disponible" };
   if (horometroFinal) updateData.horometro_final = horometroFinal;
   if (kmFinal) updateData.km_final = kmFinal;
@@ -73,7 +144,12 @@ export async function handleCierreFlow(ctx, res) {
     .update(updateData)
     .eq("id", sesion.reporte_activo_id);
 
-  const eqUpdate = { estado_actual: estadoFinalCierre };
+  const eqUpdate = { 
+    estado_actual: estadoFinalCierre,
+    plataforma_estado: platEstado,
+    plataforma_especialidad_id: platEspId,
+    plataforma_detalle: platDetalle
+  };
   if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
   if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
   if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
@@ -86,7 +162,7 @@ export async function handleCierreFlow(ctx, res) {
     reporte_id: sesion.reporte_activo_id,
     estado_hito: estadoFinalCierre,
     hora_evento: new Date().toISOString(),
-    nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}${horometroFinal ? ` | Horómetro: ${horometroFinal}` : ""}`,
+    nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}${horometroFinal ? ` | Horómetro: ${horometroFinal}` : ""}${platEstado === 'Cargada' ? ` | Plataforma Cargada (${platDetalle || 'sin detalle'})` : ' | Plataforma Limpia'}`,
   });
 
   await enviarMensajeWhatsApp(jid, phoneClean,

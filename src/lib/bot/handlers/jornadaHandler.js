@@ -508,7 +508,7 @@ export async function handleJornadaFlow(ctx, res) {
   }
 
   // Si ya tenemos el horómetro final o estamos en checkout confirmado, llamamos a cierreHandler
-  if (intentoCierre || sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO") {
+  if (intentoCierre || sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
     const contextCierre = {
       ...ctx,
       resultadoIA: resultado,
@@ -521,16 +521,90 @@ export async function handleJornadaFlow(ctx, res) {
   // === HITO INTERMEDIO ===
   const estadoHito = resultado.tipo_evento === "CHECKIN" ? "Disponible" : resultado.tipo_evento || "Trabajando";
 
-  await supabase.from("eventos_jornada").insert({
-    reporte_id: sesion.reporte_activo_id,
-    estado_hito: estadoHito,
-    especialidad_id: resultado.especialidad_id || null,
-    hora_evento: new Date().toISOString(),
-    nota_transcripcion: resultado.detalles_texto || "",
-    ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
-      combustible_nivel_momento: resultado.combustible_nivel_porcentaje
-    })
-  });
+  let hitoInsertado = false;
+
+  if (estadoHito === "Trabajando" && resultado.especialidad_id) {
+    const nowSantiago = new Date().toLocaleTimeString("sv-SE", { timeZone: "America/Santiago" });
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+
+    // Buscar si hay bloque de planificación para esta hora
+    const { data: bloque } = await supabase
+      .from("planificacion_bloques_pod")
+      .select("*, supervisor:supervisor_id(id, nombre_completo, whatsapp)")
+      .eq("equipo_id", reporteActual.equipo_id)
+      .eq("fecha", hoy)
+      .lte("hora_inicio", nowSantiago)
+      .gte("hora_fin", nowSantiago)
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (bloque) {
+      if (bloque.actividad_especifica && bloque.actividad_especifica.trim() !== "") {
+        // Escenario 1: Actividad pre-definida en planificación
+        await supabase.from("eventos_jornada").insert({
+          reporte_id: sesion.reporte_activo_id,
+          estado_hito: estadoHito,
+          especialidad_id: resultado.especialidad_id,
+          hora_evento: new Date().toISOString(),
+          nota_transcripcion: `Actividad planificada: ${bloque.actividad_especifica}`,
+          ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
+            combustible_nivel_momento: resultado.combustible_nivel_porcentaje
+          })
+        });
+
+        resultado.mensaje_conversacional_bot = `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n📋 *Actividad Planificada:* ${bloque.actividad_especifica}`;
+        hitoInsertado = true;
+      } else if (bloque.supervisor?.whatsapp) {
+        // Escenario 2: Actividad vacía, preguntar proactivamente al supervisor
+        const { data: nuevoEvento } = await supabase
+          .from("eventos_jornada")
+          .insert({
+            reporte_id: sesion.reporte_activo_id,
+            estado_hito: estadoHito,
+            especialidad_id: resultado.especialidad_id,
+            hora_evento: new Date().toISOString(),
+            nota_transcripcion: "Esperando confirmación de actividad por supervisor...",
+            ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
+              combustible_nivel_momento: resultado.combustible_nivel_porcentaje
+            })
+          })
+          .select()
+          .single();
+
+        if (nuevoEvento) {
+          const msgSupervisor = `El operador *${personal.nombre_completo}* indica que inició trabajos de *${resultado.especialidad_detectada || "montaje"}* con el equipo *${reporteActual.equipos?.codigo_interno}* en su bloque asignado. Por favor, responda a este mensaje indicando la actividad específica del programa o describa la labor fuera de programa que están ejecutando.`;
+          
+          await enviarMensajeWhatsApp(null, bloque.supervisor.whatsapp, msgSupervisor, false, geminiKey);
+
+          await supabase
+            .from("estados_consulta_bot")
+            .upsert({
+              telefono_supervisor: bloque.supervisor.whatsapp,
+              planificacion_id: bloque.id,
+              evento_operador_id: nuevoEvento.id,
+              estado_pregunta: "Pendiente_Actividad",
+              updated_at: new Date().toISOString()
+            }, { onConflict: "telefono_supervisor" });
+
+          resultado.mensaje_conversacional_bot = `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n💬 Solicitando confirmación de actividad específica a tu supervisor *${bloque.supervisor.nombre_completo}*.`;
+          hitoInsertado = true;
+        }
+      }
+    }
+  }
+
+  if (!hitoInsertado) {
+    await supabase.from("eventos_jornada").insert({
+      reporte_id: sesion.reporte_activo_id,
+      estado_hito: estadoHito,
+      especialidad_id: resultado.especialidad_id || null,
+      hora_evento: new Date().toISOString(),
+      nota_transcripcion: resultado.detalles_texto || "",
+      ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {
+        combustible_nivel_momento: resultado.combustible_nivel_porcentaje
+      })
+    });
+  }
 
   // Actualizar combustible si se mencionó
   if (resultado.petroleo_litros || resultado.horometro_carga_combustible || (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined)) {

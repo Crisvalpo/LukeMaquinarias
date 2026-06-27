@@ -235,12 +235,22 @@ export default function PersonalTab({ hookProps }) {
         placeholder="Buscar personal por nombre, RUT, WhatsApp o rol..."
       />
 
-      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <div style={{ background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", overflow: "visible" }}>
+        <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--border-container)", background: "var(--bg-sidebar)" }}>
-              {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Proyecto", "Turno / Jornada", "Acciones"].map(h => (
-                <th key={h} style={{ padding: "12px 16px", textAlign: "left", color: "#64748b", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>{h}</th>
+            <tr style={{ background: "var(--bg-sidebar)" }}>
+              {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Proyecto", "Turno / Jornada", "Acciones"].map((h, idx, arr) => (
+                <th key={h} style={{
+                  padding: "12px 16px",
+                  textAlign: "left",
+                  color: "#64748b",
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  borderBottom: "1px solid var(--border-container)",
+                  borderTopLeftRadius: idx === 0 ? "var(--border-radius-base)" : "0",
+                  borderTopRightRadius: idx === arr.length - 1 ? "var(--border-radius-base)" : "0"
+                }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -248,10 +258,10 @@ export default function PersonalTab({ hookProps }) {
             {personalPaginado.data.map((p, idx) => {
               const isEditing = editingPersonalId === p.id;
               return (
-                <tr key={p.id} style={{ borderBottom: "1px solid var(--border-container)", background: idx % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
+                <tr key={p.id} style={{ background: idx % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
                   {isEditing ? (
                     <>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <input
                           style={{ ...inputStyle, padding: "6px 10px" }}
                           placeholder="Foto URL"
@@ -259,28 +269,28 @@ export default function PersonalTab({ hookProps }) {
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, foto_url: e.target.value }))}
                         />
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <input
                           style={{ ...inputStyle, padding: "6px 10px" }}
                           value={formEditPersonal.nombre_completo}
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, nombre_completo: e.target.value }))}
                         />
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <input
                           style={{ ...inputStyle, padding: "6px 10px" }}
                           value={formEditPersonal.rut}
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, rut: formatRut(e.target.value) }))}
                         />
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <input
                           style={{ ...inputStyle, padding: "6px 10px" }}
                           value={formEditPersonal.whatsapp}
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, whatsapp: e.target.value }))}
                         />
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <select
                           style={{ ...selectStyle, padding: "6px 10px" }}
                           value={formEditPersonal.rol}
@@ -291,7 +301,7 @@ export default function PersonalTab({ hookProps }) {
                           ))}
                         </select>
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <SearchableSelect
                           options={[
                             { value: "", label: "Sin asignar" },
@@ -305,7 +315,7 @@ export default function PersonalTab({ hookProps }) {
                           selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
                         />
                       </td>
-                      <td style={{ padding: "8px 16px", display: "flex", gap: "4px" }}>
+                      <td style={{ padding: "8px 16px", display: "flex", gap: "4px", borderBottom: "1px solid var(--border-container)" }}>
                         <select
                           style={{ ...selectStyle, padding: "6px 10px", width: "80px" }}
                           value={formEditPersonal.turno_tipo}
@@ -324,7 +334,7 @@ export default function PersonalTab({ hookProps }) {
                           <option value="Noche">Noche</option>
                         </select>
                       </td>
-                      <td style={{ padding: "8px 16px" }}>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button
                             onClick={handleGuardarPersonal}
@@ -353,7 +363,7 @@ export default function PersonalTab({ hookProps }) {
                     </>
                   ) : (
                     <>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.foto_url ? (
                           <img
                             src={p.foto_url}
@@ -374,27 +384,27 @@ export default function PersonalTab({ hookProps }) {
                           </div>
                         )}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.nombre_completo}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.rut}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.whatsapp}
                       </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <span style={{ background: `${rolColors[p.rol]}22`, color: rolColors[p.rol] || "#94a3b8", borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>
                           {p.rol}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.proyectos ? `${p.proyectos.codigo_cc} — ${p.proyectos.nombre_proyecto.slice(0, 35)}${p.proyectos.nombre_proyecto.length > 35 ? "..." : ""}` : "—"}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.turno_tipo} · {p.jornada_tipo}
                       </td>
-                      <td style={{ padding: "12px 16px", position: "relative" }}>
+                      <td style={{ padding: "12px 16px", position: "relative", borderBottom: "1px solid var(--border-container)", zIndex: activeMenuId === p.id ? 10 : "auto" }}>
                         <button
                           onClick={() => setActiveMenuId(activeMenuId === p.id ? null : p.id)}
                           style={{

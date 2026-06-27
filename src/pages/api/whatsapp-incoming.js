@@ -6,6 +6,7 @@ import { handleAdminFlow } from "../../lib/bot/handlers/adminHandler";
 import { handleCheckinFlow } from "../../lib/bot/handlers/checkinHandler";
 import { handleJornadaFlow } from "../../lib/bot/handlers/jornadaHandler";
 import { enviarMensajeWhatsApp } from "../../lib/bot/services/messageService";
+import { transcribirAudioSupervisor } from "../../lib/gemini";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -23,6 +24,7 @@ export default async function handler(req, res) {
   }
 
   const { phone, jid, message, audio, image, localImagePath, senderPn, location } = req.body;
+  const geminiKey = process.env.GEMINI_API_KEY;
   
   let searchPhone = senderPn || phone || "";
   if (typeof searchPhone === "string") {
@@ -82,6 +84,101 @@ export default async function handler(req, res) {
 
     const esAdmin = personal.rol === "Supervisor" || personal.rol === "Jefe de Area";
     const msgUpper = (message || "").trim().toUpperCase();
+
+    // --- Flujos Especiales del POD para Supervisores ---
+    if (esAdmin) {
+      // Caso 1: Registrar participación voluntaria en el POD matutino
+      if (msgUpper === "PARTICIPAR_POD") {
+        const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+        const { error: errPart } = await supabase
+          .from("participacion_pod")
+          .upsert({
+            fecha: hoy,
+            personal_id: personal.id,
+            created_at: new Date().toISOString()
+          }, { onConflict: "fecha,personal_id" });
+
+        if (errPart) {
+          console.error("[whatsapp-incoming] Error registrando participación POD:", errPart.message);
+          await enviarMensajeWhatsApp(jid, phoneClean, `❌ Ocurrió un error al registrar tu participación. Por favor intenta más tarde.`, !!audio, geminiKey);
+          return res.status(500).json({ success: false });
+        }
+
+        await enviarMensajeWhatsApp(jid, phoneClean, `¡Hola *${personal.nombre_completo}*! 👷‍♂️\n\nHemos registrado tu participación en el POD de hoy. Ya estás disponible en el panel del Jefe de Equipos. ¡Que tengas una excelente jornada!`, !!audio, geminiKey);
+        return res.status(200).json({ success: true, action: "PARTICIPACION_POD_REGISTRADA" });
+      }
+
+      // Caso 2: Responder a una consulta de actividad pendiente
+      const { data: consultaPendiente } = await supabase
+        .from("estados_consulta_bot")
+        .select("*")
+        .eq("telefono_supervisor", phoneClean)
+        .eq("estado_pregunta", "Pendiente_Actividad")
+        .maybeSingle();
+
+      if (consultaPendiente) {
+        let respuestaTexto = (message || "").trim();
+        if (audio && audio.data) {
+          try {
+            respuestaTexto = await transcribirAudioSupervisor(audio.data, audio.mimeType);
+          } catch (errTrans) {
+            console.error("[whatsapp-incoming] Error transcribiendo respuesta de supervisor:", errTrans.message);
+          }
+        }
+
+        if (!respuestaTexto) {
+          await enviarMensajeWhatsApp(jid, phoneClean, `⚠️ No logramos procesar tu respuesta. Por favor escribe tu respuesta en texto o envía un audio más claro.`, !!audio, geminiKey);
+          return res.status(200).json({ success: true, action: "RESPUESTA_SUPERVISOR_VACIA" });
+        }
+
+        // A. Actualizar planificacion_bloques_pod
+        const { error: errPlan } = await supabase
+          .from("planificacion_bloques_pod")
+          .update({ actividad_especifica: respuestaTexto })
+          .eq("id", consultaPendiente.planificacion_id);
+
+        if (errPlan) {
+          console.error("[whatsapp-incoming] Error actualizando planificacion:", errPlan.message);
+        }
+
+        // B. Actualizar hito de eventos_jornada si existe
+        if (consultaPendiente.evento_operador_id) {
+          const { error: errEv } = await supabase
+            .from("eventos_jornada")
+            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${respuestaTexto}` })
+            .eq("id", consultaPendiente.evento_operador_id);
+
+          if (errEv) {
+            console.error("[whatsapp-incoming] Error actualizando evento del operador:", errEv.message);
+          }
+
+          // C. Notificar al operador
+          try {
+            const { data: eventoInfo } = await supabase
+              .from("eventos_jornada")
+              .select("reporte_id, reportes_diarios(operador_id, personal!reportes_diarios_operador_id_fkey(whatsapp, nombre_completo))")
+              .eq("id", consultaPendiente.evento_operador_id)
+              .maybeSingle();
+
+            const opWa = eventoInfo?.reportes_diarios?.personal?.whatsapp;
+            if (opWa) {
+              await enviarMensajeWhatsApp(null, opWa, `📢 *Confirmación de Actividad*:\nTu supervisor ha confirmado la labor a realizar:\n\n_"${respuestaTexto}"_`, false, geminiKey);
+            }
+          } catch (errNotif) {
+            console.error("[whatsapp-incoming] Error al notificar al operador:", errNotif.message);
+          }
+        }
+
+        // D. Marcar la consulta como procesada
+        await supabase
+          .from("estados_consulta_bot")
+          .update({ estado_pregunta: "Procesado", updated_at: new Date().toISOString() })
+          .eq("id", consultaPendiente.id);
+
+        await enviarMensajeWhatsApp(jid, phoneClean, `¡Excelente! Hemos registrado la actividad para este bloque:\n\n_"${respuestaTexto}"_\n\nMuchas gracias.`, !!audio, geminiKey);
+        return res.status(200).json({ success: true, action: "RESPUESTA_SUPERVISOR_PROCESADA" });
+      }
+    }
 
     // Caso A: Flujo conversacional de administración para supervisores sin jornada activa
     if (esAdmin && !sesion && !msgUpper.startsWith("REPORTE:")) {
