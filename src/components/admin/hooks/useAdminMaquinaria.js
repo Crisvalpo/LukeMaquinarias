@@ -186,6 +186,7 @@ export function useAdminMaquinaria() {
     turno_tipo: "14x14",
     jornada_tipo: "Dia",
     proyecto_actual_id: "",
+    especialidad_id: "",
     foto_url: ""
   });
 
@@ -209,6 +210,7 @@ export function useAdminMaquinaria() {
     whatsapp: "",
     rol: "Operador",
     proyecto_actual_id: "",
+    especialidad_id: "",
     turno_tipo: "14x14",
     jornada_tipo: "Dia",
     foto_url: ""

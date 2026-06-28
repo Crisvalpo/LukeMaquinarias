@@ -244,7 +244,7 @@ function BloqueModal({ bloque, equipos, supervisores, especialidades, fechaPOD, 
 // ================================================================
 // COMPONENTE PRINCIPAL: PlanificacionPodTab
 // ================================================================
-export default function PlanificacionPodTab({ hookProps }) {
+export default function PlanificacionPodTab({ hookProps, currentUser }) {
   const { equiposCompleto, personalCompleto, especialidades, showMsg, saving, setSaving } = hookProps;
 
   const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
@@ -259,18 +259,32 @@ export default function PlanificacionPodTab({ hookProps }) {
   const [enviandoPOD, setEnviandoPOD] = useState(false);
   const [vistaModo, setVistaModo] = useState("matriz"); // "matriz" | "lista"
 
-  // Filtros
-  const supervisores = (personalCompleto.data || []).filter(p =>
-    p.rol === "Supervisor" || p.rol === "Jefe de Area"
+  // Proyecto activo del usuario logueado
+  const proyectoActivoId = currentUser?.proyecto_actual_id || null;
+  const proyectoActivoInfo = currentUser?.proyecto || null;
+
+  // Filtrar personal: supervisores del proyecto activo (si hay usuario)
+  const todoElPersonal = personalCompleto.data || [];
+  const supervisores = todoElPersonal.filter(p =>
+    (p.rol === "Supervisor" || p.rol === "Jefe de Area") &&
+    (!proyectoActivoId || p.proyecto_actual_id === proyectoActivoId)
   );
-  const equiposList = equiposCompleto.data || [];
+
+  // Filtrar equipos: solo del proyecto activo (si hay usuario con proyecto)
+  const todosLosEquipos = equiposCompleto.data || [];
+  const equiposList = proyectoActivoId
+    ? todosLosEquipos.filter(eq => eq.proyecto_actual_id === proyectoActivoId)
+    : todosLosEquipos;
+
   const especialidadesList = especialidades.data || [];
 
   // ──────────── Carga de bloques ────────────
   const cargarBloques = useCallback(async () => {
     setLoadingBloques(true);
     try {
-      const r = await fetch(`/api/pod/bloques?fecha=${fechaPOD}`);
+      const params = new URLSearchParams({ fecha: fechaPOD });
+      if (proyectoActivoId) params.set("proyecto_id", proyectoActivoId);
+      const r = await fetch(`/api/pod/bloques?${params.toString()}`);
       const json = await r.json();
       if (json.success) setBloques(json.data || []);
     } catch (e) {
@@ -278,7 +292,7 @@ export default function PlanificacionPodTab({ hookProps }) {
     } finally {
       setLoadingBloques(false);
     }
-  }, [fechaPOD]);
+  }, [fechaPOD, proyectoActivoId]);
 
   useEffect(() => { cargarBloques(); }, [cargarBloques]);
 
@@ -369,6 +383,36 @@ export default function PlanificacionPodTab({ hookProps }) {
   // ──────────── Render ────────────
   return (
     <div style={{ padding: "28px 32px", maxWidth: "1400px" }}>
+      {/* ===== BANNER PROYECTO ACTIVO ===== */}
+      {proyectoActivoInfo ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "12px",
+          background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.08) 100%)",
+          border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px",
+          padding: "12px 18px", marginBottom: "20px",
+        }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", flexShrink: 0, boxShadow: "0 0 6px rgba(16,185,129,0.6)" }} />
+          <div>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.5px" }}>Proyecto activo</span>
+            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text)", marginLeft: "10px" }}>
+              {proyectoActivoInfo.codigo_cc} — {proyectoActivoInfo.nombre_proyecto}
+            </span>
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: "12px", color: "var(--color-text-muted)" }}>
+            Mostrando {equiposList.length} equipo{equiposList.length !== 1 ? "s" : ""}
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "10px",
+          background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
+          borderRadius: "10px", padding: "10px 18px", marginBottom: "20px",
+        }}>
+          <span style={{ fontSize: "13px" }}>⚠️</span>
+          <span style={{ fontSize: "13px", color: "#92400e", fontWeight: 600 }}>Vista global — no hay proyecto seleccionado. Mostrando todos los equipos.</span>
+        </div>
+      )}
+
       {/* ===== HEADER ===== */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
         <div>

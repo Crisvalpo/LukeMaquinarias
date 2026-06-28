@@ -15,7 +15,7 @@ import RegistrosTab from "../components/admin/RegistrosTab";
 import ReportesTab from "../components/admin/ReportesTab";
 import PlanificacionPodTab from "../components/admin/PlanificacionPodTab";
 
-export default function AdminMaquinaria() {
+export default function AdminMaquinaria({ currentUser, onChangeUser }) {
   const hookProps = useAdminMaquinaria();
   const { tab, setTab, msg, registros } = hookProps;
 
@@ -47,7 +47,7 @@ export default function AdminMaquinaria() {
       case "reportes":
         return <ReportesTab hookProps={hookProps} />;
       case "pod":
-        return <PlanificacionPodTab hookProps={hookProps} />;
+        return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
       default:
         return <ConsoleTab hookProps={hookProps} />;
     }
@@ -134,6 +134,35 @@ export default function AdminMaquinaria() {
             })}
           </nav>
  
+          {/* Usuario activo */}
+          {currentUser && (
+            <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-sidebar)" }}>
+              <div style={{
+                background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)",
+                borderRadius: "8px", padding: "10px 12px",
+              }}>
+                <div style={{ fontSize: "10px", color: "#10b981", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "4px" }}>Sesión activa</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-text)", lineHeight: 1.3 }}>{currentUser.nombre_completo}</div>
+                {currentUser.proyecto && (
+                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>{currentUser.proyecto.codigo_cc}</div>
+                )}
+                <button
+                  onClick={onChangeUser}
+                  style={{
+                    marginTop: "8px", width: "100%", background: "transparent",
+                    border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px",
+                    color: "#10b981", fontSize: "11px", fontWeight: 700, padding: "5px 8px",
+                    cursor: "pointer", transition: "all 0.2s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                >
+                  Cambiar usuario
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Botón Vincular WhatsApp */}
           <div style={{ padding: "8px 12px", borderTop: "1px solid var(--border-sidebar)" }}>
             <Link href="/qr-puente" style={{ textDecoration: "none" }}>

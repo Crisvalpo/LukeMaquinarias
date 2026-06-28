@@ -27,7 +27,7 @@ export default async function handler(req, res) {
 
     let query = supabase
       .from("personal")
-      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" })
+      .select("*, proyectos(nombre_proyecto, codigo_cc), especialidades(id, nombre_oficial, color)", { count: "exact" })
       .eq("activo", true);
 
     // Filtrar por búsqueda si se provee
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id, foto_url } = req.body;
+    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id, foto_url, especialidad_id } = req.body;
     if (!rut || !nombre_completo || !whatsapp || !rol) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
@@ -94,6 +94,7 @@ export default async function handler(req, res) {
           turno_tipo: turno_tipo || "14x14",
           jornada_tipo: jornada_tipo || "Dia",
           proyecto_actual_id: cleanProyectoId,
+          especialidad_id: especialidad_id || null,
           foto_url: foto_url || null,
           activo: true // Reactivar
         })
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
           turno_tipo: turno_tipo || "14x14",
           jornada_tipo: jornada_tipo || "Dia",
           proyecto_actual_id: cleanProyectoId,
+          especialidad_id: especialidad_id || null,
           foto_url: foto_url || null,
           activo: true
         })

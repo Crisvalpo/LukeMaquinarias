@@ -113,6 +113,7 @@ export default function PersonalTab({ hookProps }) {
     personalPaginado,
     personalCompleto,
     proyectosCompleto,
+    especialidades,
     formPersonal,
     setFormPersonal,
     editingPersonalId,
@@ -217,9 +218,18 @@ export default function PersonalTab({ hookProps }) {
                 value={formPersonal.foto_url}
                 onChange={e => setFormPersonal(p => ({ ...p, foto_url: e.target.value }))} />
             </FormRow>
+            <FormRow label="Especialidad">
+              <select style={selectStyle} value={formPersonal.especialidad_id}
+                onChange={e => setFormPersonal(p => ({ ...p, especialidad_id: e.target.value }))}>
+                <option value="">Sin especialidad</option>
+                {(especialidades?.data || []).map(esp => (
+                  <option key={esp.id} value={esp.id}>{esp.nombre_oficial}</option>
+                ))}
+              </select>
+            </FormRow>
           </div>
           <button
-            onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
+            onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", especialidad_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
             disabled={saving}
             style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
           >
@@ -239,7 +249,7 @@ export default function PersonalTab({ hookProps }) {
         <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead>
             <tr style={{ background: "var(--bg-sidebar)" }}>
-              {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Proyecto", "Turno / Jornada", "Acciones"].map((h, idx, arr) => (
+              {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Especialidad", "Proyecto", "Turno / Jornada", "Acciones"].map((h, idx, arr) => (
                 <th key={h} style={{
                   padding: "12px 16px",
                   textAlign: "left",
@@ -298,6 +308,18 @@ export default function PersonalTab({ hookProps }) {
                         >
                           {["Operador", "Supervisor", "Rigger", "Jefe de Area"].map(rol => (
                             <option key={rol} value={rol}>{rol}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
+                        <select
+                          style={{ ...selectStyle, padding: "6px 10px" }}
+                          value={formEditPersonal.especialidad_id || ""}
+                          onChange={e => setFormEditPersonal(prev => ({ ...prev, especialidad_id: e.target.value || null }))}
+                        >
+                          <option value="">Sin especialidad</option>
+                          {(especialidades?.data || []).map(esp => (
+                            <option key={esp.id} value={esp.id}>{esp.nombre_oficial}</option>
                           ))}
                         </select>
                       </td>
@@ -398,6 +420,20 @@ export default function PersonalTab({ hookProps }) {
                           {p.rol}
                         </span>
                       </td>
+                      <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
+                        {p.especialidades ? (
+                          <span style={{
+                            background: `${p.especialidades.color || "#6b7280"}22`,
+                            color: p.especialidades.color || "#6b7280",
+                            borderRadius: "12px", padding: "3px 10px",
+                            fontSize: "11px", fontWeight: 700, whiteSpace: "nowrap"
+                          }}>
+                            {p.especialidades.nombre_oficial}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--color-text-muted)", fontSize: "12px" }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.proyectos ? `${p.proyectos.codigo_cc} — ${p.proyectos.nombre_proyecto.slice(0, 35)}${p.proyectos.nombre_proyecto.length > 35 ? "..." : ""}` : "—"}
                       </td>
@@ -445,6 +481,7 @@ export default function PersonalTab({ hookProps }) {
                                     whatsapp: p.whatsapp,
                                     rol: p.rol,
                                     proyecto_actual_id: p.proyecto_actual_id,
+                                    especialidad_id: p.especialidad_id || "",
                                     turno_tipo: p.turno_tipo || "14x14",
                                     jornada_tipo: p.jornada_tipo || "Dia",
                                     foto_url: p.foto_url || ""
