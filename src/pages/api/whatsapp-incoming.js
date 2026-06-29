@@ -104,12 +104,14 @@ export default async function handler(req, res) {
           );
 
         // También mantener compatibilidad con tabla legada participacion_pod
-        await supabase
-          .from("participacion_pod")
-          .upsert(
-            { fecha: fechaPOD, personal_id: personal.id, created_at: new Date().toISOString() },
-            { onConflict: "fecha,personal_id" }
-          ).catch(() => {});
+        try {
+          await supabase
+            .from("participacion_pod")
+            .upsert(
+              { fecha: fechaPOD, personal_id: personal.id, created_at: new Date().toISOString() },
+              { onConflict: "fecha,personal_id" }
+            );
+        } catch (e) {}
 
         if (errPart) {
           console.error("[whatsapp-incoming] Error registrando participación POD:", errPart.message);
