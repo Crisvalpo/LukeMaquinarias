@@ -87,16 +87,29 @@ export default async function handler(req, res) {
 
     // --- Flujos Especiales del POD para Supervisores ---
     if (esAdmin) {
-      // Caso 1: Registrar participación voluntaria en el POD matutino
+      // Caso 1: Registrar participación voluntaria en el POD
       if (msgUpper === "PARTICIPAR_POD") {
-        const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+        // Calcular fecha D+1 (el POD siempre es para mañana)
+        const manana = new Date();
+        manana.setDate(manana.getDate() + 1);
+        const fechaPOD = manana.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+        const proyectoId = personal.proyecto_actual_id || null;
+
+        // 1. Registrar en pod_sesion_participantes (tabla en tiempo real)
         const { error: errPart } = await supabase
+          .from("pod_sesion_participantes")
+          .upsert(
+            { fecha: fechaPOD, proyecto_id: proyectoId, personal_id: personal.id, joined_at: new Date().toISOString() },
+            { onConflict: "fecha,proyecto_id,personal_id", ignoreDuplicates: false }
+          );
+
+        // También mantener compatibilidad con tabla legada participacion_pod
+        await supabase
           .from("participacion_pod")
-          .upsert({
-            fecha: hoy,
-            personal_id: personal.id,
-            created_at: new Date().toISOString()
-          }, { onConflict: "fecha,personal_id" });
+          .upsert(
+            { fecha: fechaPOD, personal_id: personal.id, created_at: new Date().toISOString() },
+            { onConflict: "fecha,personal_id" }
+          ).catch(() => {});
 
         if (errPart) {
           console.error("[whatsapp-incoming] Error registrando participación POD:", errPart.message);
@@ -104,7 +117,44 @@ export default async function handler(req, res) {
           return res.status(500).json({ success: false });
         }
 
-        await enviarMensajeWhatsApp(jid, phoneClean, `¡Hola *${personal.nombre_completo}*! 👷‍♂️\n\nHemos registrado tu participación en el POD de hoy. Ya estás disponible en el panel del Jefe de Equipos. ¡Que tengas una excelente jornada!`, !!audio, geminiKey);
+        // 2. Buscar bloques asignados al supervisor para esa fecha
+        const { data: bloques } = await supabase
+          .from("planificacion_bloques_pod")
+          .select(`
+            hora_inicio, hora_fin, actividad_especifica,
+            equipos ( codigo_interno, descripcion_equipo ),
+            especialidades ( nombre_oficial )
+          `)
+          .eq("fecha", fechaPOD)
+          .eq("supervisor_id", personal.id)
+          .order("hora_inicio");
+
+        // 3. Formatear fecha amigable
+        const [y, m, d] = fechaPOD.split("-");
+        const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+        const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        const fechaObj = new Date(Number(y), Number(m) - 1, Number(d));
+        const fechaStr = `${dias[fechaObj.getDay()]} ${d} ${meses[Number(m) - 1]}`;
+
+        // 4. Construir mensaje de respuesta
+        let msgConfirmacion = `¡Hola *${personal.nombre_completo}*! 👷‍♂️ Quedaste inscrito en la POD.\n\n📅 *Planificación para ${fechaStr}:*\n`;
+
+        if (!bloques || bloques.length === 0) {
+          msgConfirmacion += `\n⏳ Aún no tienes bloques asignados. El Jefe de Área los definirá en la sala POD.\n\nTe avisaremos cuando quede todo listo. ✅`;
+        } else {
+          for (const b of bloques) {
+            const ini = b.hora_inicio?.slice(0, 5) || "--:--";
+            const fin = b.hora_fin?.slice(0, 5) || "--:--";
+            const equipo = b.equipos?.codigo_interno || "?";
+            const desc = b.equipos?.descripcion_equipo || "";
+            const esp = b.especialidades?.nombre_oficial || "";
+            const act = b.actividad_especifica ? `\n   📌 _${b.actividad_especifica}_` : "";
+            msgConfirmacion += `\n🔧 *${ini}–${fin}* | ${equipo} ${desc ? `(${desc})` : ""}\n   🏗 ${esp}${act}`;
+          }
+          msgConfirmacion += `\n\n¡Que tengas una excelente jornada! 💪`;
+        }
+
+        await enviarMensajeWhatsApp(jid, phoneClean, msgConfirmacion, !!audio, geminiKey);
         return res.status(200).json({ success: true, action: "PARTICIPACION_POD_REGISTRADA" });
       }
 

@@ -7,80 +7,105 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false, message: "Método no permitido" });
   }
 
-  // Validar secreto de administración
-  const authHeader = req.headers["authorization"];
-  const adminSecret = process.env.ADMIN_SECRET;
-  if (adminSecret && authHeader !== `Bearer ${adminSecret}`) {
-    return res.status(401).json({ success: false, message: "No autorizado" });
-  }
-
   const supabase = createAdminClient();
-  const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+
+  // La fecha objetivo siempre es mañana (el POD se planifica al cierre de jornada)
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const fechaPOD = manana.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+
+  // Formatear fecha amigable
+  const [y, m, d] = fechaPOD.split("-");
+  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const fechaObj = new Date(Number(y), Number(m) - 1, Number(d));
+  const fechaStr = `${dias[fechaObj.getDay()]} ${d} ${meses[Number(m) - 1]} ${y}`;
 
   try {
-    // 1. Obtener todas las especialidades para mapear IDs a nombres
+    // 1. Obtener especialidades (mapa id → nombre)
     const { data: especialidades } = await supabase
       .from("especialidades")
       .select("id, nombre_oficial");
-    
-    const especialidadesMap = new Map(especialidades?.map(e => [e.id, e.nombre_oficial]) || []);
+    const especialidadesMap = new Map((especialidades || []).map(e => [e.id, e.nombre_oficial]));
 
-    // 2. Obtener bloques de hoy con detalles de equipos y supervisores
+    // 2. Obtener todos los bloques del día planificado con detalle completo
     const { data: bloques, error: errBloques } = await supabase
       .from("planificacion_bloques_pod")
       .select(`
-        *,
-        equipo:equipo_id(*),
-        especialidad:especialidad_id(*),
-        supervisor:supervisor_id(*)
+        id, hora_inicio, hora_fin, actividad_especifica, especialidad_id,
+        equipos ( id, codigo_interno, descripcion_equipo, plataforma_estado, plataforma_detalle, plataforma_especialidad_id ),
+        supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey ( id, nombre_completo, whatsapp ),
+        proyectos:equipos ( proyecto_actual_id, proyectos ( codigo_cc, nombre_proyecto ) )
       `)
-      .eq("fecha", hoy)
+      .eq("fecha", fechaPOD)
       .order("hora_inicio", { ascending: true });
 
-    if (errBloques) {
-      throw new Error(`Error obteniendo bloques: ${errBloques.message}`);
-    }
+    if (errBloques) throw new Error(`Error obteniendo bloques: ${errBloques.message}`);
 
     if (!bloques || bloques.length === 0) {
-      return res.status(200).json({ success: true, message: "No hay bloques planificados para hoy." });
+      return res.status(200).json({ success: true, message: `No hay bloques planificados para ${fechaStr}.`, alertas_enviadas: 0 });
+    }
+
+    // 3. Agrupar bloques por supervisor
+    const porSupervisor = new Map();
+    for (const bloque of bloques) {
+      if (!bloque.supervisor?.id) continue;
+      if (!porSupervisor.has(bloque.supervisor.id)) {
+        porSupervisor.set(bloque.supervisor.id, { supervisor: bloque.supervisor, bloques: [] });
+      }
+      porSupervisor.get(bloque.supervisor.id).bloques.push(bloque);
     }
 
     let alertasEnviadas = 0;
-    const equiposProcesados = new Set();
+    const equiposPlatAlertados = new Set();
 
-    // 3. Evaluar cruce de plataforma cargada por cada bloque
-    for (const bloque of bloques) {
-      const equipo = bloque.equipo;
-      if (!equipo) continue;
-      
-      // Evitar enviar alertas duplicadas para el mismo equipo en el día si tiene múltiples bloques
-      if (equiposProcesados.has(equipo.id)) continue;
+    // 4. Enviar resumen a cada supervisor
+    for (const [, { supervisor, bloques: bloquesSuper }] of porSupervisor) {
+      if (!supervisor.whatsapp) continue;
 
-      if (equipo.plataforma_estado === "Cargada") {
-        const bloqueEspId = bloque.especialidad_id;
-        const platEspId = equipo.plataforma_especialidad_id;
+      // Obtener proyecto del primer bloque
+      const primerEquipo = bloquesSuper[0]?.equipos;
+      const proyectoCodigo = bloquesSuper[0]?.proyectos?.proyectos?.codigo_cc || "";
+      const proyectoNombre = bloquesSuper[0]?.proyectos?.proyectos?.nombre_proyecto || "";
 
-        // Si la especialidad asignada en el bloque actual es distinta a la especialidad dueña de la carga
-        if (platEspId && platEspId !== bloqueEspId) {
-          equiposProcesados.add(equipo.id);
+      // Construir mensaje de resumen
+      let msg = `📋 *Resumen POD — ${fechaStr}*\n`;
+      if (proyectoCodigo) msg += `🏗 ${proyectoCodigo}${proyectoNombre ? ` — ${proyectoNombre}` : ""}\n`;
+      msg += `\nHola *${supervisor.nombre_completo}*, tus asignaciones para mañana:\n`;
 
-          const nombreEspCargada = especialidadesMap.get(platEspId) || "Otra Especialidad";
-          const supervisor = bloque.supervisor;
+      for (const b of bloquesSuper) {
+        const ini = b.hora_inicio?.slice(0, 5) || "--:--";
+        const fin = b.hora_fin?.slice(0, 5) || "--:--";
+        const equipo = b.equipos?.codigo_interno || "?";
+        const desc = b.equipos?.descripcion_equipo ? `(${b.equipos.descripcion_equipo})` : "";
+        const esp = especialidadesMap.get(b.especialidad_id) || "";
+        const act = b.actividad_especifica ? `\n   📌 _${b.actividad_especifica}_` : "";
 
-          if (supervisor && supervisor.whatsapp) {
-            const mensajeAlerta = `⚠️ *Atención*: El equipo asignado a su área (*${bloque.especialidad.nombre_oficial}*) para el primer bloque (*${equipo.descripcion_equipo}* - ${equipo.codigo_interno}) viene bloqueado con carga rezagada de *${nombreEspCargada}* (Detalle: ${equipo.plataforma_detalle || 'sin detalle'}). Tiempo estimado de descarga: 2 horas. Coordine el inicio con su personal.`;
-            
-            await enviarMensajeWhatsApp(null, supervisor.whatsapp, mensajeAlerta, false, process.env.GEMINI_API_KEY);
-            alertasEnviadas++;
+        // Detectar alerta de plataforma en este equipo
+        let alertaPlataforma = "";
+        const eqId = b.equipos?.id;
+        if (b.equipos?.plataforma_estado === "Cargada" && eqId && !equiposPlatAlertados.has(eqId)) {
+          const espCargada = especialidadesMap.get(b.equipos.plataforma_especialidad_id) || "otra especialidad";
+          if (b.equipos.plataforma_especialidad_id && b.equipos.plataforma_especialidad_id !== b.especialidad_id) {
+            alertaPlataforma = `\n   ⚠️ _Plataforma cargada de ${espCargada} — coordine descarga_`;
+            equiposPlatAlertados.add(eqId);
           }
         }
+
+        msg += `\n🔧 *${ini}–${fin}* | ${equipo} ${desc}\n   🏷 ${esp}${act}${alertaPlataforma}`;
       }
+
+      msg += `\n\n¡Buena jornada! 💪 Cualquier novedad responde por acá.`;
+
+      await enviarMensajeWhatsApp(null, supervisor.whatsapp, msg, false, process.env.GEMINI_API_KEY);
+      alertasEnviadas++;
     }
 
-    return res.status(200).json({ 
-      success: true, 
-      message: "POD Finalizado con éxito.", 
-      alertas_enviadas: alertasEnviadas 
+    return res.status(200).json({
+      success: true,
+      message: `POD inicializado. Resúmenes enviados a ${alertasEnviadas} supervisor${alertasEnviadas !== 1 ? "es" : ""}.`,
+      alertas_enviadas: alertasEnviadas,
+      fecha_pod: fechaPOD,
     });
 
   } catch (error) {

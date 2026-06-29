@@ -1,56 +1,44 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Save, X, RefreshCw, AlertTriangle, Calendar, Clock, ChevronLeft, ChevronRight, Send, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  RefreshCw, Calendar, ChevronLeft, ChevronRight,
+  Loader2, Send, Trash2, X, Users, Wifi, QrCode, Clock
+} from "lucide-react";
 
 // ================================================================
 // CONSTANTES
 // ================================================================
-const HORAS_JORNADA = Array.from({ length: 12 }, (_, i) => {
-  const h = i + 7; // 07:00 a 18:00
-  return `${String(h).padStart(2, "0")}:00`;
-});
+const HORA_INI = 7;  // 07:00
+const HORA_FIN = 18; // 18:00
+const HORAS_TOTAL = HORA_FIN - HORA_INI; // 11 horas
+const SNAP_MIN = 30; // snap a 30 minutos
 
 const COLOR_FALLBACK = [
   "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
   "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
 ];
 
-const inputStyle = {
-  width: "100%",
-  background: "var(--bg-input)",
-  border: "1px solid var(--border-input)",
-  borderRadius: "var(--border-radius-sm)",
-  color: "var(--color-input-text)",
-  padding: "9px 12px",
-  fontSize: "13px",
-  outline: "none",
-  boxSizing: "border-box",
-  fontFamily: "inherit",
-};
-
-const selectStyle = { ...inputStyle, cursor: "pointer" };
-
 // ================================================================
 // HELPERS
 // ================================================================
-function horaToMinutos(hora) {
-  const [h, m] = hora.split(":").map(Number);
+function horaStr(totalMin) {
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function minFromStr(str) {
+  const [h, m] = (str || "00:00").split(":").map(Number);
   return h * 60 + m;
 }
 
-function getColorForEsp(espId, especialidades) {
-  const esp = especialidades.find(e => e.id === espId);
-  if (esp?.color) return esp.color;
-  const idx = especialidades.findIndex(e => e.id === espId);
-  return COLOR_FALLBACK[idx % COLOR_FALLBACK.length] || "#6b7280";
+function snapMin(min) {
+  return Math.round(min / SNAP_MIN) * SNAP_MIN;
 }
 
-function formatFecha(dateStr) {
-  // dateStr: "YYYY-MM-DD"
-  const [y, m, d] = dateStr.split("-");
-  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  const date = new Date(Number(y), Number(m) - 1, Number(d));
-  return `${dias[date.getDay()]} ${d} ${meses[Number(m) - 1]} ${y}`;
+// Posición porcentual dentro del timeline (07:00–18:00)
+function minToPct(min) {
+  const clamp = Math.max(HORA_INI * 60, Math.min(HORA_FIN * 60, min));
+  return ((clamp - HORA_INI * 60) / (HORAS_TOTAL * 60)) * 100;
 }
 
 function dateOffsetStr(base, offset) {
@@ -59,36 +47,357 @@ function dateOffsetStr(base, offset) {
   return d.toLocaleDateString("sv-SE");
 }
 
-// ================================================================
-// SUB-COMPONENTE: Modal de creación/edición de bloque
-// ================================================================
-function BloqueModal({ bloque, equipos, supervisores, especialidades, fechaPOD, onClose, onSave, saving }) {
-  const esNuevo = !bloque?.id;
+function formatFecha(dateStr) {
+  if (!dateStr) return "";
+  const [y, m, d] = dateStr.split("-");
+  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const date = new Date(Number(y), Number(m) - 1, Number(d));
+  return `${dias[date.getDay()]} ${d} ${meses[Number(m) - 1]} ${y}`;
+}
 
+function getColor(especialidades, espId, idx = 0) {
+  if (espId) {
+    const esp = especialidades.find(e => e.id === espId);
+    if (esp?.color) return esp.color;
+  }
+  return COLOR_FALLBACK[idx % COLOR_FALLBACK.length];
+}
+
+// ================================================================
+// COMPONENTE: Barra horaria del timeline
+// ================================================================
+function TimelineRuler() {
+  const hours = Array.from({ length: HORAS_TOTAL + 1 }, (_, i) => HORA_INI + i);
+  return (
+    <div style={{ position: "relative", height: "28px", background: "var(--bg-sidebar, #f8fafc)" }}>
+      {hours.map(h => (
+        <div
+          key={h}
+          style={{
+            position: "absolute",
+            left: `${((h - HORA_INI) / HORAS_TOTAL) * 100}%`,
+            top: 0, bottom: 0,
+            display: "flex", flexDirection: "column", alignItems: "center",
+            transform: "translateX(-50%)",
+          }}
+        >
+          <div style={{
+            fontSize: "10px", fontWeight: 700, color: "var(--color-text-muted, #64748b)",
+            lineHeight: "28px", letterSpacing: "0.3px", userSelect: "none",
+          }}>
+            {String(h).padStart(2, "0")}:00
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ================================================================
+// COMPONENTE: Bloque en el timeline (draggable + resizable)
+// ================================================================
+function BloqueTimeline({ bloque, equipoRowRef, especialidades, onResize, onDelete }) {
+  const iniMin = minFromStr(bloque.hora_inicio?.slice(0, 5));
+  const finMin = minFromStr(bloque.hora_fin?.slice(0, 5));
+  const left = minToPct(iniMin);
+  const width = minToPct(finMin) - minToPct(iniMin);
+  const color = getColor(especialidades, bloque.especialidades?.id);
+
+  const resizingRef = useRef(null);
+
+  const handleResizeStart = (e, side) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const rowRect = equipoRowRef.current?.getBoundingClientRect();
+    if (!rowRect) return;
+    resizingRef.current = { side, startX: e.clientX, iniMin, finMin, rowWidth: rowRect.width };
+
+    const onMove = (mv) => {
+      const { side, startX, iniMin, finMin, rowWidth } = resizingRef.current;
+      const deltaPx = mv.clientX - startX;
+      const deltaMin = (deltaPx / rowWidth) * HORAS_TOTAL * 60;
+
+      let newIni = iniMin, newFin = finMin;
+      if (side === "left") {
+        newIni = snapMin(iniMin + deltaMin);
+        newIni = Math.max(HORA_INI * 60, Math.min(newFin - 30, newIni));
+      } else {
+        newFin = snapMin(finMin + deltaMin);
+        newFin = Math.min(HORA_FIN * 60, Math.max(newIni + 30, newFin));
+      }
+      onResize(bloque.id, { iniMin: newIni, finMin: newFin, preview: true });
+    };
+
+    const onUp = (mu) => {
+      const { side, startX, iniMin, finMin, rowWidth } = resizingRef.current;
+      const deltaPx = mu.clientX - startX;
+      const deltaMin = (deltaPx / rowWidth) * HORAS_TOTAL * 60;
+
+      let newIni = iniMin, newFin = finMin;
+      if (side === "left") {
+        newIni = snapMin(iniMin + deltaMin);
+        newIni = Math.max(HORA_INI * 60, Math.min(newFin - 30, newIni));
+      } else {
+        newFin = snapMin(finMin + deltaMin);
+        newFin = Math.min(HORA_FIN * 60, Math.max(newIni + 30, newFin));
+      }
+      onResize(bloque.id, { iniMin: newIni, finMin: newFin, preview: false });
+      resizingRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const durMin = finMin - iniMin;
+  const showLabel = durMin >= 60;
+
+  return (
+    <div
+      title={`${bloque.supervisor?.nombre_completo || ""} | ${bloque.especialidades?.nombre_oficial || ""} · ${bloque.hora_inicio?.slice(0,5)}–${bloque.hora_fin?.slice(0,5)}`}
+      style={{
+        position: "absolute",
+        left: `${left}%`,
+        width: `${width}%`,
+        top: "4px", bottom: "4px",
+        background: `${color}30`,
+        border: `2px solid ${color}`,
+        borderRadius: "6px",
+        display: "flex", alignItems: "center",
+        overflow: "hidden",
+        userSelect: "none",
+        zIndex: 2,
+        transition: "box-shadow 0.15s",
+        cursor: "default",
+      }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = `0 2px 12px ${color}50`}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+    >
+      {/* Handle Izquierdo */}
+      <div
+        onMouseDown={e => handleResizeStart(e, "left")}
+        style={{
+          position: "absolute", left: 0, top: 0, bottom: 0, width: "10px",
+          cursor: "ew-resize", zIndex: 3,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <div style={{ width: "3px", height: "16px", borderRadius: "2px", background: `${color}80` }} />
+      </div>
+
+      {/* Contenido */}
+      <div style={{ flex: 1, padding: "0 12px", overflow: "hidden" }}>
+        {showLabel && (
+          <div style={{ fontSize: "11px", fontWeight: 700, color, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {bloque.supervisor?.nombre_completo?.split(" ").slice(0, 2).join(" ")}
+          </div>
+        )}
+        <div style={{ fontSize: "10px", color: `${color}bb`, whiteSpace: "nowrap" }}>
+          {bloque.hora_inicio?.slice(0, 5)}–{bloque.hora_fin?.slice(0, 5)}
+        </div>
+      </div>
+
+      {/* Botón eliminar */}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete(bloque.id); }}
+        style={{
+          background: "none", border: "none", color: `${color}80`, cursor: "pointer",
+          padding: "2px 4px", display: "flex", alignItems: "center",
+          fontSize: "12px", flexShrink: 0,
+        }}
+        title="Eliminar bloque"
+      >
+        <X size={12} />
+      </button>
+
+      {/* Handle Derecho */}
+      <div
+        onMouseDown={e => handleResizeStart(e, "right")}
+        style={{
+          position: "absolute", right: 0, top: 0, bottom: 0, width: "10px",
+          cursor: "ew-resize", zIndex: 3,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <div style={{ width: "3px", height: "16px", borderRadius: "2px", background: `${color}80` }} />
+      </div>
+    </div>
+  );
+}
+
+// ================================================================
+// COMPONENTE: Tarjeta de Supervisor (arrastrable)
+// ================================================================
+function SupervisorCard({ participante, isDragging, onDragStart }) {
+  const esp = participante.personal?.especialidades;
+  const nombre = participante.personal?.nombre_completo || "?";
+  const color = esp?.color || "#10b981";
+  const initials = nombre.split(" ").map(n => n[0]).slice(0, 2).join("");
+
+  return (
+    <div
+      draggable
+      onDragStart={e => onDragStart(e, participante)}
+      style={{
+        background: `${color}12`,
+        border: `1.5px solid ${color}50`,
+        borderRadius: "12px",
+        padding: "12px 14px",
+        cursor: "grab",
+        userSelect: "none",
+        display: "flex", alignItems: "center", gap: "10px",
+        transition: "all 0.15s",
+        opacity: isDragging ? 0.5 : 1,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "translateX(2px)"; e.currentTarget.style.boxShadow = `0 4px 16px ${color}30`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "translateX(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }}
+    >
+      <div style={{
+        width: "36px", height: "36px", borderRadius: "50%",
+        background: `${color}25`, border: `2px solid ${color}60`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "13px", fontWeight: 800, color, flexShrink: 0,
+      }}>
+        {initials}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {nombre.split(" ").slice(0, 2).join(" ")}
+        </div>
+        {esp && (
+          <div style={{ fontSize: "11px", color, fontWeight: 600, marginTop: "1px" }}>
+            {esp.nombre_oficial}
+          </div>
+        )}
+      </div>
+      <div style={{
+        width: "8px", height: "8px", borderRadius: "50%",
+        background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.6)", flexShrink: 0,
+      }} title="Conectado" />
+    </div>
+  );
+}
+
+// ================================================================
+// COMPONENTE: Fila de Equipo en el Timeline
+// ================================================================
+function EquipoRow({ equipo, bloques, participantes, especialidades, draggingSup, onDrop, onResize, onDelete }) {
+  const rowRef = useRef(null);
+  const [dragOver, setDragOver] = useState(false);
+  const bloquesEquipo = bloques.filter(b => b.equipos?.id === equipo.id);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => setDragOver(false);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (!draggingSup) return;
+    const rowRect = rowRef.current?.getBoundingClientRect();
+    if (!rowRect) return;
+    const pct = (e.clientX - rowRect.left) / rowRect.width;
+    const totalMin = HORA_INI * 60 + pct * HORAS_TOTAL * 60;
+    const snapIni = snapMin(Math.max(HORA_INI * 60, Math.min(HORA_FIN * 60 - 60, totalMin - 30)));
+    const snapFin = Math.min(HORA_FIN * 60, snapIni + 60);
+    onDrop(equipo, draggingSup, snapIni, snapFin);
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "stretch", borderBottom: "1px solid var(--border-container, #e2e8f0)", minHeight: "54px" }}>
+      {/* Label equipo */}
+      <div style={{
+        width: "130px", flexShrink: 0, padding: "8px 12px",
+        background: "var(--bg-sidebar, #f8fafc)",
+        borderRight: "1px solid var(--border-container, #e2e8f0)",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+      }}>
+        <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-text)" }}>
+          {equipo.codigo_interno}
+        </div>
+        <div style={{ fontSize: "10px", color: "var(--color-text-muted, #64748b)", marginTop: "1px", lineHeight: 1.2 }}>
+          {equipo.descripcion_equipo?.slice(0, 24)}{equipo.descripcion_equipo?.length > 24 ? "…" : ""}
+        </div>
+      </div>
+
+      {/* Timeline drop zone */}
+      <div
+        ref={rowRef}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          flex: 1, position: "relative",
+          background: dragOver ? "rgba(16,185,129,0.06)" : "transparent",
+          borderLeft: dragOver ? "2px solid #10b981" : "2px solid transparent",
+          transition: "all 0.15s",
+          minHeight: "54px",
+        }}
+      >
+        {/* Grid de horas (líneas verticales) */}
+        {Array.from({ length: HORAS_TOTAL + 1 }, (_, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              left: `${(i / HORAS_TOTAL) * 100}%`,
+              top: 0, bottom: 0,
+              width: "1px",
+              background: i === 0 || i === HORAS_TOTAL ? "transparent" : "rgba(0,0,0,0.06)",
+            }}
+          />
+        ))}
+
+        {/* Drop hint */}
+        {dragOver && bloquesEquipo.length === 0 && (
+          <div style={{
+            position: "absolute", inset: "6px", borderRadius: "6px",
+            border: "2px dashed #10b981", display: "flex", alignItems: "center",
+            justifyContent: "center", color: "#10b981", fontSize: "12px", fontWeight: 700,
+            pointerEvents: "none", zIndex: 1,
+          }}>
+            Suelta aquí para asignar
+          </div>
+        )}
+
+        {/* Bloques */}
+        {bloquesEquipo.map(b => (
+          <BloqueTimeline
+            key={b.id}
+            bloque={b}
+            equipoRowRef={rowRef}
+            especialidades={especialidades}
+            onResize={onResize}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ================================================================
+// MODAL: Confirmar asignación al hacer drop
+// ================================================================
+function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
   const [form, setForm] = useState({
-    equipo_id: bloque?.equipos?.id || "",
-    hora_inicio: bloque?.hora_inicio?.slice(0, 5) || "07:00",
-    hora_fin: bloque?.hora_fin?.slice(0, 5) || "08:00",
-    especialidad_id: bloque?.especialidades?.id || "",
-    supervisor_id: bloque?.supervisor?.id || "",
-    actividad_especifica: bloque?.actividad_especifica || "",
+    hora_inicio: horaStr(data.iniMin),
+    hora_fin: horaStr(data.finMin),
+    especialidad_id: data.supervisor?.personal?.especialidad_id || "",
+    actividad_especifica: "",
   });
 
-  const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
-
-  const horasOpciones = HORAS_JORNADA.concat(["19:00", "20:00"]);
-
-  const handleSubmit = () => {
-    if (!form.equipo_id || !form.hora_inicio || !form.hora_fin || !form.especialidad_id || !form.supervisor_id) {
-      alert("Completa todos los campos requeridos.");
-      return;
-    }
-    if (horaToMinutos(form.hora_fin) <= horaToMinutos(form.hora_inicio)) {
-      alert("La hora de fin debe ser posterior a la de inicio.");
-      return;
-    }
-    onSave({ ...form, id: bloque?.id, fecha: fechaPOD });
-  };
+  const horasOpciones = Array.from({ length: (HORA_FIN - HORA_INI) * 2 + 1 }, (_, i) => {
+    const min = HORA_INI * 60 + i * 30;
+    return horaStr(min);
+  });
 
   return (
     <div style={{
@@ -96,144 +405,88 @@ function BloqueModal({ bloque, equipos, supervisores, especialidades, fechaPOD, 
       zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <div style={{
-        background: "var(--bg-card, #fff)", borderRadius: "16px", padding: "32px",
-        width: "min(520px, 94vw)", boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
-        border: "1px solid var(--border-sidebar)",
+        background: "var(--bg-card, #fff)", borderRadius: "16px", padding: "28px",
+        width: "min(480px, 94vw)", boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
       }}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <div>
-            <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text)" }}>
-              {esNuevo ? "➕ Nuevo Bloque POD" : "✏️ Editar Bloque"}
-            </div>
-            <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-              {formatFecha(fechaPOD)}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: "4px" }}>
-            <X size={20} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--color-text)" }}>
+            Asignar bloque
+          </h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
+            <X size={18} />
           </button>
         </div>
 
-        {/* Formulario */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {/* Equipo */}
-          <div>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-              Equipo *
-            </label>
-            <select
-              value={form.equipo_id}
-              onChange={e => set("equipo_id", e.target.value)}
-              style={selectStyle}
-            >
-              <option value="">— Selecciona un equipo —</option>
-              {equipos.map(eq => (
-                <option key={eq.id} value={eq.id}>
-                  {eq.codigo_interno} — {eq.descripcion_equipo}
-                  {eq.plataforma_estado === "Cargada" ? ` ⚠️ Cargada` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Horario */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <div>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-                Hora Inicio *
-              </label>
-              <select value={form.hora_inicio} onChange={e => set("hora_inicio", e.target.value)} style={selectStyle}>
-                {horasOpciones.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-                Hora Fin *
-              </label>
-              <select value={form.hora_fin} onChange={e => set("hora_fin", e.target.value)} style={selectStyle}>
-                {horasOpciones.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* Especialidad */}
-          <div>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-              Especialidad *
-            </label>
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <select value={form.especialidad_id} onChange={e => set("especialidad_id", e.target.value)} style={{ ...selectStyle, flex: 1 }}>
-                <option value="">— Selecciona especialidad —</option>
-                {especialidades.map(esp => (
-                  <option key={esp.id} value={esp.id}>{esp.nombre_oficial}</option>
-                ))}
-              </select>
-              {form.especialidad_id && (() => {
-                const esp = especialidades.find(e => e.id === form.especialidad_id);
-                const color = esp?.color || "#6b7280";
-                return (
-                  <div style={{
-                    width: "36px", height: "36px", borderRadius: "8px",
-                    background: color, flexShrink: 0,
-                    boxShadow: `0 0 0 3px ${color}40`,
-                    border: `2px solid ${color}`,
-                    transition: "all 0.2s",
-                  }} title={esp?.nombre_oficial} />
-                );
-              })()}
-            </div>
-          </div>
-
-          {/* Supervisor */}
-          <div>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-              Supervisor Responsable *
-            </label>
-            <select value={form.supervisor_id} onChange={e => set("supervisor_id", e.target.value)} style={selectStyle}>
-              <option value="">— Selecciona supervisor —</option>
-              {supervisores.map(s => (
-                <option key={s.id} value={s.id}>{s.nombre_completo}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Actividad (opcional) */}
-          <div>
-            <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", display: "block", marginBottom: "6px" }}>
-              Actividad Específica <span style={{ fontWeight: 400, textTransform: "none" }}>(opcional — se puede completar por WhatsApp)</span>
-            </label>
-            <input
-              type="text"
-              value={form.actividad_especifica}
-              onChange={e => set("actividad_especifica", e.target.value)}
-              placeholder="Ej: Instalación vigas eje 5 — Torre B"
-              style={inputStyle}
-            />
+        <div style={{ display: "flex", gap: "10px", marginBottom: "18px", padding: "12px", background: "rgba(16,185,129,0.06)", borderRadius: "10px" }}>
+          <div style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
+            <strong style={{ color: "var(--color-text)" }}>{data.supervisor?.personal?.nombre_completo}</strong>
+            {" → "}
+            <strong style={{ color: "var(--color-text)" }}>{data.equipo?.codigo_interno}</strong>
           </div>
         </div>
 
-        {/* Acciones */}
-        <div style={{ display: "flex", gap: "12px", marginTop: "28px", justifyContent: "flex-end" }}>
-          <button onClick={onClose} style={{
-            padding: "10px 20px", borderRadius: "8px", border: "1px solid var(--border-input)",
-            background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "14px", fontWeight: 600,
-          }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Hora inicio</label>
+            <select
+              value={form.hora_inicio}
+              onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
+            >
+              {horasOpciones.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Hora fin</label>
+            <select
+              value={form.hora_fin}
+              onChange={e => setForm(f => ({ ...f, hora_fin: e.target.value }))}
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
+            >
+              {horasOpciones.map(h => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "14px" }}>
+          <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Especialidad</label>
+          <select
+            value={form.especialidad_id}
+            onChange={e => setForm(f => ({ ...f, especialidad_id: e.target.value }))}
+            style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
+          >
+            <option value="">Sin especialidad</option>
+            {especialidades.map(e => <option key={e.id} value={e.id}>{e.nombre_oficial}</option>)}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: "20px" }}>
+          <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Actividad (opcional)</label>
+          <input
+            type="text" value={form.actividad_especifica}
+            onChange={e => setForm(f => ({ ...f, actividad_especifica: e.target.value }))}
+            placeholder="Ej: Instalación vigas eje 5"
+            style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "9px 18px", borderRadius: "8px", border: "1px solid var(--border-input,#e2e8f0)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>
             Cancelar
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={saving}
+            onClick={() => onConfirm({ ...form, equipo_id: data.equipo.id, supervisor_id: data.supervisor.personal.id, fecha: data.fecha })}
+            disabled={saving || !form.especialidad_id}
             style={{
-              padding: "10px 24px", borderRadius: "8px", border: "none",
-              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-              color: "white", cursor: saving ? "not-allowed" : "pointer", fontSize: "14px", fontWeight: 700,
+              padding: "9px 22px", borderRadius: "8px", border: "none",
+              background: "linear-gradient(135deg, #10b981, #059669)",
+              color: "white", cursor: saving ? "not-allowed" : "pointer",
+              fontSize: "14px", fontWeight: 700, opacity: saving ? 0.7 : 1,
               display: "flex", alignItems: "center", gap: "8px",
-              opacity: saving ? 0.7 : 1,
             }}
           >
-            {saving ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={16} />}
-            {esNuevo ? "Crear Bloque" : "Guardar Cambios"}
+            {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+            Crear bloque
           </button>
         </div>
       </div>
@@ -245,32 +498,27 @@ function BloqueModal({ bloque, equipos, supervisores, especialidades, fechaPOD, 
 // COMPONENTE PRINCIPAL: PlanificacionPodTab
 // ================================================================
 export default function PlanificacionPodTab({ hookProps, currentUser }) {
-  const { equiposCompleto, personalCompleto, especialidades, showMsg, saving, setSaving } = hookProps;
+  const { equiposCompleto, personalCompleto, especialidades, showMsg, saving, setSaving, botPhone } = hookProps;
 
   const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
-  // Por defecto, planificar para mañana (el ritual es al cierre de jornada)
   const manana = dateOffsetStr(hoy, 1);
 
   const [fechaPOD, setFechaPOD] = useState(manana);
   const [bloques, setBloques] = useState([]);
   const [loadingBloques, setLoadingBloques] = useState(false);
-  const [modalBloque, setModalBloque] = useState(null); // null | {} | { bloque existente }
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [participantes, setParticipantes] = useState([]);
+  const [draggingSup, setDraggingSup] = useState(null);
+  const [pendingDrop, setPendingDrop] = useState(null); // para modal de confirmación
   const [enviandoPOD, setEnviandoPOD] = useState(false);
-  const [vistaModo, setVistaModo] = useState("matriz"); // "matriz" | "lista"
+  const [showQR, setShowQR] = useState(false);
 
-  // Proyecto activo del usuario logueado
+  const pollRef = useRef(null);
+
+  // ── Contexto del proyecto ──
   const proyectoActivoId = currentUser?.proyecto_actual_id || null;
   const proyectoActivoInfo = currentUser?.proyecto || null;
 
-  // Filtrar personal: supervisores del proyecto activo (si hay usuario)
-  const todoElPersonal = personalCompleto.data || [];
-  const supervisores = todoElPersonal.filter(p =>
-    (p.rol === "Supervisor" || p.rol === "Jefe de Area") &&
-    (!proyectoActivoId || p.proyecto_actual_id === proyectoActivoId)
-  );
-
-  // Filtrar equipos: solo del proyecto activo (si hay usuario con proyecto)
+  // ── Datos filtrados ──
   const todosLosEquipos = equiposCompleto.data || [];
   const equiposList = proyectoActivoId
     ? todosLosEquipos.filter(eq => eq.proyecto_actual_id === proyectoActivoId)
@@ -278,600 +526,405 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
 
   const especialidadesList = especialidades.data || [];
 
-  // ──────────── Carga de bloques ────────────
+  // ── URL del QR → wa.me directo al bot ──
+  // El supervisor escanea, WhatsApp se abre con el texto PRE-CARGADO
+  const botPhoneClean = (botPhone || "").replace(/[^0-9]/g, "");
+  const qrUrl = botPhoneClean
+    ? `https://wa.me/${botPhoneClean}?text=PARTICIPAR_POD`
+    : "";
+  const qrImgSrc = qrUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}&bgcolor=0f1f2e&color=10b981&margin=10`
+    : null;
+
+  // ── Cargar bloques ──
   const cargarBloques = useCallback(async () => {
     setLoadingBloques(true);
     try {
       const params = new URLSearchParams({ fecha: fechaPOD });
       if (proyectoActivoId) params.set("proyecto_id", proyectoActivoId);
-      const r = await fetch(`/api/pod/bloques?${params.toString()}`);
+      const r = await fetch(`/api/pod/bloques?${params}`);
       const json = await r.json();
       if (json.success) setBloques(json.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingBloques(false);
-    }
+    } catch (e) { console.error(e); }
+    setLoadingBloques(false);
+  }, [fechaPOD, proyectoActivoId]);
+
+  // ── Cargar participantes (polling) ──
+  const cargarParticipantes = useCallback(async (silent = false) => {
+    if (!proyectoActivoId) return;
+    try {
+      const r = await fetch(`/api/pod/sesion?fecha=${fechaPOD}&proyecto_id=${proyectoActivoId}`);
+      const json = await r.json();
+      if (json.success) setParticipantes(json.data || []);
+    } catch {}
   }, [fechaPOD, proyectoActivoId]);
 
   useEffect(() => { cargarBloques(); }, [cargarBloques]);
+  useEffect(() => { cargarParticipantes(); }, [cargarParticipantes]);
 
-  // ──────────── Guardar bloque ────────────
-  const handleSaveBloque = async (formData) => {
-    setSaving(true);
-    try {
-      const method = formData.id ? "PATCH" : "POST";
-      const r = await fetch("/api/pod/bloques", {
-        method,
+  // Polling de participantes cada 4s
+  useEffect(() => {
+    pollRef.current = setInterval(() => cargarParticipantes(true), 4000);
+    return () => clearInterval(pollRef.current);
+  }, [cargarParticipantes]);
+
+  // ── Supervisores del proyecto aún NO conectados ──
+  const todoElPersonal = personalCompleto.data || [];
+  const supervisoresProyecto = todoElPersonal.filter(p =>
+    (p.rol === "Supervisor" || p.rol === "Jefe de Area") &&
+    (!proyectoActivoId || p.proyecto_actual_id === proyectoActivoId)
+  );
+  const idsConectados = new Set(participantes.map(pa => pa.personal?.id));
+  const supervisoresPendientes = supervisoresProyecto.filter(s => !idsConectados.has(s.id));
+
+  // ── Preview local de resize ──
+  const handleResize = useCallback((bloqueId, { iniMin, finMin, preview }) => {
+    setBloques(prev => prev.map(b => b.id !== bloqueId ? b : {
+      ...b,
+      hora_inicio: horaStr(iniMin) + ":00",
+      hora_fin: horaStr(finMin) + ":00",
+    }));
+    if (!preview) {
+      fetch("/api/pod/bloques", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const json = await r.json();
-      if (json.success) {
-        showMsg(formData.id ? "✅ Bloque actualizado" : "✅ Bloque creado");
-        setModalBloque(null);
-        cargarBloques();
-      } else {
-        showMsg(`❌ ${json.error}`, false);
-      }
-    } catch (e) {
-      showMsg(`❌ ${e.message}`, false);
-    } finally {
-      setSaving(false);
+        body: JSON.stringify({
+          id: bloqueId,
+          hora_inicio: horaStr(iniMin) + ":00",
+          hora_fin: horaStr(finMin) + ":00",
+        }),
+      }).then(() => cargarBloques());
     }
-  };
+  }, [cargarBloques]);
 
-  // ──────────── Eliminar bloque ────────────
+  // ── Eliminar bloque ──
   const handleDeleteBloque = async (id) => {
     setSaving(true);
     try {
       const r = await fetch(`/api/pod/bloques?id=${id}`, { method: "DELETE" });
       const json = await r.json();
+      if (json.success) { showMsg("✅ Bloque eliminado"); cargarBloques(); }
+      else showMsg(`❌ ${json.error}`, false);
+    } catch (e) { showMsg(`❌ ${e.message}`, false); }
+    setSaving(false);
+  };
+
+  // ── Drop de supervisor sobre equipo ──
+  const handleDrop = (equipo, supervisor, iniMin, finMin) => {
+    setPendingDrop({ equipo, supervisor, iniMin, finMin, fecha: fechaPOD });
+  };
+
+  // ── Confirmar asignación desde modal ──
+  const handleConfirmDrop = async (formData) => {
+    setSaving(true);
+    try {
+      const r = await fetch("/api/pod/bloques", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const json = await r.json();
       if (json.success) {
-        showMsg("✅ Bloque eliminado");
-        setConfirmDelete(null);
+        showMsg("✅ Bloque creado");
+        setPendingDrop(null);
         cargarBloques();
       } else {
         showMsg(`❌ ${json.error}`, false);
       }
-    } catch (e) {
-      showMsg(`❌ ${e.message}`, false);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { showMsg(`❌ ${e.message}`, false); }
+    setSaving(false);
   };
 
-  // ──────────── Inicializar POD (envío WA) ────────────
+  // ── Inicializar POD ──
   const handleInicializarPOD = async () => {
-    if (!window.confirm(`¿Inicializar el POD para el ${formatFecha(fechaPOD)}?\n\nSe enviará el mensaje "PARTICIPAR_POD" a los supervisores con bloques asignados.`)) return;
+    if (!window.confirm(`¿Inicializar el POD para el ${formatFecha(fechaPOD)}?\n\nSe enviará "PARTICIPAR_POD" a los supervisores con bloques asignados.`)) return;
     setEnviandoPOD(true);
     try {
-      const r = await fetch("/api/pod/finalizar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
+      const r = await fetch("/api/pod/finalizar", { method: "POST", headers: { "Content-Type": "application/json" } });
       const json = await r.json();
-      if (json.success) {
-        showMsg(`✅ POD inicializado — ${json.alertas_enviadas || 0} alertas enviadas`);
-      } else {
-        showMsg(`❌ ${json.message || json.error}`, false);
-      }
-    } catch (e) {
-      showMsg(`❌ ${e.message}`, false);
-    } finally {
-      setEnviandoPOD(false);
-    }
+      if (json.success) showMsg(`✅ POD inicializado — ${json.alertas_enviadas || 0} alertas`);
+      else showMsg(`❌ ${json.message || json.error}`, false);
+    } catch (e) { showMsg(`❌ ${e.message}`, false); }
+    setEnviandoPOD(false);
   };
 
-  // ──────────── Cómputo de la Matriz ────────────
-  // Equipos que tienen al menos 1 bloque en el día seleccionado
-  const equiposConBloques = equiposList.filter(eq =>
-    bloques.some(b => b.equipos?.id === eq.id)
-  );
-
-  // Para cada celda (equipo × hora), encontrar el bloque que cubre ese slot
-  function getBloqueEnSlot(equipoId, horaSlot) {
-    const minSlot = horaToMinutos(horaSlot);
-    return bloques.find(b => {
-      if (b.equipos?.id !== equipoId) return false;
-      const ini = horaToMinutos(b.hora_inicio?.slice(0, 5) || "00:00");
-      const fin = horaToMinutos(b.hora_fin?.slice(0, 5) || "00:00");
-      return minSlot >= ini && minSlot < fin;
-    }) || null;
-  }
-
-  // ──────────── Render ────────────
+  // ================================================================
+  // RENDER
+  // ================================================================
   return (
-    <div style={{ padding: "28px 32px", maxWidth: "1400px" }}>
-      {/* ===== BANNER PROYECTO ACTIVO ===== */}
-      {proyectoActivoInfo ? (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "12px",
-          background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.08) 100%)",
-          border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px",
-          padding: "12px 18px", marginBottom: "20px",
-        }}>
-          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#10b981", flexShrink: 0, boxShadow: "0 0 6px rgba(16,185,129,0.6)" }} />
-          <div>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#10b981", textTransform: "uppercase", letterSpacing: "0.5px" }}>Proyecto activo</span>
-            <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text)", marginLeft: "10px" }}>
-              {proyectoActivoInfo.codigo_cc} — {proyectoActivoInfo.nombre_proyecto}
-            </span>
-          </div>
-          <div style={{ marginLeft: "auto", fontSize: "12px", color: "var(--color-text-muted)" }}>
-            Mostrando {equiposList.length} equipo{equiposList.length !== 1 ? "s" : ""}
-          </div>
-        </div>
-      ) : (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "10px",
-          background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)",
-          borderRadius: "10px", padding: "10px 18px", marginBottom: "20px",
-        }}>
-          <span style={{ fontSize: "13px" }}>⚠️</span>
-          <span style={{ fontSize: "13px", color: "#92400e", fontWeight: 600 }}>Vista global — no hay proyecto seleccionado. Mostrando todos los equipos.</span>
-        </div>
-      )}
-
-      {/* ===== HEADER ===== */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "24px", flexWrap: "wrap", gap: "16px" }}>
+    <div style={{ padding: "20px 24px", maxWidth: "1600px", fontFamily: "'Inter', sans-serif" }}>
+      {/* ── HEADER ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h1 style={{ fontSize: "24px", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
-            📋 Planificación POD
+          <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
+            📋 Sala POD
           </h1>
-          <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-            Asignación de equipos a especialidades y supervisores por bloques horarios
-          </p>
+          {proyectoActivoInfo && (
+            <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+              <span style={{ color: "#10b981", fontWeight: 700 }}>{proyectoActivoInfo.codigo_cc}</span>
+              {" · "}{proyectoActivoInfo.nombre_proyecto}
+            </div>
+          )}
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
           {/* Navegación de fecha */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: "8px",
-            background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
-            borderRadius: "10px", padding: "6px 12px",
-          }}>
-            <button
-              onClick={() => setFechaPOD(dateOffsetStr(fechaPOD, -1))}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center", padding: "2px" }}
-            >
-              <ChevronLeft size={16} />
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)", borderRadius: "10px", padding: "5px 10px" }}>
+            <button onClick={() => setFechaPOD(dateOffsetStr(fechaPOD, -1))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center" }}>
+              <ChevronLeft size={15} />
             </button>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Calendar size={14} style={{ color: "var(--color-primary, #10b981)" }} />
-              <input
-                type="date"
-                value={fechaPOD}
-                onChange={e => setFechaPOD(e.target.value)}
-                style={{ background: "none", border: "none", outline: "none", fontSize: "13px", fontWeight: 700, color: "var(--color-text)", cursor: "pointer", fontFamily: "inherit" }}
-              />
-            </div>
-            <button
-              onClick={() => setFechaPOD(dateOffsetStr(fechaPOD, 1))}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center", padding: "2px" }}
-            >
-              <ChevronRight size={16} />
+            <Calendar size={13} style={{ color: "#10b981" }} />
+            <input
+              type="date" value={fechaPOD}
+              onChange={e => setFechaPOD(e.target.value)}
+              style={{ background: "none", border: "none", outline: "none", fontSize: "13px", fontWeight: 700, color: "var(--color-text)", cursor: "pointer", fontFamily: "inherit" }}
+            />
+            <button onClick={() => setFechaPOD(dateOffsetStr(fechaPOD, 1))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center" }}>
+              <ChevronRight size={15} />
             </button>
           </div>
 
-          {/* Toggle vista */}
-          <div style={{
-            display: "flex", background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)",
-            borderRadius: "8px", overflow: "hidden",
-          }}>
-            {["matriz", "lista"].map(modo => (
-              <button key={modo} onClick={() => setVistaModo(modo)} style={{
-                padding: "8px 14px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: 700,
-                background: vistaModo === modo ? "linear-gradient(135deg, #10b981, #059669)" : "transparent",
-                color: vistaModo === modo ? "white" : "var(--color-text-muted)",
-                transition: "all 0.2s",
-                textTransform: "capitalize",
-              }}>
-                {modo === "matriz" ? "🗂 Matriz" : "☰ Lista"}
-              </button>
-            ))}
-          </div>
-
-          {/* Refrescar */}
           <button
             onClick={cargarBloques}
-            disabled={loadingBloques}
-            style={{
-              padding: "9px 14px", borderRadius: "8px", border: "1px solid var(--border-input)",
-              background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", fontSize: "13px",
-            }}
+            style={{ background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)", borderRadius: "8px", padding: "7px 10px", cursor: "pointer", color: "var(--color-text-muted)", display: "flex", alignItems: "center" }}
+            title="Recargar"
           >
-            <RefreshCw size={14} style={{ animation: loadingBloques ? "spin 1s linear infinite" : "none" }} />
-            Refrescar
+            <RefreshCw size={14} />
           </button>
 
-          {/* Nuevo bloque */}
-          <button
-            onClick={() => setModalBloque({})}
-            style={{
-              padding: "9px 18px", borderRadius: "8px", border: "none",
-              background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-              color: "white", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-              fontSize: "13px", fontWeight: 700, boxShadow: "0 2px 8px rgba(16,185,129,0.3)",
-            }}
-          >
-            <Plus size={16} />
-            Nuevo Bloque
-          </button>
-
-          {/* Inicializar POD */}
           <button
             onClick={handleInicializarPOD}
-            disabled={enviandoPOD || bloques.length === 0}
+            disabled={enviandoPOD}
             style={{
-              padding: "9px 18px", borderRadius: "8px", border: "none",
-              background: bloques.length === 0 ? "rgba(99,102,241,0.2)" : "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
-              color: bloques.length === 0 ? "var(--color-text-muted)" : "white",
-              cursor: bloques.length === 0 ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: "8px",
-              fontSize: "13px", fontWeight: 700,
-              boxShadow: bloques.length > 0 ? "0 2px 8px rgba(99,102,241,0.3)" : "none",
-              transition: "all 0.2s",
+              background: "linear-gradient(135deg, #10b981, #059669)", border: "none",
+              borderRadius: "8px", padding: "7px 14px", cursor: "pointer",
+              color: "white", fontSize: "12px", fontWeight: 700,
+              display: "flex", alignItems: "center", gap: "6px",
             }}
           >
-            {enviandoPOD
-              ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-              : <Send size={16} />
-            }
-            Inicializar POD
+            {enviandoPOD ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={13} />}
+            {enviandoPOD ? "Enviando..." : "📲 Inicializar POD y enviar WA"}
           </button>
         </div>
       </div>
 
-      {/* ===== BADGE DE FECHA ===== */}
-      <div style={{
-        display: "inline-flex", alignItems: "center", gap: "8px",
-        background: fechaPOD === hoy
-          ? "rgba(245, 158, 11, 0.12)"
-          : fechaPOD < hoy
-            ? "rgba(239, 68, 68, 0.08)"
-            : "rgba(16, 185, 129, 0.1)",
-        border: `1px solid ${fechaPOD === hoy ? "#f59e0b" : fechaPOD < hoy ? "#ef4444" : "#10b981"}40`,
-        borderRadius: "8px", padding: "6px 14px", marginBottom: "24px",
-        fontSize: "13px", fontWeight: 600,
-        color: fechaPOD === hoy ? "#d97706" : fechaPOD < hoy ? "#dc2626" : "#059669",
-      }}>
-        <Clock size={13} />
-        {fechaPOD === hoy && "📅 Planificando para HOY"}
-        {fechaPOD === manana && "📅 Planificando para MAÑANA"}
-        {fechaPOD !== hoy && fechaPOD !== manana && fechaPOD > hoy && `📅 ${formatFecha(fechaPOD)}`}
-        {fechaPOD < hoy && `⚠️ Fecha pasada — ${formatFecha(fechaPOD)}`}
-        <span style={{ fontWeight: 400 }}>— {bloques.length} bloque{bloques.length !== 1 ? "s" : ""} asignado{bloques.length !== 1 ? "s" : ""}</span>
-      </div>
+      {/* ── BODY: SPLIT PANEL ── */}
+      <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
 
-      {/* ===== ESTADO VACÍO ===== */}
-      {!loadingBloques && bloques.length === 0 && (
+        {/* ═══════════ PANEL IZQUIERDO: Supervisores ═══════════ */}
         <div style={{
-          textAlign: "center", padding: "64px 32px",
-          background: "var(--bg-sidebar)", borderRadius: "16px",
-          border: "2px dashed var(--border-sidebar)",
+          width: "260px", flexShrink: 0,
+          background: "var(--bg-container, #fff)",
+          border: "1px solid var(--border-container, #e2e8f0)",
+          borderRadius: "14px",
+          overflow: "hidden",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
         }}>
-          <div style={{ fontSize: "48px", marginBottom: "12px" }}>📋</div>
-          <div style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px" }}>
-            Sin bloques planificados
-          </div>
-          <div style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "24px" }}>
-            Añade los primeros bloques de asignación de equipos para {formatFecha(fechaPOD)}.
-          </div>
-          <button
-            onClick={() => setModalBloque({})}
-            style={{
-              padding: "12px 24px", borderRadius: "10px", border: "none",
-              background: "linear-gradient(135deg, #10b981, #059669)",
-              color: "white", cursor: "pointer", fontSize: "14px", fontWeight: 700,
-              display: "inline-flex", alignItems: "center", gap: "8px",
-              boxShadow: "0 4px 12px rgba(16,185,129,0.3)",
-            }}
-          >
-            <Plus size={16} /> Crear primer bloque
-          </button>
-        </div>
-      )}
-
-      {loadingBloques && (
-        <div style={{ textAlign: "center", padding: "48px", color: "var(--color-text-muted)" }}>
-          <Loader2 size={32} style={{ animation: "spin 1s linear infinite", margin: "0 auto 12px" }} />
-          <div>Cargando planificación...</div>
-        </div>
-      )}
-
-      {/* ===== VISTA MATRIZ ===== */}
-      {!loadingBloques && bloques.length > 0 && vistaModo === "matriz" && (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{
-            borderCollapse: "collapse", width: "100%", minWidth: "900px",
-            background: "var(--bg-sidebar)", borderRadius: "16px", overflow: "hidden",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+          {/* Header panel */}
+          <div style={{
+            padding: "14px 16px",
+            background: "linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.04))",
+            borderBottom: "1px solid var(--border-container, #e2e8f0)",
           }}>
-            <thead>
-              <tr>
-                {/* Columna de equipo */}
-                <th style={{
-                  padding: "14px 18px", textAlign: "left", fontSize: "11px", fontWeight: 700,
-                  color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.8px",
-                  background: "var(--bg-sidebar)", borderBottom: "2px solid var(--border-sidebar)",
-                  position: "sticky", left: 0, zIndex: 2, minWidth: "200px",
-                }}>
-                  Equipo
-                </th>
-                {HORAS_JORNADA.map(h => (
-                  <th key={h} style={{
-                    padding: "14px 8px", textAlign: "center", fontSize: "11px", fontWeight: 700,
-                    color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px",
-                    background: "var(--bg-sidebar)", borderBottom: "2px solid var(--border-sidebar)",
-                    minWidth: "80px",
-                  }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {equiposConBloques.map((eq, rowIdx) => (
-                <tr key={eq.id} style={{ background: rowIdx % 2 === 0 ? "var(--bg-card, white)" : "var(--bg-sidebar)" }}>
-                  {/* Nombre equipo */}
-                  <td style={{
-                    padding: "12px 18px", borderBottom: "1px solid var(--border-sidebar)",
-                    position: "sticky", left: 0, zIndex: 1,
-                    background: rowIdx % 2 === 0 ? "var(--bg-card, white)" : "var(--bg-sidebar)",
-                  }}>
-                    <div style={{ fontWeight: 700, fontSize: "13px", color: "var(--color-text)" }}>
-                      {eq.codigo_interno}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-                      {eq.descripcion_equipo?.slice(0, 30)}
-                    </div>
-                    {eq.plataforma_estado === "Cargada" && (
-                      <div style={{
-                        display: "inline-flex", alignItems: "center", gap: "4px",
-                        background: "rgba(245,158,11,0.15)", color: "#d97706",
-                        borderRadius: "4px", padding: "1px 6px", fontSize: "10px", fontWeight: 700, marginTop: "4px",
-                      }}>
-                        <AlertTriangle size={9} /> Plataforma cargada
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Celdas horarias */}
-                  {HORAS_JORNADA.map(h => {
-                    const bloque = getBloqueEnSlot(eq.id, h);
-                    const color = bloque ? getColorForEsp(bloque.especialidades?.id, especialidadesList) : null;
-                    const esInicio = bloque && bloque.hora_inicio?.slice(0, 5) === h;
-
-                    return (
-                      <td
-                        key={h}
-                        style={{
-                          padding: "6px 4px", borderBottom: "1px solid var(--border-sidebar)",
-                          borderLeft: "1px solid var(--border-sidebar)",
-                          position: "relative", verticalAlign: "middle",
-                        }}
-                      >
-                        {bloque ? (
-                          <div
-                            title={`${bloque.especialidades?.nombre_oficial} — ${bloque.supervisor?.nombre_completo}\n${bloque.hora_inicio?.slice(0,5)}–${bloque.hora_fin?.slice(0,5)}\n${bloque.actividad_especifica || "Sin actividad definida"}`}
-                            style={{
-                              background: `${color}22`,
-                              borderLeft: `3px solid ${color}`,
-                              borderRadius: "4px",
-                              padding: "4px 6px",
-                              minHeight: "44px",
-                              cursor: "pointer",
-                              transition: "all 0.15s",
-                              display: "flex", flexDirection: "column", justifyContent: "center",
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = `${color}33`; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = `${color}22`; }}
-                            onClick={() => setModalBloque(bloque)}
-                          >
-                            {esInicio && (
-                              <>
-                                <div style={{ fontSize: "10px", fontWeight: 700, color }}>
-                                  {bloque.especialidades?.nombre_oficial}
-                                </div>
-                                <div style={{ fontSize: "9px", color: "var(--color-text-muted)", marginTop: "1px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {bloque.supervisor?.nombre_completo?.split(" ")[0]}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              minHeight: "44px", borderRadius: "4px", cursor: "pointer",
-                              transition: "background 0.15s",
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(16,185,129,0.06)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-                            onClick={() => setModalBloque({ equipos: eq, hora_inicio: h, hora_fin: `${String(Number(h.split(":")[0]) + 1).padStart(2, "0")}:00` })}
-                          />
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ===== VISTA LISTA ===== */}
-      {!loadingBloques && bloques.length > 0 && vistaModo === "lista" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {bloques.map(b => {
-            const color = getColorForEsp(b.especialidades?.id, especialidadesList);
-            return (
-              <div key={b.id} style={{
-                background: "var(--bg-sidebar)", borderRadius: "12px",
-                border: "1px solid var(--border-sidebar)",
-                borderLeft: `4px solid ${color}`,
-                padding: "16px 20px",
-                display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap",
-              }}>
-                {/* Horario */}
-                <div style={{
-                  background: `${color}18`, border: `1px solid ${color}40`,
-                  borderRadius: "8px", padding: "6px 12px", minWidth: "100px", textAlign: "center",
-                }}>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 600 }}>HORARIO</div>
-                  <div style={{ fontSize: "13px", fontWeight: 800, color }}>
-                    {b.hora_inicio?.slice(0, 5)} — {b.hora_fin?.slice(0, 5)}
-                  </div>
-                </div>
-
-                {/* Equipo */}
-                <div style={{ flex: 1, minWidth: "150px" }}>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Equipo</div>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text)" }}>
-                    {b.equipos?.codigo_interno}
-                    {b.equipos?.plataforma_estado === "Cargada" && <span style={{ marginLeft: "6px", fontSize: "11px", color: "#d97706" }}>⚠️ Cargada</span>}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>{b.equipos?.descripcion_equipo?.slice(0, 35)}</div>
-                </div>
-
-                {/* Especialidad */}
-                <div style={{ minWidth: "120px" }}>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Especialidad</div>
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: "4px",
-                    background: `${color}18`, border: `1px solid ${color}40`,
-                    borderRadius: "6px", padding: "3px 8px", marginTop: "2px",
-                    fontSize: "12px", fontWeight: 700, color,
-                  }}>
-                    {b.especialidades?.nombre_oficial}
-                  </div>
-                </div>
-
-                {/* Supervisor */}
-                <div style={{ minWidth: "140px" }}>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Supervisor</div>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)", marginTop: "2px" }}>
-                    {b.supervisor?.nombre_completo}
-                  </div>
-                </div>
-
-                {/* Actividad */}
-                <div style={{ flex: 2, minWidth: "180px" }}>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Actividad</div>
-                  <div style={{ fontSize: "13px", color: b.actividad_especifica ? "var(--color-text)" : "var(--color-text-muted)", fontStyle: b.actividad_especifica ? "normal" : "italic", marginTop: "2px" }}>
-                    {b.actividad_especifica || "Sin definir — se completará por WhatsApp"}
-                  </div>
-                </div>
-
-                {/* Acciones */}
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => setModalBloque(b)}
-                    style={{
-                      padding: "8px 12px", borderRadius: "7px", border: "1px solid var(--border-input)",
-                      background: "transparent", color: "var(--color-text-muted)", cursor: "pointer",
-                      fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px",
-                    }}
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(b.id)}
-                    style={{
-                      padding: "8px 10px", borderRadius: "7px", border: "1px solid rgba(239,68,68,0.3)",
-                      background: "rgba(239,68,68,0.07)", color: "#ef4444", cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: "4px", fontSize: "12px",
-                    }}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Users size={15} color="#10b981" />
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text)" }}>Supervisores</span>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ===== LEYENDA DE ESPECIALIDADES ===== */}
-      {!loadingBloques && bloques.length > 0 && (
-        <div style={{
-          marginTop: "24px", padding: "16px 20px",
-          background: "var(--bg-sidebar)", borderRadius: "12px", border: "1px solid var(--border-sidebar)",
-          display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center",
-        }}>
-          <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-            Especialidades:
-          </span>
-          {especialidadesList
-            .filter(e => bloques.some(b => b.especialidades?.id === e.id))
-            .map((e) => (
-              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div style={{
-                  width: "12px", height: "12px", borderRadius: "4px",
-                  background: e.color || "#6b7280",
-                  boxShadow: `0 0 0 2px ${(e.color || "#6b7280")}30`,
-                }} />
-                <span style={{ fontSize: "12px", color: "var(--color-text)", fontWeight: 600 }}>{e.nombre_oficial}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.6)", animation: "pulse 2s infinite" }} />
+                <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 700 }}>EN VIVO</span>
               </div>
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px" }}>
+              {participantes.length} conectado{participantes.length !== 1 ? "s" : ""} · Arrastra sobre un equipo
+            </div>
+          </div>
+
+          {/* Supervisores conectados */}
+          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {participantes.length === 0 && (
+              <div style={{ padding: "16px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "12px" }}>
+                Esperando supervisores…<br />
+                <span style={{ fontSize: "11px", opacity: 0.7 }}>Comparte el QR para que se unan</span>
+              </div>
+            )}
+            {participantes.map(p => (
+              <SupervisorCard
+                key={p.id}
+                participante={p}
+                isDragging={draggingSup?.id === p.id}
+                onDragStart={(e, part) => {
+                  setDraggingSup(part);
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
+              />
             ))}
-        </div>
-      )}
 
-      {/* ===== MODAL CREACIÓN/EDICIÓN ===== */}
-      {modalBloque !== null && (
-        <BloqueModal
-          bloque={modalBloque}
-          equipos={equiposList}
-          supervisores={supervisores}
+            {/* Separador: pendientes */}
+            {supervisoresPendientes.length > 0 && (
+              <div style={{ margin: "4px 0" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ flex: 1, height: "1px", background: "var(--border-container,#e2e8f0)" }} />
+                  Pendiente
+                  <div style={{ flex: 1, height: "1px", background: "var(--border-container,#e2e8f0)" }} />
+                </div>
+                {supervisoresPendientes.map(s => {
+                  const color = s.especialidades?.color || "#6b7280";
+                  return (
+                    <div key={s.id} style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      padding: "10px 12px", borderRadius: "10px",
+                      background: "rgba(107,114,128,0.06)", border: "1px dashed rgba(107,114,128,0.2)",
+                      marginBottom: "6px", opacity: 0.7,
+                    }}>
+                      <div style={{
+                        width: "30px", height: "30px", borderRadius: "50%",
+                        background: "rgba(107,114,128,0.1)", border: "1px dashed rgba(107,114,128,0.3)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "11px", fontWeight: 700, color: "#6b7280", flexShrink: 0,
+                      }}>
+                        {s.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {s.nombre_completo.split(" ").slice(0, 2).join(" ")}
+                        </div>
+                        {s.especialidades && (
+                          <div style={{ fontSize: "10px", color, fontWeight: 600 }}>{s.especialidades.nombre_oficial}</div>
+                        )}
+                      </div>
+                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#6b7280", flexShrink: 0 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* QR */}
+          {proyectoActivoId && (
+            <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-container, #e2e8f0)" }}>
+              <button
+                onClick={() => setShowQR(!showQR)}
+                style={{
+                  width: "100%", display: "flex", alignItems: "center", gap: "8px",
+                  background: showQR ? "rgba(16,185,129,0.1)" : "rgba(16,185,129,0.06)",
+                  border: "1px solid rgba(16,185,129,0.25)", borderRadius: "10px",
+                  padding: "10px 14px", cursor: "pointer", color: "#10b981",
+                  fontSize: "12px", fontWeight: 700, transition: "all 0.15s",
+                }}
+              >
+                <QrCode size={14} />
+                {showQR ? "Ocultar QR" : "📱 QR WhatsApp para supervisores"}
+              </button>
+              {showQR && (
+                <div style={{ marginTop: "12px", textAlign: "center" }}>
+                  {qrImgSrc ? (
+                    <div style={{
+                      display: "inline-block", padding: "10px",
+                      background: "#0f1f2e", borderRadius: "12px",
+                      border: "2px solid rgba(16,185,129,0.3)",
+                    }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrImgSrc} alt="QR WA POD" style={{ width: "170px", height: "170px", display: "block", borderRadius: "6px" }} />
+                    </div>
+                  ) : (
+                    <div style={{ padding: "20px", color: "#64748b", fontSize: "12px" }}>
+                      ⚠️ Configura el número del bot en Puente WhatsApp
+                    </div>
+                  )}
+                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "8px", lineHeight: 1.5 }}>
+                    El supervisor escanea con su célular
+                    <br />WhatsApp se abre con <strong>PARTICIPAR_POD</strong> listo para enviar
+                    <br />El bot confirma y lo registra en la sala ✅
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ═══════════ PANEL DERECHO: Timeline ═══════════ */}
+        <div style={{
+          flex: 1, minWidth: 0,
+          background: "var(--bg-container, #fff)",
+          border: "1px solid var(--border-container, #e2e8f0)",
+          borderRadius: "14px", overflow: "hidden",
+          boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+        }}
+          onDragEnd={() => setDraggingSup(null)}
+        >
+          {/* Header timeline */}
+          <div style={{
+            padding: "12px 16px",
+            background: "var(--bg-sidebar, #f8fafc)",
+            borderBottom: "1px solid var(--border-container, #e2e8f0)",
+            display: "flex", alignItems: "center", gap: "10px",
+          }}>
+            <Clock size={14} color="#64748b" />
+            <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text)" }}>
+              {formatFecha(fechaPOD)}
+            </span>
+            <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+              — {equiposList.length} equipo{equiposList.length !== 1 ? "s" : ""}
+            </span>
+            {loadingBloques && <Loader2 size={13} color="#10b981" style={{ marginLeft: "auto", animation: "spin 1s linear infinite" }} />}
+          </div>
+
+          {/* Regla horaria */}
+          <div style={{ display: "flex" }}>
+            <div style={{ width: "130px", flexShrink: 0, background: "var(--bg-sidebar,#f8fafc)", borderRight: "1px solid var(--border-container,#e2e8f0)", borderBottom: "1px solid var(--border-container,#e2e8f0)" }} />
+            <div style={{ flex: 1, borderBottom: "1px solid var(--border-container,#e2e8f0)" }}>
+              <TimelineRuler />
+            </div>
+          </div>
+
+          {/* Filas de equipos */}
+          {equiposList.length === 0 ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "14px" }}>
+              {proyectoActivoId
+                ? "No hay equipos asignados a este proyecto."
+                : "Selecciona tu identidad para ver los equipos del proyecto."
+              }
+            </div>
+          ) : (
+            equiposList.map(eq => (
+              <EquipoRow
+                key={eq.id}
+                equipo={eq}
+                bloques={bloques}
+                participantes={participantes}
+                especialidades={especialidadesList}
+                draggingSup={draggingSup}
+                onDrop={handleDrop}
+                onResize={handleResize}
+                onDelete={handleDeleteBloque}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Modal de confirmación de asignación */}
+      {pendingDrop && (
+        <ModalAsignacion
+          data={pendingDrop}
           especialidades={especialidadesList}
-          fechaPOD={fechaPOD}
-          onClose={() => setModalBloque(null)}
-          onSave={handleSaveBloque}
+          onConfirm={handleConfirmDrop}
+          onClose={() => setPendingDrop(null)}
           saving={saving}
         />
       )}
 
-      {/* ===== CONFIRM DELETE ===== */}
-      {confirmDelete && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
-          zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <div style={{
-            background: "var(--bg-card, #fff)", borderRadius: "14px", padding: "28px",
-            maxWidth: "380px", width: "90vw", boxShadow: "0 20px 50px rgba(0,0,0,0.2)",
-            border: "1px solid var(--border-sidebar)", textAlign: "center",
-          }}>
-            <div style={{ fontSize: "36px", marginBottom: "12px" }}>🗑️</div>
-            <div style={{ fontSize: "17px", fontWeight: 700, marginBottom: "8px", color: "var(--color-text)" }}>
-              ¿Eliminar este bloque?
-            </div>
-            <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "24px" }}>
-              Esta acción no se puede deshacer.
-            </div>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-              <button onClick={() => setConfirmDelete(null)} style={{
-                padding: "10px 20px", borderRadius: "8px", border: "1px solid var(--border-input)",
-                background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontWeight: 600, fontSize: "14px",
-              }}>
-                Cancelar
-              </button>
-              <button onClick={() => handleDeleteBloque(confirmDelete)} disabled={saving} style={{
-                padding: "10px 20px", borderRadius: "8px", border: "none",
-                background: "linear-gradient(135deg, #ef4444, #dc2626)",
-                color: "white", cursor: "pointer", fontWeight: 700, fontSize: "14px",
-                display: "flex", alignItems: "center", gap: "6px",
-              }}>
-                <Trash2 size={14} /> Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Keyframe spin */}
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      {/* Estilos globales */}
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16,185,129,0.6); }
+          50% { opacity: 0.6; box-shadow: 0 0 12px rgba(16,185,129,0.9); }
+        }
+      `}</style>
     </div>
   );
 }
