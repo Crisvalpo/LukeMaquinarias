@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   LayoutGrid, MapPin, HardHat, Building2, Users, FileText,
   MessageSquare, CalendarDays, ChevronLeft, ChevronRight,
-  User, Loader2
+  User, Loader2, Tag
 } from "lucide-react";
 import { useAdminMaquinaria } from "../components/admin/hooks/useAdminMaquinaria";
 import { useCurrentUser } from "../components/admin/hooks/useCurrentUser";
@@ -17,6 +17,7 @@ import PersonalTab from "../components/admin/PersonalTab";
 import RegistrosTab from "../components/admin/RegistrosTab";
 import ReportesTab from "../components/admin/ReportesTab";
 import PlanificacionPodTab from "../components/admin/PlanificacionPodTab";
+import EspecialidadesTab from "../components/admin/EspecialidadesTab";
 
 const SIDEBAR_FULL = 220;
 const SIDEBAR_MINI = 58;
@@ -215,27 +216,29 @@ export default function AdminMaquinaria() {
   };
 
   const TABS = [
-    { id: "monitor",   label: "Consola",    icon: LayoutGrid },
-    { id: "mapa",      label: "Mapa Faena", icon: MapPin },
-    { id: "equipos",   label: "Equipos",    icon: HardHat },
-    { id: "proyectos", label: "Proyectos",  icon: Building2 },
-    { id: "personal",  label: "Personal",   icon: Users },
-    { id: "registros", label: "Registros",  icon: Users },
-    { id: "reportes",  label: "Reportes",   icon: FileText },
-    { id: "pod",       label: "Sala POD",   icon: CalendarDays },
+    { id: "monitor",        label: "Consola",     icon: LayoutGrid },
+    { id: "mapa",           label: "Mapa Faena",  icon: MapPin },
+    { id: "equipos",        label: "Equipos",     icon: HardHat },
+    { id: "proyectos",      label: "Proyectos",   icon: Building2 },
+    { id: "especialidades", label: "Disciplinas", icon: Tag },
+    { id: "personal",       label: "Personal",    icon: Users },
+    { id: "registros",      label: "Registros",   icon: Users },
+    { id: "reportes",       label: "Reportes",    icon: FileText },
+    { id: "pod",            label: "Sala POD",    icon: CalendarDays },
   ];
 
   const renderActiveTab = () => {
     switch (tab) {
-      case "monitor":   return <ConsoleTab hookProps={hookProps} />;
-      case "mapa":      return <MapTab hookProps={hookProps} />;
-      case "equipos":   return <EquiposTab hookProps={hookProps} />;
-      case "proyectos": return <ProyectosTab hookProps={hookProps} />;
-      case "personal":  return <PersonalTab hookProps={hookProps} />;
-      case "registros": return <RegistrosTab hookProps={hookProps} />;
-      case "reportes":  return <ReportesTab hookProps={hookProps} />;
-      case "pod":       return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
-      default:          return <ConsoleTab hookProps={hookProps} />;
+      case "monitor":        return <ConsoleTab hookProps={hookProps} />;
+      case "mapa":           return <MapTab hookProps={hookProps} />;
+      case "equipos":        return <EquiposTab hookProps={hookProps} />;
+      case "proyectos":      return <ProyectosTab hookProps={hookProps} />;
+      case "especialidades": return <EspecialidadesTab hookProps={hookProps} />;
+      case "personal":       return <PersonalTab hookProps={hookProps} />;
+      case "registros":      return <RegistrosTab hookProps={hookProps} />;
+      case "reportes":       return <ReportesTab hookProps={hookProps} />;
+      case "pod":            return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
+      default:               return <ConsoleTab hookProps={hookProps} />;
     }
   };
 
