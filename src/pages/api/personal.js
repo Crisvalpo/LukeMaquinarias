@@ -137,6 +137,9 @@ export default async function handler(req, res) {
     if (updates.hasOwnProperty("proyecto_actual_id") && updates.proyecto_actual_id === "") {
       updates.proyecto_actual_id = null;
     }
+    if (updates.hasOwnProperty("especialidad_id") && updates.especialidad_id === "") {
+      updates.especialidad_id = null;
+    }
     if (updates.hasOwnProperty("rut") && updates.rut) {
       updates.rut = formatRut(updates.rut);
     }
