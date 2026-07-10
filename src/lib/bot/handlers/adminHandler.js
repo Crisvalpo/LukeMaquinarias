@@ -82,7 +82,9 @@ export async function handleAdminFlow(ctx, res) {
   // 3. Prompt del sistema con mapa del mundo
   const mapaDelMundo = {
     proyectos: { id: "UUID", nombre_proyecto: "TEXT", codigo_cc: "TEXT", ubicacion: "TEXT", activa: "BOOLEAN" },
-    personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", rol: "Supervisor | Operador | Rigger | Jefe de Area", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", proyecto_actual_id: "UUID REFERENCES proyectos", activo: "BOOLEAN" },
+    personal: { id: "UUID", rut: "TEXT", nombre_completo: "TEXT", whatsapp: "TEXT", email: "TEXT (login a la consola web, null = sin acceso web)", rol: "Supervisor | Operador | Rigger | Jefe de Area | Administrador", turno_tipo: "TEXT", jornada_tipo: "Dia | Noche", proyecto_actual_id: "UUID REFERENCES proyectos", especialidad_id: "UUID REFERENCES especialidades(id)", activo: "BOOLEAN" },
+    especialidades: { id: "UUID", nombre_oficial: "TEXT UNIQUE", descripcion: "TEXT", color: "TEXT (hex)" },
+    tareas_programadas: { id: "UUID", especialidad_id: "UUID REFERENCES especialidades(id)", nombre: "TEXT", descripcion: "TEXT", codigo: "TEXT", activa: "BOOLEAN", orden: "INTEGER", es_libre: "BOOLEAN" },
     equipos: { 
       id: "UUID", 
       codigo_interno: "TEXT", 
@@ -110,7 +112,7 @@ export async function handleAdminFlow(ctx, res) {
     reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
     eventos_jornada: { id: "UUID", reporte_id: "UUID", estado_hito: "Trabajando | Disponible | En Colacion | Detenido por Falla", especialidad_id: "UUID", actividad_id: "UUID REFERENCES actividades(id)", hora_evento: "TIMESTAMP", nota_transcripcion: "TEXT" },
     bot_tools_dinamicas: { id: "UUID", nombre_funcion: "TEXT UNIQUE", descripcion: "TEXT", codigo_javascript: "TEXT", esquema_json: "JSONB" },
-    registros_pendientes: { id: "UUID", whatsapp: "TEXT", nombre_completo: "TEXT", rol_solicitado: "TEXT", estado: "pendiente | aprobado | rechazado", nota_rechazo: "TEXT" },
+    registros_pendientes: { id: "UUID", whatsapp: "TEXT", nombre_completo: "TEXT", rol_solicitado: "Operador | Supervisor | Rigger | Jefe de Area", proyecto_id: "UUID REFERENCES proyectos(id)", estado: "esperando_nombre | esperando_rol | pendiente | aprobado | rechazado", nota_rechazo: "TEXT" },
     actividades: { id: "UUID", fecha: "DATE", proyecto_id: "UUID REFERENCES proyectos(id)", especialidad_id: "UUID REFERENCES especialidades(id)", tarea_programada_id: "UUID REFERENCES tareas_programadas(id)", descripcion: "TEXT (null si viene de tarea_programada_id)", programada: "BOOLEAN", cantidad_planificada: "NUMERIC", unidad: "TEXT", cantidad_ejecutada: "NUMERIC" },
     planificacion_bloques_pod: { id: "UUID", fecha: "DATE", equipo_id: "UUID REFERENCES equipos(id)", hora_inicio: "TIME", hora_fin: "TIME", especialidad_id: "UUID REFERENCES especialidades(id)", supervisor_id: "UUID REFERENCES personal(id)", actividad_especifica: "TEXT", actividad_id: "UUID REFERENCES actividades(id)", creado_at: "TIMESTAMP" }
   };
