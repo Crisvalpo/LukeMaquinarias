@@ -82,7 +82,7 @@ export default async function handler(req, res) {
       return await handleRegistroFlow(ctx, res);
     }
 
-    const esAdmin = personal.rol === "Supervisor" || personal.rol === "Jefe de Area";
+    const esAdmin = personal.rol === "Supervisor" || personal.rol === "Jefe de Area" || personal.rol === "Administrador";
     const msgUpper = (message || "").trim().toUpperCase();
 
     // --- Flujos Especiales del POD para Supervisores ---
