@@ -403,8 +403,8 @@ function ModalQR({ qrImgSrc, podJoinUrl, onClose }) {
 
         {/* Descripción */}
         <div style={{ color: "var(--color-text-muted, #6b7280)", fontSize: "13px", marginBottom: "18px", lineHeight: 1.5 }}>
-          Escanea el código QR con la cámara de tu celular<br />
-          para ingresar tu nombre y aparecer en la lista de la sala
+          Escanea el código QR para abrir WhatsApp y enviar el mensaje.<br />
+          Aparecerás automáticamente en la pantalla de la sala. 📱
         </div>
 
         {/* URL copiable */}
@@ -776,9 +776,11 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
 
   const especialidadesList = especialidades.data || [];
 
-  // ── URL del QR → /pod-join web directo (ya no va a WhatsApp) ──
-  const podJoinUrl = typeof window !== "undefined" && proyectoActivoId
-    ? `${window.location.origin}/pod-join?fecha=${fechaPOD}&proyecto_id=${proyectoActivoId}`
+  // ── URL del QR → WhatsApp directo para unirse sin abrir web ──
+  const projectCode = proyectoActivoInfo?.codigo_cc || proyectoActivoId || "";
+  const cleanBotPhone = botPhone ? botPhone.replace(/[^0-9]/g, "") : "56911110001";
+  const podJoinUrl = projectCode
+    ? `https://wa.me/${cleanBotPhone}?text=PARTICIPAR_POD_${projectCode}`
     : "";
   const qrImgSrc = podJoinUrl
     ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(podJoinUrl)}&bgcolor=ffffff&color=000000&margin=10`

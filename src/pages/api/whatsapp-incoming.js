@@ -88,12 +88,36 @@ export default async function handler(req, res) {
     // --- Flujos Especiales del POD para Supervisores ---
     if (esAdmin) {
       // Caso 1: Registrar participación voluntaria en el POD
-      if (msgUpper === "PARTICIPAR_POD") {
+      if (msgUpper.startsWith("PARTICIPAR_POD")) {
         // Calcular fecha D+1 (el POD siempre es para mañana)
         const manana = new Date();
         manana.setDate(manana.getDate() + 1);
         const fechaPOD = manana.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
-        const proyectoId = personal.proyecto_actual_id || null;
+        
+        let proyectoId = personal.proyecto_actual_id || null;
+
+        // Intentar extraer código de proyecto o UUID del mensaje (ej: PARTICIPAR_POD_EIMI00413 o PARTICIPAR_POD EIMI00413)
+        const cleanMsg = (message || "").trim();
+        const partes = cleanMsg.split(/[\s_]+/);
+        if (partes.length > 1) {
+          const arg = partes[1].trim();
+          if (arg) {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(arg);
+            if (isUuid) {
+              proyectoId = arg;
+            } else {
+              // Buscar por codigo_cc
+              const { data: proy } = await supabase
+                .from("proyectos")
+                .select("id")
+                .eq("codigo_cc", arg.toUpperCase())
+                .maybeSingle();
+              if (proy) {
+                proyectoId = proy.id;
+              }
+            }
+          }
+        }
 
         // 1. Registrar en pod_sesion_participantes (tabla en tiempo real)
         const { error: errPart } = await supabase
