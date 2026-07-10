@@ -19,6 +19,23 @@ export default function PodJoin() {
   const [joined, setJoined] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
+  const [botPhone, setBotPhone] = useState("56911110001");
+
+  // Cargar configuración del bot
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const r = await fetch("/api/config?clave=bot_phone");
+        const json = await r.json();
+        if (json.success && json.valor) {
+          setBotPhone(json.valor);
+        }
+      } catch (e) {
+        console.error("Error cargando teléfono de bot:", e);
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Cargar personal del proyecto
   useEffect(() => {
@@ -174,6 +191,33 @@ export default function PodJoin() {
                 <span style={{ color: "#64748b", fontWeight: 400, fontSize: "12px" }}>Espera que te asignen un equipo.</span>
               </div>
             </div>
+
+            {/* Botón para abrir WhatsApp y garantizar la ventana de 24h */}
+            <a
+              href={`https://wa.me/${botPhone}?text=PARTICIPAR_POD`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                marginTop: "20px",
+                padding: "12px 20px",
+                background: "linear-gradient(135deg, #10b981, #059669)",
+                color: "white",
+                borderRadius: "12px",
+                textDecoration: "none",
+                fontWeight: 700,
+                fontSize: "13px",
+                boxShadow: "0 4px 15px rgba(16, 185, 129, 0.25)",
+                transition: "all 0.2s ease",
+                maxWidth: "320px",
+                margin: "20px auto 0",
+              }}
+            >
+              <Zap size={14} /> Activar WhatsApp Bot
+            </a>
           </div>
         </div>
 
