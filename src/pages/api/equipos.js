@@ -4,11 +4,15 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    const { search, page, limit } = req.query;
+    const { search, page, limit, proyecto_id } = req.query;
 
     let query = supabase
       .from("equipos")
       .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" });
+
+    if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
+      query = query.eq("proyecto_actual_id", proyecto_id);
+    }
 
     // Filtrar por búsqueda si se provee
     if (search && search.trim() !== "") {

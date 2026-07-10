@@ -23,12 +23,16 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
-    const { search, page, limit } = req.query;
+    const { search, page, limit, proyecto_id } = req.query;
 
     let query = supabase
       .from("personal")
       .select("*, proyectos(nombre_proyecto, codigo_cc), especialidades(id, nombre_oficial, color)", { count: "exact" })
       .eq("activo", true);
+
+    if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
+      query = query.eq("proyecto_actual_id", proyecto_id);
+    }
 
     // Filtrar por búsqueda si se provee
     if (search && search.trim() !== "") {

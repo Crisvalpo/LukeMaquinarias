@@ -153,14 +153,15 @@ function IdentitySelector({ onSelect, onSkip }) {
         <button
           onClick={onSkip}
           style={{
-            width: "100%", background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "8px", color: "#64748b", padding: "10px",
+            width: "100%", background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: "8px", color: "#94a3b8", padding: "10px",
             fontSize: "13px", cursor: "pointer", transition: "all 0.2s",
+            fontWeight: 600,
           }}
-          onMouseEnter={e => e.currentTarget.style.color = "#94a3b8"}
-          onMouseLeave={e => e.currentTarget.style.color = "#64748b"}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(16,185,129,0.5)"; e.currentTarget.style.color = "#10b981"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "#94a3b8"; }}
         >
-          Continuar sin seleccionar (ver todos los proyectos)
+          🔑 Ingresar como Administrador General (Ver todo)
         </button>
       </div>
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -172,11 +173,10 @@ function IdentitySelector({ onSelect, onSkip }) {
 // PAGE PRINCIPAL
 // ================================================================
 export default function AdminMaquinaria() {
-  const hookProps = useAdminMaquinaria();
-  const { tab, setTab, msg, registros } = hookProps;
-
-  // Identidad gestionada directamente desde localStorage
   const { currentUser, setCurrentUser, clearUser, loaded } = useCurrentUser();
+  const hookProps = useAdminMaquinaria(currentUser?.proyecto_actual_id || null);
+  const { tab, setTab, msg, registros, proyectosCompleto } = hookProps;
+
   const [showIdentitySelector, setShowIdentitySelector] = useState(false);
 
   // Mostrar selector de identidad si aún no hay usuario guardado (primera vez)
@@ -185,6 +185,15 @@ export default function AdminMaquinaria() {
       setShowIdentitySelector(true);
     }
   }, [loaded, currentUser]);
+
+  // Si un supervisor intenta acceder a pestañas de administrador, forzar redirección
+  useEffect(() => {
+    if (currentUser && currentUser.rol !== "Administrador") {
+      if (["proyectos", "especialidades", "personal", "registros"].includes(tab)) {
+        setTab("monitor");
+      }
+    }
+  }, [tab, currentUser, setTab]);
 
   // Auto-colapsar sidebar al entrar a POD
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -207,6 +216,14 @@ export default function AdminMaquinaria() {
   };
 
   const handleSkipIdentity = () => {
+    const user = {
+      id: "admin-root",
+      nombre_completo: "Administrador General",
+      rol: "Administrador",
+      proyecto_actual_id: null,
+      proyecto: null,
+    };
+    setCurrentUser(user);
     setShowIdentitySelector(false);
   };
 
@@ -215,14 +232,18 @@ export default function AdminMaquinaria() {
     setShowIdentitySelector(true);
   };
 
+  const esAdminGlobal = currentUser?.rol === "Administrador";
+
   const TABS = [
     { id: "monitor",        label: "Consola",     icon: LayoutGrid },
     { id: "mapa",           label: "Mapa Faena",  icon: MapPin },
     { id: "equipos",        label: "Equipos",     icon: HardHat },
-    { id: "proyectos",      label: "Proyectos",   icon: Building2 },
-    { id: "especialidades", label: "Disciplinas", icon: Tag },
-    { id: "personal",       label: "Personal",    icon: Users },
-    { id: "registros",      label: "Registros",   icon: Users },
+    ...(esAdminGlobal ? [
+      { id: "proyectos",      label: "Proyectos",   icon: Building2 },
+      { id: "especialidades", label: "Disciplinas", icon: Tag },
+      { id: "personal",       label: "Personal",    icon: Users },
+      { id: "registros",      label: "Registros",   icon: Users },
+    ] : []),
     { id: "reportes",       label: "Reportes",    icon: FileText },
     { id: "pod",            label: "Sala POD",    icon: CalendarDays },
   ];
@@ -377,9 +398,48 @@ export default function AdminMaquinaria() {
               <div style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: "8px", padding: "10px 12px" }}>
                 <div style={{ fontSize: "10px", color: "#10b981", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "4px" }}>Sesión activa</div>
                 <div style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-text)", lineHeight: 1.3 }}>{currentUser.nombre_completo}</div>
-                {currentUser.proyecto && (
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>{currentUser.proyecto.codigo_cc}</div>
+                
+                {esAdminGlobal ? (
+                  <div style={{ marginTop: "8px" }}>
+                    <label style={{ fontSize: "9px", color: "var(--color-text-muted)", display: "block", marginBottom: "3px", fontWeight: 600 }}>PROYECTO FILTRO:</label>
+                    <select
+                      value={currentUser.proyecto_actual_id || ""}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const projList = proyectosCompleto?.data || [];
+                        const found = projList.find(p => p.id === val);
+                        setCurrentUser({
+                          ...currentUser,
+                          proyecto_actual_id: val || null,
+                          proyecto: found || null
+                        });
+                      }}
+                      style={{
+                        width: "100%",
+                        background: "var(--bg-input, #fff)",
+                        border: "1px solid var(--border-input, #d1d5db)",
+                        borderRadius: "6px",
+                        padding: "4px 6px",
+                        fontSize: "11px",
+                        color: "var(--color-text)",
+                        cursor: "pointer",
+                        outline: "none"
+                      }}
+                    >
+                      <option value="">🌎 Ver Todos los Proyectos</option>
+                      {(proyectosCompleto?.data || []).map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.codigo_cc} — {p.nombre_proyecto}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  currentUser.proyecto && (
+                    <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "2px" }}>{currentUser.proyecto.codigo_cc}</div>
+                  )
                 )}
+
                 <button
                   onClick={handleChangeUser}
                   style={{ marginTop: "8px", width: "100%", background: "transparent", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", color: "#10b981", fontSize: "11px", fontWeight: 700, padding: "5px 8px", cursor: "pointer", transition: "all 0.2s" }}

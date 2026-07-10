@@ -25,7 +25,7 @@ function useApi(endpoint, deps = []) {
   return { data, loading, refresh: (silent = false) => fetch_(silent) };
 }
 
-function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
+function usePaginatedApi(endpoint, initialLimit = 15, deps = [], proyectoActivoId) {
   const [data, setData] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -41,6 +41,9 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
       if (search.trim() !== "") {
         url.searchParams.set("search", search.trim());
       }
+      if (proyectoActivoId) {
+        url.searchParams.set("proyecto_id", proyectoActivoId);
+      }
       const r = await fetch(url.toString());
       const json = await r.json();
       setData(json.data || []);
@@ -50,11 +53,11 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [endpoint, page, search, initialLimit]);
+  }, [endpoint, page, search, initialLimit, proyectoActivoId]);
 
   useEffect(() => {
     fetch_(false);
-  }, [page, search, ...deps]);
+  }, [page, search, proyectoActivoId, ...deps]);
 
   // Resetear página a 1 cuando cambie la búsqueda
   useEffect(() => {
@@ -74,7 +77,7 @@ function usePaginatedApi(endpoint, initialLimit = 15, deps = []) {
   };
 }
 
-function useReportesPaginado(initialLimit = 20, deps = []) {
+function useReportesPaginado(initialLimit = 20, deps = [], proyectoActivoId) {
   const [data, setData] = useState([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -92,6 +95,7 @@ function useReportesPaginado(initialLimit = 20, deps = []) {
       if (equipoId) url.searchParams.set("equipo_id", equipoId);
       if (operadorId) url.searchParams.set("operador_id", operadorId);
       if (fecha) url.searchParams.set("fecha", fecha);
+      if (proyectoActivoId) url.searchParams.set("proyecto_id", proyectoActivoId);
 
       const r = await fetch(url.toString());
       const json = await r.json();
@@ -102,11 +106,11 @@ function useReportesPaginado(initialLimit = 20, deps = []) {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [page, equipoId, operadorId, fecha, initialLimit]);
+  }, [page, equipoId, operadorId, fecha, initialLimit, proyectoActivoId]);
 
   useEffect(() => {
     fetch_(false);
-  }, [page, equipoId, operadorId, fecha, ...deps]);
+  }, [page, equipoId, operadorId, fecha, proyectoActivoId, ...deps]);
 
   // Resetear página a 1 cuando cambien filtros
   useEffect(() => {
@@ -133,7 +137,7 @@ function useReportesPaginado(initialLimit = 20, deps = []) {
 // ================================================================
 // HOOK PRINCIPAL DE ADMINISTRACIÓN
 // ================================================================
-export function useAdminMaquinaria() {
+export function useAdminMaquinaria(proyectoActivoId) {
   const [tab, setTab] = useState("monitor");
   const [pautaEquipo, setPautaEquipo] = useState(null);
   const [editEquipo, setEditEquipo] = useState(null);
@@ -146,13 +150,13 @@ export function useAdminMaquinaria() {
   const pollRef = useRef(null);
 
   // APIs y Datos
-  const equiposCompleto = useApi("/api/equipos", [tab]);
-  const equiposPaginado = usePaginatedApi("/api/equipos", 15, [tab]);
+  const equiposCompleto = useApi(`/api/equipos${proyectoActivoId ? `?proyecto_id=${proyectoActivoId}` : ""}`, [tab, proyectoActivoId]);
+  const equiposPaginado = usePaginatedApi("/api/equipos", 15, [tab], proyectoActivoId);
   const proyectosCompleto = useApi("/api/proyectos", [tab]);
   const proyectosPaginado = usePaginatedApi("/api/proyectos", 15, [tab]);
-  const personalCompleto = useApi("/api/personal", [tab]);
-  const personalPaginado = usePaginatedApi("/api/personal", 15, [tab]);
-  const reportes = useReportesPaginado(20, [tab]);
+  const personalCompleto = useApi(`/api/personal${proyectoActivoId ? `?proyecto_id=${proyectoActivoId}` : ""}`, [tab, proyectoActivoId]);
+  const personalPaginado = usePaginatedApi("/api/personal", 15, [tab], proyectoActivoId);
+  const reportes = useReportesPaginado(20, [tab], proyectoActivoId);
   const registros = useApi("/api/registros", [tab]);
   const especialidades = useApi("/api/especialidades", [tab]);
 
