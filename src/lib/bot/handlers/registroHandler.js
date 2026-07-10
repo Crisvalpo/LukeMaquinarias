@@ -52,27 +52,25 @@ export async function handleRegistroFlow(ctx, res) {
         whatsapp: phoneClean,
         nombre_completo: nombre,
         rol_solicitado: "Operador",
-        estado: "pendiente",
+        estado: "esperando_rol",
         proyecto_id: proyectoId,
         nota_rechazo: null,
         created_at: new Date().toISOString()
       }, { onConflict: "whatsapp" });
 
     if (errUpsert) {
-      console.error("[registroHandler] Error al guardar registro pendiente:", errUpsert.message);
+      console.error("[registroHandler] Error al guardar registro pendiente directo:", errUpsert.message);
       await enviarMensajeWhatsApp(jid, phoneClean, `❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.`, !!audio, geminiKey);
       return res.status(500).json({ success: false });
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombre}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
+      `¡Excelente, *${nombre}*! Ahora selecciona tu rol respondiendo con el número correspondiente:\n\n1️⃣ *Operador*\n2️⃣ *Supervisor*\n3️⃣ *Rigger*\n4️⃣ *Jefe de Área*`,
       !!audio,
       geminiKey
     );
-    return res.status(200).json({ success: true, action: "SOLICITUD_CREADA" });
+    return res.status(200).json({ success: true, action: "ESPERANDO_ROL" });
   }
-
-  const esMensajeDeRegistro = msgText.toUpperCase().startsWith(prefix);
 
   // Caso 1: No existe registro previo
   if (!registroPendiente) {
@@ -82,7 +80,7 @@ export async function handleRegistroFlow(ctx, res) {
         whatsapp: phoneClean,
         nombre_completo: null,
         rol_solicitado: "Operador",
-        estado: "pendiente",
+        estado: "esperando_nombre",
         created_at: new Date().toISOString()
       });
 
@@ -98,9 +96,9 @@ export async function handleRegistroFlow(ctx, res) {
     return res.status(200).json({ success: true, message: "Instrucciones de registro enviadas" });
   }
 
-  // Caso 2: Falta ingresar el nombre completo
-  if (!registroPendiente.nombre_completo) {
-    if (!msgText || esMensajeDeRegistro) {
+  // Caso 2: Esperando nombre completo (estado === "esperando_nombre" o nombre_completo nulo)
+  if (registroPendiente.estado === "esperando_nombre" || !registroPendiente.nombre_completo) {
+    if (!msgText || msgText.toUpperCase().startsWith(prefix)) {
       await enviarMensajeWhatsApp(jid, phoneClean,
         `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. ${INSTRUCCION_NOMBRE}`,
         !!audio,
@@ -115,7 +113,7 @@ export async function handleRegistroFlow(ctx, res) {
       .update({
         nombre_completo: nombre,
         proyecto_id: proyectoId,
-        estado: "pendiente",
+        estado: "esperando_rol",
         nota_rechazo: null,
         created_at: new Date().toISOString()
       })
@@ -128,30 +126,74 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombre}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
+      `¡Excelente, *${nombre}*! Ahora selecciona tu rol respondiendo con el número correspondiente:\n\n1️⃣ *Operador*\n2️⃣ *Supervisor*\n3️⃣ *Rigger*\n4️⃣ *Jefe de Área*`,
       !!audio,
       geminiKey
     );
-    return res.status(200).json({ success: true, action: "SOLICITUD_CREADA" });
+    return res.status(200).json({ success: true, action: "ESPERANDO_ROL" });
   }
 
-  // Caso 3: Solicitud ya está pendiente
+  // Caso 3: Esperando selección de rol (estado === "esperando_rol")
+  if (registroPendiente.estado === "esperando_rol") {
+    const rolesMapa = {
+      "1": "Operador",
+      "2": "Supervisor",
+      "3": "Rigger",
+      "4": "Jefe de Area"
+    };
+
+    const seleccion = msgText.trim();
+    const rolSeleccionado = rolesMapa[seleccion];
+
+    if (!rolSeleccionado) {
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `⚠️ *Selección inválida.*\n\nPor favor, responde únicamente con el número correspondiente a tu rol:\n\n1️⃣ *Operador*\n2️⃣ *Supervisor*\n3️⃣ *Rigger*\n4️⃣ *Jefe de Área*`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, message: "Esperando rol con selección correcta" });
+    }
+
+    const { error: errUpdateRol } = await supabase
+      .from("registros_pendientes")
+      .update({
+        rol_solicitado: rolSeleccionado,
+        estado: "pendiente",
+        created_at: new Date().toISOString()
+      })
+      .eq("whatsapp", phoneClean);
+
+    if (errUpdateRol) {
+      console.error("[registroHandler] Error guardando rol solicitado:", errUpdateRol.message);
+      await enviarMensajeWhatsApp(jid, phoneClean, `❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.`, !!audio, geminiKey);
+      return res.status(500).json({ success: false });
+    }
+
+    await enviarMensajeWhatsApp(jid, phoneClean,
+      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${registroPendiente.nombre_completo}\n• *Rol Solicitado:* ${rolSeleccionado}\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias! 👷‍♂️`,
+      !!audio,
+      geminiKey
+    );
+    return res.status(200).json({ success: true, action: "SOLICITUD_COMPLETA" });
+  }
+
+  // Caso 4: Solicitud ya está pendiente de aprobación por el Admin
   if (registroPendiente.estado === "pendiente") {
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `⏳ *Tu solicitud sigue pendiente*\n\nHola *${registroPendiente.nombre_completo}*, tu solicitud de registro como *Operador* está siendo revisada por un Administrador.\n\nTe notificaremos por este medio inmediatamente después de ser aprobada.`,
+      `⏳ *Tu solicitud sigue pendiente*\n\nHola *${registroPendiente.nombre_completo}*, tu solicitud de registro como *${registroPendiente.rol_solicitado}* está siendo revisada por un Administrador.\n\nTe notificaremos por este medio inmediatamente después de ser aprobada.`,
       !!audio,
       geminiKey
     );
     return res.status(200).json({ success: true, message: "Solicitud pendiente" });
   }
 
-  // Caso 4: Solicitud rechazada
+  // Caso 5: Solicitud rechazada
   if (registroPendiente.estado === "rechazado") {
     const { error: errReset } = await supabase
       .from("registros_pendientes")
       .update({
         nombre_completo: null,
-        estado: "pendiente",
+        estado: "esperando_nombre",
         nota_rechazo: null,
         created_at: new Date().toISOString()
       })
@@ -162,7 +204,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud anterior fue rechazada.\n*Motivo:* ${registroPendiente.nota_rechazo || "No cumple con los requisitos de la faena."}\n\n${INSTRUCCION_NOMBRE}`,
+      `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud anterior fue rechazada.\n*Motivo:* ${registroPendiente.nota_rechazo || "No cumple con los requisitos de la faena."}\n\nPor favor, responde con tu *Nombre Completo* para enviar una nueva solicitud.`,
       !!audio,
       geminiKey
     );
