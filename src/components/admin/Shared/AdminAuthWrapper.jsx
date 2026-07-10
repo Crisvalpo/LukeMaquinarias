@@ -103,23 +103,27 @@ export default function AdminAuthWrapper({ children }) {
 
     // Escuchar cambios de estado en Auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session) {
-        const userEmail = session.user.email;
-        const user = await resolveUserIdentity(userEmail);
-        if (user) {
-          setIsAuthenticated(true);
-          setCurrentUser(user);
-          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+      try {
+        if (session) {
+          const userEmail = session.user.email;
+          const user = await resolveUserIdentity(userEmail);
+          if (user) {
+            setIsAuthenticated(true);
+            setCurrentUser(user);
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+          } else {
+            setLoginError("Tu correo no está registrado en el sistema de personal. Contacta al administrador.");
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            localStorage.removeItem(STORAGE_KEY_USER);
+          }
         } else {
-          setLoginError("Tu correo no está registrado en el sistema de personal. Contacta al administrador.");
           setIsAuthenticated(false);
           setCurrentUser(null);
           localStorage.removeItem(STORAGE_KEY_USER);
         }
-      } else {
-        setIsAuthenticated(false);
-        setCurrentUser(null);
-        localStorage.removeItem(STORAGE_KEY_USER);
+      } finally {
+        setCheckingAuth(false);
       }
     });
 
