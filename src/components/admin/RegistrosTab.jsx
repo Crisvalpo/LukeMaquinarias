@@ -32,8 +32,14 @@ export default function RegistrosTab({ hookProps }) {
     setRechazoId,
     notaRechazo,
     setNotaRechazo,
-    handleRechazarRegistro
+    handleRechazarRegistro,
+    rolActual,
+    proyectoActivoId
   } = hookProps;
+
+  const esJefeDeArea = rolActual === "Jefe de Area";
+  const proyectoPropio = (proyectosCompleto?.data || []).find(p => p.id === proyectoActivoId);
+  const proyectoPropioLabel = proyectoPropio ? `${proyectoPropio.codigo_cc} — ${proyectoPropio.nombre_proyecto}` : "Sin proyecto asignado";
 
   return (
     <>
@@ -55,7 +61,10 @@ export default function RegistrosTab({ hookProps }) {
             </thead>
             <tbody>
               {registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).map((r) => {
-                const edit = editRegistros[r.id] || { rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador", proyecto_actual_id: "" };
+                const edit = editRegistros[r.id] || {
+                  rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador",
+                  proyecto_actual_id: esJefeDeArea ? (proyectoActivoId || "") : ""
+                };
                 return (
                   <tr key={r.id} style={{ borderBottom: "1px solid var(--border-container)" }}>
                     <td style={{ padding: "12px 16px", color: "#60a5fa", fontWeight: 700, fontSize: "13px" }}>
@@ -97,21 +106,25 @@ export default function RegistrosTab({ hookProps }) {
                        />
                      </td>
                     <td style={{ padding: "12px 16px" }}>
-                      <SearchableSelect
-                        options={[
-                          { value: "", label: "Sin asignar" },
-                          ...(proyectosCompleto?.data || []).map(o => ({
-                            value: o.id,
-                            label: `${o.codigo_cc} — ${o.nombre_proyecto}`
-                          }))
-                        ]}
-                        value={edit.proyecto_actual_id || ""}
-                        onChange={val => setEditRegistros(prev => ({
-                          ...prev,
-                          [r.id]: { ...edit, proyecto_actual_id: val }
-                        }))}
-                        selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
-                      />
+                      {esJefeDeArea ? (
+                        <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{proyectoPropioLabel}</span>
+                      ) : (
+                        <SearchableSelect
+                          options={[
+                            { value: "", label: "Sin asignar" },
+                            ...(proyectosCompleto?.data || []).map(o => ({
+                              value: o.id,
+                              label: `${o.codigo_cc} — ${o.nombre_proyecto}`
+                            }))
+                          ]}
+                          value={edit.proyecto_actual_id || ""}
+                          onChange={val => setEditRegistros(prev => ({
+                            ...prev,
+                            [r.id]: { ...edit, proyecto_actual_id: val }
+                          }))}
+                          selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
+                        />
+                      )}
                     </td>
                     <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>
                       <button

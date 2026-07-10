@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   LayoutGrid, MapPin, HardHat, Building2, Users, FileText,
   MessageSquare, CalendarDays, ChevronLeft, ChevronRight,
-  User, Loader2, Tag
+  User, Loader2, Tag, TrendingUp
 } from "lucide-react";
 import { useAdminMaquinaria } from "../components/admin/hooks/useAdminMaquinaria";
 import { useCurrentUser } from "../components/admin/hooks/useCurrentUser";
@@ -18,6 +18,7 @@ import RegistrosTab from "../components/admin/RegistrosTab";
 import ReportesTab from "../components/admin/ReportesTab";
 import PlanificacionPodTab from "../components/admin/PlanificacionPodTab";
 import EspecialidadesTab from "../components/admin/EspecialidadesTab";
+import IndicadoresTab from "../components/admin/IndicadoresTab";
 
 const SIDEBAR_FULL = 220;
 const SIDEBAR_MINI = 58;
@@ -27,17 +28,25 @@ const STORAGE_KEY_USER = "luke_user";
 // PAGE PRINCIPAL
 // ================================================================
 export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeUser, onSignOut }) {
-  const hookProps = useAdminMaquinaria(currentUser?.proyecto_actual_id || null);
+  const hookProps = useAdminMaquinaria(currentUser?.proyecto_actual_id || null, currentUser?.rol || null);
   const { tab, setTab, msg, registros, proyectosCompleto } = hookProps;
 
-  // Si un supervisor intenta acceder a pestañas de administrador, forzar redirección
+  const esAdminGlobal = currentUser?.rol === "Administrador";
+  const puedeGestionarRegistros = esAdminGlobal || currentUser?.rol === "Jefe de Area";
+  const puedeVerIndicadores = esAdminGlobal || currentUser?.rol === "Jefe de Area";
+
+  // Si un usuario sin permisos intenta acceder a pestañas restringidas, forzar redirección
   useEffect(() => {
-    if (currentUser && currentUser.rol !== "Administrador") {
-      if (["proyectos", "especialidades", "personal", "registros"].includes(tab)) {
-        setTab("monitor");
-      }
+    if (!currentUser) return;
+    const tabsSoloAdmin = ["proyectos", "especialidades", "personal"];
+    if (tabsSoloAdmin.includes(tab) && !esAdminGlobal) {
+      setTab("monitor");
+    } else if (tab === "registros" && !puedeGestionarRegistros) {
+      setTab("monitor");
+    } else if (tab === "indicadores" && !puedeVerIndicadores) {
+      setTab("monitor");
     }
-  }, [tab, currentUser, setTab]);
+  }, [tab, currentUser, esAdminGlobal, puedeGestionarRegistros, puedeVerIndicadores, setTab]);
 
   // Auto-colapsar sidebar al entrar a POD
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -47,8 +56,6 @@ export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeU
 
   const sidebarW = sidebarCollapsed ? SIDEBAR_MINI : SIDEBAR_FULL;
 
-  const esAdminGlobal = currentUser?.rol === "Administrador";
-
   const TABS = [
     { id: "monitor",        label: "Consola",     icon: LayoutGrid },
     { id: "mapa",           label: "Mapa Faena",  icon: MapPin },
@@ -57,7 +64,12 @@ export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeU
       { id: "proyectos",      label: "Proyectos",   icon: Building2 },
       { id: "especialidades", label: "Disciplinas", icon: Tag },
       { id: "personal",       label: "Personal",    icon: Users },
+    ] : []),
+    ...(puedeGestionarRegistros ? [
       { id: "registros",      label: "Registros",   icon: Users },
+    ] : []),
+    ...(puedeVerIndicadores ? [
+      { id: "indicadores",    label: "Indicadores", icon: TrendingUp },
     ] : []),
     { id: "reportes",       label: "Reportes",    icon: FileText },
     { id: "pod",            label: "Sala POD",    icon: CalendarDays },
@@ -72,6 +84,7 @@ export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeU
       case "especialidades": return <EspecialidadesTab hookProps={hookProps} />;
       case "personal":       return <PersonalTab hookProps={hookProps} />;
       case "registros":      return <RegistrosTab hookProps={hookProps} />;
+      case "indicadores":    return <IndicadoresTab currentUser={currentUser} />;
       case "reportes":       return <ReportesTab hookProps={hookProps} />;
       case "pod":            return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
       default:               return <ConsoleTab hookProps={hookProps} />;

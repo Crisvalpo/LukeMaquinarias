@@ -210,6 +210,7 @@ export default async function handler(req, res) {
         // ── Interpretar respuesta: modo libre, numérico o texto libre ──
         const tareasEnviadas = consultaPendiente.tareas_enviadas || [];
         let actividadFinal = respuestaTexto;
+        let tareaProgramadaId = null;
         let modoLibreActivo = consultaPendiente.esperando_libre;
 
         if (!modoLibreActivo) {
@@ -229,6 +230,7 @@ export default async function handler(req, res) {
               const tareaElegida = tareasEnviadas.find(t => t.orden === numero);
               if (tareaElegida) {
                 actividadFinal = tareaElegida.nombre; // tarea programada por nombre
+                tareaProgramadaId = tareaElegida.id || null;
               } else {
                 await enviarMensajeWhatsApp(jid, phoneClean,
                   `⚠️ Número inválido. Responde con un número del *1* al *${tareasEnviadas.length}*, o *0* para otra actividad.`,
@@ -243,9 +245,32 @@ export default async function handler(req, res) {
           // Modo libre: prefijo para identificar en reportes
           actividadFinal = `[NO PROGRAMADA] ${respuestaTexto}`;
         }
+
+        // ── Crear la actividad estructurada (entidad `actividades`) y enlazarla ──
+        const { data: bloqueInfo } = await supabase
+          .from("planificacion_bloques_pod")
+          .select("fecha, especialidad_id, equipos(proyecto_actual_id)")
+          .eq("id", consultaPendiente.planificacion_id)
+          .maybeSingle();
+
+        const { data: nuevaActividad } = await supabase
+          .from("actividades")
+          .insert({
+            fecha: bloqueInfo?.fecha,
+            proyecto_id: bloqueInfo?.equipos?.proyecto_actual_id || null,
+            especialidad_id: bloqueInfo?.especialidad_id || null,
+            tarea_programada_id: tareaProgramadaId,
+            descripcion: tareaProgramadaId ? null : actividadFinal,
+            programada: !!tareaProgramadaId,
+          })
+          .select("id")
+          .single();
+
+        const actividadId = nuevaActividad?.id || null;
+
         const { error: errPlan } = await supabase
           .from("planificacion_bloques_pod")
-          .update({ actividad_especifica: actividadFinal, actividad_respondida_at: new Date().toISOString() })
+          .update({ actividad_especifica: actividadFinal, actividad_id: actividadId, actividad_respondida_at: new Date().toISOString() })
           .eq("id", consultaPendiente.planificacion_id);
 
         if (errPlan) {
@@ -256,7 +281,7 @@ export default async function handler(req, res) {
         if (consultaPendiente.evento_operador_id) {
           const { error: errEv } = await supabase
             .from("eventos_jornada")
-            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${actividadFinal}` })
+            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${actividadFinal}`, actividad_id: actividadId })
             .eq("id", consultaPendiente.evento_operador_id);
 
           if (errEv) {

@@ -137,7 +137,7 @@ function useReportesPaginado(initialLimit = 20, deps = [], proyectoActivoId) {
 // ================================================================
 // HOOK PRINCIPAL DE ADMINISTRACIÓN
 // ================================================================
-export function useAdminMaquinaria(proyectoActivoId) {
+export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
   const [tab, setTab] = useState("monitor");
   const [pautaEquipo, setPautaEquipo] = useState(null);
   const [editEquipo, setEditEquipo] = useState(null);
@@ -157,7 +157,12 @@ export function useAdminMaquinaria(proyectoActivoId) {
   const personalCompleto = useApi(`/api/personal${proyectoActivoId ? `?proyecto_id=${proyectoActivoId}` : ""}`, [tab, proyectoActivoId]);
   const personalPaginado = usePaginatedApi("/api/personal", 15, [tab], proyectoActivoId);
   const reportes = useReportesPaginado(20, [tab], proyectoActivoId);
-  const registros = useApi("/api/registros", [tab]);
+  // Jefe de Area solo ve/gestiona las solicitudes de su propio proyecto; Administrador ve todas
+  const registrosProyectoFiltro = rolActual === "Jefe de Area" ? proyectoActivoId : null;
+  const registros = useApi(
+    `/api/registros${registrosProyectoFiltro ? `?proyecto_id=${registrosProyectoFiltro}` : ""}`,
+    [tab, registrosProyectoFiltro]
+  );
   const especialidades = useApi("/api/especialidades", [tab]);
 
   // Estados de edición para la pestaña de registros
@@ -374,7 +379,9 @@ export function useAdminMaquinaria(proyectoActivoId) {
           rut: editInfo.rut,
           nombre_completo: editInfo.nombre_completo,
           rol_solicitado: editInfo.rol_solicitado,
-          proyecto_actual_id: editInfo.proyecto_actual_id || null
+          proyecto_actual_id: editInfo.proyecto_actual_id || null,
+          actor_rol: rolActual,
+          actor_proyecto_id: proyectoActivoId || null
         })
       });
       const json = await r.json();
@@ -563,6 +570,8 @@ export function useAdminMaquinaria(proyectoActivoId) {
     personalPaginado,
     reportes,
     registros,
+    rolActual,
+    proyectoActivoId,
 
     // Estados adicionales
     editRegistros,

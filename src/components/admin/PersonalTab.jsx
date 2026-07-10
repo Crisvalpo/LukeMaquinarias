@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, Pencil, Save, X, Trash2, MoreVertical } from "lucide-react";
+import { Plus, Pencil, Save, X, Trash2, MoreVertical, KeyRound } from "lucide-react";
 import FormRow from "./Shared/FormRow";
 import SearchableSelect from "./Shared/SearchableSelect";
 
@@ -128,8 +128,45 @@ export default function PersonalTab({ hookProps }) {
 
   const [showForm, setShowForm] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [inviteTarget, setInviteTarget] = useState(null); // { id, nombre_completo, email }
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState("");
 
   const rolColors = { "Administrador": "#10b981", "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
+
+  const handleInvitarAcceso = async () => {
+    if (!inviteEmail || !inviteEmail.trim()) {
+      setInviteMsg("❌ Ingresa un correo válido");
+      return;
+    }
+    setInviteSaving(true);
+    setInviteMsg("");
+    try {
+      const r = await fetch("/api/admin/invitar-acceso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personal_id: inviteTarget.id,
+          email: inviteEmail,
+          redirectTo: `${window.location.origin}/reset-password`
+        })
+      });
+      const json = await r.json();
+      if (json.success) {
+        setInviteMsg("✅ Invitación enviada por correo");
+        personalPaginado.refresh();
+        personalCompleto.refresh();
+        setTimeout(() => setInviteTarget(null), 1200);
+      } else {
+        setInviteMsg(`❌ ${json.error || json.message}`);
+      }
+    } catch (e) {
+      setInviteMsg(`❌ ${e.message}`);
+    } finally {
+      setInviteSaving(false);
+    }
+  };
 
   return (
     <>
@@ -518,6 +555,26 @@ export default function PersonalTab({ hookProps }) {
                                 <Pencil size={12} color="var(--color-primary)" />
                                 <span>Editar</span>
                               </button>
+                              <button
+                                onClick={() => {
+                                  setInviteTarget({ id: p.id, nombre_completo: p.nombre_completo });
+                                  setInviteEmail(p.email || "");
+                                  setInviteMsg("");
+                                  setActiveMenuId(null);
+                                }}
+                                style={{
+                                  background: "transparent", border: "none",
+                                  color: "var(--color-text)", borderRadius: "6px", padding: "8px 12px",
+                                  fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                                  display: "flex", alignItems: "center", gap: "8px", width: "100%",
+                                  textAlign: "left"
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+                                onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              >
+                                <KeyRound size={12} color="var(--color-primary)" />
+                                <span>Dar acceso web</span>
+                              </button>
                               <hr style={{ border: "none", borderTop: "1px solid var(--border-container, #334155)", margin: "4px 0" }} />
                               <button
                                 onClick={() => { handleDelete("/api/personal", p.id, () => { personalPaginado.refresh(); personalCompleto.refresh(); }); setActiveMenuId(null); }}
@@ -554,6 +611,61 @@ export default function PersonalTab({ hookProps }) {
         </table>
         <Paginador api={personalPaginado} label="trabajadores" />
       </div>
+
+      {inviteTarget && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000, padding: "20px",
+        }}>
+          <div style={{
+            background: "var(--bg-container)", border: "1px solid var(--border-container)", borderRadius: "var(--border-radius-base)", boxShadow: "0 4px 20px rgba(0,0,0,0.02)", padding: "24px", width: "100%", maxWidth: "420px",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div>
+                <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "16px" }}>Dar acceso a la consola web</div>
+                <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginTop: "2px" }}>
+                  {inviteTarget.nombre_completo}: se enviará una invitación por correo para crear su contraseña.
+                </div>
+              </div>
+              <button onClick={() => setInviteTarget(null)} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <input
+              type="email"
+              style={inputStyle}
+              placeholder="correo@ejemplo.com"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+            />
+
+            {inviteMsg && (
+              <div style={{ marginTop: "10px", fontSize: "12px", fontWeight: 600, color: inviteMsg.startsWith("✅") ? "#16a34a" : "#ef4444" }}>
+                {inviteMsg}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "8px", marginTop: "16px", justifyContent: "flex-end" }}>
+              <button onClick={() => setInviteTarget(null)} style={{
+                background: "transparent", border: "1px solid var(--border-input)",
+                color: "var(--color-text-muted)", borderRadius: "8px", padding: "8px 16px",
+                cursor: "pointer", fontSize: "13px",
+              }}>
+                Cancelar
+              </button>
+              <button onClick={handleInvitarAcceso} disabled={inviteSaving} style={{
+                background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none",
+                color: "white", borderRadius: "8px", padding: "8px 20px",
+                cursor: "pointer", fontSize: "13px", fontWeight: 700,
+              }}>
+                {inviteSaving ? "Enviando…" : "Enviar Invitación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

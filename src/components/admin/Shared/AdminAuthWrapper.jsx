@@ -13,6 +13,8 @@ export default function AdminAuthWrapper({ children }) {
   const [loginError, setLoginError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [forgotMsg, setForgotMsg] = useState("");
+  const [sendingReset, setSendingReset] = useState(false);
 
   const resolveUserIdentity = async (userEmail) => {
     const cleanEmail = userEmail.trim().toLowerCase();
@@ -154,6 +156,25 @@ export default function AdminAuthWrapper({ children }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setForgotMsg("");
+    if (!email || !email.trim()) {
+      setForgotMsg("Ingresa tu correo arriba y luego presiona el link de recuperación.");
+      return;
+    }
+    setSendingReset(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/reset-password`
+      });
+      setForgotMsg(error ? `Error: ${error.message}` : "Si el correo está registrado, te enviamos un link para restablecer tu contraseña.");
+    } catch (err) {
+      setForgotMsg("Ocurrió un error al solicitar la recuperación.");
+    } finally {
+      setSendingReset(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem(STORAGE_KEY_USER);
@@ -276,6 +297,25 @@ export default function AdminAuthWrapper({ children }) {
                 <Key size={14} />
                 <span>Ingresar</span>
               </button>
+
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={sendingReset}
+                style={{
+                  background: "none", border: "none", color: "#94a3b8",
+                  fontSize: "12px", cursor: "pointer", textDecoration: "underline",
+                  padding: 0, marginTop: "-4px", alignSelf: "center"
+                }}
+              >
+                {sendingReset ? "Enviando…" : "¿Olvidaste tu contraseña?"}
+              </button>
+
+              {forgotMsg && (
+                <div style={{ fontSize: "12px", color: "#94a3b8", textAlign: "left", lineHeight: 1.4 }}>
+                  {forgotMsg}
+                </div>
+              )}
             </form>
           </div>
         </div>

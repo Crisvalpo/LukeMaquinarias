@@ -549,12 +549,13 @@ export async function handleJornadaFlow(ctx, res) {
       .maybeSingle();
 
     if (bloque) {
-      if (bloque.actividad_especifica && bloque.actividad_especifica.trim() !== "") {
-        // Escenario 1: Actividad pre-definida en planificación
+      if (bloque.actividad_id) {
+        // Escenario 1: Actividad ya asignada en planificación (bloque.actividad_id)
         await supabase.from("eventos_jornada").insert({
           reporte_id: sesion.reporte_activo_id,
           estado_hito: estadoHito,
           especialidad_id: resultado.especialidad_id,
+          actividad_id: bloque.actividad_id,
           hora_evento: new Date().toISOString(),
           nota_transcripcion: `Actividad planificada: ${bloque.actividad_especifica}`,
           ...(resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined && {

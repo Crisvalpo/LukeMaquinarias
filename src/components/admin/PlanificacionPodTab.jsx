@@ -599,7 +599,10 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
     hora_inicio: horaStr(initialHours.ini),
     hora_fin: horaStr(initialHours.fin),
     especialidad_id: getInitialEspId(),
-    actividad_especifica: getInitialActividad(),
+    tarea_programada_id: "",
+    descripcion: getInitialActividad(),
+    cantidad_planificada: "",
+    unidad: "",
     equipo_id: data.equipo?.id || "",
   });
 
@@ -714,7 +717,7 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
           <select
             value={form.especialidad_id}
             onChange={e => {
-              setForm(f => ({ ...f, especialidad_id: e.target.value, actividad_especifica: "" }));
+              setForm(f => ({ ...f, especialidad_id: e.target.value, tarea_programada_id: "", descripcion: "" }));
               setModoLibreModal(false);
             }}
             style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
@@ -730,20 +733,20 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
           {/* Select de tareas programadas si hay para la especialidad */}
           {tareasModal.length > 0 && !modoLibreModal ? (
             <select
-              value={form.actividad_especifica}
+              value={form.tarea_programada_id}
               onChange={e => {
                 if (e.target.value === "__libre__") {
                   setModoLibreModal(true);
-                  setForm(f => ({ ...f, actividad_especifica: "" }));
+                  setForm(f => ({ ...f, tarea_programada_id: "", descripcion: "" }));
                 } else {
-                  setForm(f => ({ ...f, actividad_especifica: e.target.value }));
+                  setForm(f => ({ ...f, tarea_programada_id: e.target.value, descripcion: "" }));
                 }
               }}
               style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
             >
               <option value="">— Seleccionar tarea programada —</option>
               {tareasModal.map(t => (
-                <option key={t.id} value={t.nombre}>
+                <option key={t.id} value={t.id}>
                   {t.codigo ? `[${t.codigo}] ` : ""}{t.nombre}
                 </option>
               ))}
@@ -752,15 +755,15 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
           ) : (
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
               <input
-                type="text" value={form.actividad_especifica}
-                onChange={e => setForm(f => ({ ...f, actividad_especifica: e.target.value }))}
+                type="text" value={form.descripcion}
+                onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
                 placeholder={tareasModal.length > 0 ? "Describe la actividad no programada" : "Ej: Instalación vigas eje 5"}
                 style={{ flex: 1, background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
               />
               {tareasModal.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => { setModoLibreModal(false); setForm(f => ({ ...f, actividad_especifica: "" })); }}
+                  onClick={() => { setModoLibreModal(false); setForm(f => ({ ...f, tarea_programada_id: "", descripcion: "" })); }}
                   title="Volver al listado"
                   style={{ background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "12px", whiteSpace: "nowrap" }}
                 >
@@ -769,6 +772,27 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
               )}
             </div>
           )}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Cantidad planificada</label>
+            <input
+              type="number" value={form.cantidad_planificada}
+              onChange={e => setForm(f => ({ ...f, cantidad_planificada: e.target.value }))}
+              placeholder="Opcional, ej: 40"
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Unidad</label>
+            <input
+              type="text" value={form.unidad}
+              onChange={e => setForm(f => ({ ...f, unidad: e.target.value }))}
+              placeholder="Ej: ml, m3, un"
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
         </div>
 
         {/* Advertencias de Solapamiento e Horarios */}

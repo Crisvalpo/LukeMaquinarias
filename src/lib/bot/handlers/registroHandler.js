@@ -1,5 +1,27 @@
 import { enviarMensajeWhatsApp } from "../services/messageService";
 
+const INSTRUCCION_NOMBRE = "Por favor, responde a este mensaje indicando tu *Nombre Completo* (y opcionalmente el código de tu proyecto separado por guion bajo, ej: *Juan Pérez_EIMI00413*) para enviar tu solicitud al Administrador.";
+
+async function extraerNombreYProyecto(supabase, texto) {
+  const partes = texto.split("_");
+  const nombre = partes[0].trim();
+  let proyectoId = null;
+
+  if (partes.length > 1) {
+    const codigo = partes[1].trim().toUpperCase();
+    if (codigo) {
+      const { data: proy } = await supabase
+        .from("proyectos")
+        .select("id")
+        .eq("codigo_cc", codigo)
+        .maybeSingle();
+      if (proy) proyectoId = proy.id;
+    }
+  }
+
+  return { nombre, proyectoId };
+}
+
 export async function handleRegistroFlow(ctx, res) {
   const { supabase, phoneClean, jid, message, audio, geminiKey } = ctx;
 
@@ -21,15 +43,17 @@ export async function handleRegistroFlow(ctx, res) {
     }
   }
 
-  // Atajo directo: REGISTRO: Juan Pérez
+  // Atajo directo: REGISTRO: Juan Pérez  o  REGISTRO: Juan Pérez_EIMI00413
   if (nombreDirecto) {
+    const { nombre, proyectoId } = await extraerNombreYProyecto(supabase, nombreDirecto);
     const { error: errUpsert } = await supabase
       .from("registros_pendientes")
       .upsert({
         whatsapp: phoneClean,
-        nombre_completo: nombreDirecto,
+        nombre_completo: nombre,
         rol_solicitado: "Operador",
         estado: "pendiente",
+        proyecto_id: proyectoId,
         nota_rechazo: null,
         created_at: new Date().toISOString()
       }, { onConflict: "whatsapp" });
@@ -41,7 +65,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombreDirecto}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
+      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombre}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
       !!audio,
       geminiKey
     );
@@ -67,7 +91,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. Por favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud al Administrador.`,
+      `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. ${INSTRUCCION_NOMBRE}`,
       !!audio,
       geminiKey
     );
@@ -78,17 +102,19 @@ export async function handleRegistroFlow(ctx, res) {
   if (!registroPendiente.nombre_completo) {
     if (!msgText || esMensajeDeRegistro) {
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. Por favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud al Administrador.`,
+        `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. ${INSTRUCCION_NOMBRE}`,
         !!audio,
         geminiKey
       );
       return res.status(200).json({ success: true, message: "Esperando nombre completo" });
     }
 
+    const { nombre, proyectoId } = await extraerNombreYProyecto(supabase, msgText);
     const { error: errUpdate } = await supabase
       .from("registros_pendientes")
       .update({
-        nombre_completo: msgText,
+        nombre_completo: nombre,
+        proyecto_id: proyectoId,
         estado: "pendiente",
         nota_rechazo: null,
         created_at: new Date().toISOString()
@@ -102,7 +128,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${msgText}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
+      `✅ *Solicitud de Registro Recibida*\n\n• *Nombre:* ${nombre}\n• *Rol:* Operador\n\nTu solicitud ha sido enviada al Administrador para su aprobación. Te notificaremos por este medio una vez aprobada. ¡Gracias!`,
       !!audio,
       geminiKey
     );
@@ -136,7 +162,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud anterior fue rechazada.\n*Motivo:* ${registroPendiente.nota_rechazo || "No cumple con los requisitos de la faena."}\n\nPor favor, responde a este mensaje indicando tu *Nombre Completo* para enviar una nueva solicitud.`,
+      `❌ *Solicitud Anterior Rechazada*\n\nTu solicitud anterior fue rechazada.\n*Motivo:* ${registroPendiente.nota_rechazo || "No cumple con los requisitos de la faena."}\n\n${INSTRUCCION_NOMBRE}`,
       !!audio,
       geminiKey
     );

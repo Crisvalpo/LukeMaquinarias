@@ -22,12 +22,20 @@ export default async function handler(req, res) {
   const supabase = createAdminClient();
 
   if (req.method === "GET") {
+    const { proyecto_id } = req.query;
+
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("registros_pendientes")
         .select("*")
         .not("nombre_completo", "is", null)
         .order("created_at", { ascending: false });
+
+      if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
+        query = query.eq("proyecto_id", proyecto_id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return res.status(200).json({ success: true, data });
@@ -38,7 +46,16 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { action, id, rut, nombre_completo, rol_solicitado, nota_rechazo, proyecto_actual_id } = req.body;
+    const {
+      action, id, rut, nombre_completo, rol_solicitado, nota_rechazo,
+      proyecto_actual_id, actor_rol, actor_proyecto_id
+    } = req.body;
+
+    // Un Jefe de Area solo puede asignar personal a su propio proyecto,
+    // sin importar qué proyecto_actual_id haya enviado el cliente.
+    const proyectoAsignado = actor_rol === "Jefe de Area"
+      ? (actor_proyecto_id || null)
+      : (proyecto_actual_id || null);
 
     if (!id || !action) {
       return res.status(400).json({ success: false, message: "Falta id o action en el body" });
@@ -82,7 +99,7 @@ export default async function handler(req, res) {
               whatsapp: registro.whatsapp,
               rol: rolFinal,
               activo: true, // Reactivar
-              proyecto_actual_id: proyecto_actual_id || null
+              proyecto_actual_id: proyectoAsignado
             })
             .eq("id", existente.id);
           errUpsert = error;
@@ -96,7 +113,7 @@ export default async function handler(req, res) {
               whatsapp: registro.whatsapp,
               rol: rolFinal,
               activo: true,
-              proyecto_actual_id: proyecto_actual_id || null
+              proyecto_actual_id: proyectoAsignado
             });
           errUpsert = error;
         }
