@@ -1,54 +1,98 @@
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
-import { Lock, Loader2, Key, User, ChevronRight, LogOut } from "lucide-react";
+import { Lock, Loader2, Key, User, ChevronRight, Mail } from "lucide-react";
+import { createBrowserClient } from "../../../lib/supabase-client";
 
 const STORAGE_KEY_USER = "luke_user";
 
 export default function AdminAuthWrapper({ children }) {
+  const [supabase] = useState(() => createBrowserClient());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Paso 2: selección de identidad
-  const [step, setStep] = useState(1); // 1 = contraseña, 2 = identidad
+  const [step, setStep] = useState(1); // 1 = contraseña/auth, 2 = identidad
   const [personalList, setPersonalList] = useState([]);
   const [loadingPersonal, setLoadingPersonal] = useState(false);
   const [searchPersonal, setSearchPersonal] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const authStatus = localStorage.getItem("luke_auth");
-    if (authStatus === "authorized") {
-      setIsAuthenticated(true);
-      // Si ya hay usuario guardado, cargar
+    // Verificar sesión existente en Supabase Auth
+    async function checkSession() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY_USER);
-        if (raw) setCurrentUser(JSON.parse(raw));
-      } catch {}
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setIsAuthenticated(true);
+          const raw = localStorage.getItem(STORAGE_KEY_USER);
+          if (raw) {
+            setCurrentUser(JSON.parse(raw));
+          } else {
+            // Ir al paso 2 si no tiene identidad seleccionada
+            setStep(2);
+            loadPersonal();
+          }
+        }
+      } catch (err) {
+        console.error("Error al obtener la sesión de Supabase:", err);
+      } finally {
+        setCheckingAuth(false);
+      }
     }
-    setCheckingAuth(false);
-  }, []);
+    checkSession();
 
-  const handleLogin = (e) => {
+    // Escuchar cambios de estado en Auth
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        localStorage.removeItem(STORAGE_KEY_USER);
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [supabase]);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (password === "LukeAPP") {
-      localStorage.setItem("luke_auth", "authorized");
-      setIsAuthenticated(true);
-      setLoginError("");
-      // Si no hay usuario guardado, ir al paso 2
-      try {
+    setLoginError("");
+    
+    if (!email || !password) {
+      setLoginError("Por favor ingrese correo y contraseña");
+      return;
+    }
+
+    setCheckingAuth(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        setLoginError(error.message || "Error al iniciar sesión");
+      } else {
+        setIsAuthenticated(true);
+        // Si no hay identidad guardada, ir al selector de identidad
         const raw = localStorage.getItem(STORAGE_KEY_USER);
         if (!raw) {
           setStep(2);
-          loadPersonal();
+          await loadPersonal();
+        } else {
+          setCurrentUser(JSON.parse(raw));
         }
-      } catch {
-        setStep(2);
-        loadPersonal();
       }
-    } else {
-      setLoginError("Contraseña incorrecta. Intente nuevamente.");
+    } catch (err) {
+      setLoginError("Ocurrió un error inesperado al conectar con Supabase");
+    } finally {
+      setCheckingAuth(false);
     }
   };
 
@@ -76,6 +120,15 @@ export default function AdminAuthWrapper({ children }) {
   };
 
   const handleSkipIdentity = () => {
+    const user = {
+      id: "admin-root",
+      nombre_completo: "Administrador General",
+      rol: "Administrador",
+      proyecto_actual_id: null,
+      proyecto: null,
+    };
+    setCurrentUser(user);
+    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
     setStep(1);
   };
 
@@ -197,18 +250,19 @@ export default function AdminAuthWrapper({ children }) {
               ))}
             </div>
 
-            {/* Omitir */}
+            {/* Omitir / Administrador General */}
             <button
               onClick={handleSkipIdentity}
               style={{
                 width: "100%", background: "transparent", border: "1px solid #1c2e52",
-                color: "#64748b", borderRadius: "8px", padding: "10px",
+                color: "#94a3b8", borderRadius: "8px", padding: "10px",
                 fontSize: "13px", cursor: "pointer", transition: "all 0.2s",
+                fontWeight: 600
               }}
-              onMouseEnter={e => e.currentTarget.style.color = "#94a3b8"}
-              onMouseLeave={e => e.currentTarget.style.color = "#64748b"}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(16,185,129,0.5)"; e.currentTarget.style.color = "#10b981"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#1c2e52"; e.currentTarget.style.color = "#94a3b8"; }}
             >
-              Continuar sin seleccionar (ver todos los proyectos)
+              🔑 Ingresar como Administrador General (Ver todo)
             </button>
           </div>
         </div>
@@ -242,14 +296,29 @@ export default function AdminAuthWrapper({ children }) {
 
             <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "8px", color: "white" }}>Acceso Restringido</h2>
             <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "26px", lineHeight: 1.5 }}>
-              Ingrese la contraseña de seguridad master para acceder a las funciones de administración.
+              Ingrese sus credenciales de Supabase Auth para acceder a las funciones del sistema.
             </p>
 
             <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <div style={{ position: "relative", textAlign: "left" }}>
                 <input
+                  type="email"
+                  placeholder="Correo electrónico"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={inputSt}
+                  onFocus={e => { e.target.style.borderColor = "#ff303e"; e.target.style.boxShadow = "0 0 0 2px rgba(255, 48, 62, 0.2)"; }}
+                  onBlur={e => { e.target.style.borderColor = "#1c2e52"; e.target.style.boxShadow = "none"; }}
+                />
+                <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#64748b", display: "flex", alignItems: "center" }}>
+                  <Mail size={16} />
+                </div>
+              </div>
+
+              <div style={{ position: "relative", textAlign: "left" }}>
+                <input
                   type="password"
-                  placeholder="Contraseña master"
+                  placeholder="Contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={inputSt}
@@ -289,12 +358,19 @@ export default function AdminAuthWrapper({ children }) {
     );
   }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem(STORAGE_KEY_USER);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
+
   // ──── Autenticado: pasar currentUser como prop a los children ────
   return (
     <>
       {React.Children.map(children, child =>
         React.isValidElement(child)
-          ? React.cloneElement(child, { currentUser, onChangeUser: handleChangeUser })
+          ? React.cloneElement(child, { currentUser, setCurrentUser, onChangeUser: handleChangeUser, onSignOut: handleSignOut })
           : child
       )}
     </>

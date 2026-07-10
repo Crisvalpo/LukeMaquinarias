@@ -24,167 +24,11 @@ const SIDEBAR_MINI = 58;
 const STORAGE_KEY_USER = "luke_user";
 
 // ================================================================
-// Panel de selección de identidad (overlay)
-// ================================================================
-function IdentitySelector({ onSelect, onSkip }) {
-  const [personal, setPersonal] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const COLOR_FALLBACK = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899","#06b6d4","#f97316"];
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const r = await fetch("/api/personal");
-        const j = await r.json();
-        if (j.success) {
-          // Solo supervisores y jefes de área
-          setPersonal((j.data || []).filter(p =>
-            p.rol === "Supervisor" || p.rol === "Jefe de Area"
-          ));
-        }
-      } catch {}
-      setLoading(false);
-    })();
-  }, []);
-
-  const filtrados = personal.filter(p =>
-    p.nombre_completo.toLowerCase().includes(search.toLowerCase()) ||
-    (p.proyectos?.codigo_cc || "").toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 9999,
-      background: "rgba(6, 9, 20, 0.85)", backdropFilter: "blur(8px)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Inter', sans-serif",
-    }}>
-      <div style={{
-        background: "rgba(15, 25, 45, 0.98)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        borderRadius: "20px", padding: "32px",
-        width: "min(480px, 94vw)",
-        boxShadow: "0 32px 80px rgba(0,0,0,0.7)",
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "24px" }}>
-          <div style={{
-            width: "48px", height: "48px", borderRadius: "14px",
-            background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 14px",
-          }}>
-            <User size={22} color="#10b981" />
-          </div>
-          <h2 style={{ fontSize: "18px", fontWeight: 800, color: "white", margin: "0 0 6px" }}>
-            ¿Quién eres?
-          </h2>
-          <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
-            Filtrará el POD según tu proyecto asignado
-          </p>
-        </div>
-
-        {/* Buscador */}
-        <input
-          type="text"
-          placeholder="Buscar por nombre o proyecto..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          autoFocus
-          style={{
-            width: "100%", boxSizing: "border-box",
-            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "10px", color: "white", padding: "11px 14px",
-            fontSize: "13px", outline: "none", marginBottom: "14px",
-          }}
-          onFocus={e => e.target.style.borderColor = "rgba(16,185,129,0.5)"}
-          onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
-        />
-
-        {/* Lista */}
-        <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "7px", marginBottom: "14px" }}>
-          {loading ? (
-            <div style={{ display: "flex", justifyContent: "center", padding: "24px", color: "#64748b", gap: "8px", alignItems: "center" }}>
-              <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Cargando...
-            </div>
-          ) : filtrados.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px", color: "#64748b", fontSize: "13px" }}>Sin resultados</div>
-          ) : filtrados.map((persona, idx) => {
-            const color = persona.especialidades?.color || COLOR_FALLBACK[idx % COLOR_FALLBACK.length];
-            return (
-              <button
-                key={persona.id}
-                onClick={() => onSelect(persona)}
-                style={{
-                  display: "flex", alignItems: "center", gap: "12px",
-                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: "10px", padding: "11px 14px", cursor: "pointer",
-                  color: "white", textAlign: "left", width: "100%", transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = `${color}18`; e.currentTarget.style.borderColor = `${color}50`; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"; }}
-              >
-                <div style={{
-                  width: "36px", height: "36px", borderRadius: "50%", flexShrink: 0,
-                  background: `${color}25`, border: `1.5px solid ${color}50`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "12px", fontWeight: 800, color,
-                }}>
-                  {persona.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {persona.nombre_completo}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#64748b", marginTop: "1px" }}>
-                    {persona.rol}
-                    {persona.proyectos && <span style={{ color }}> · {persona.proyectos.codigo_cc}</span>}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Omitir */}
-        <button
-          onClick={onSkip}
-          style={{
-            width: "100%", background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: "8px", color: "#94a3b8", padding: "10px",
-            fontSize: "13px", cursor: "pointer", transition: "all 0.2s",
-            fontWeight: 600,
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(16,185,129,0.5)"; e.currentTarget.style.color = "#10b981"; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "#94a3b8"; }}
-        >
-          🔑 Ingresar como Administrador General (Ver todo)
-        </button>
-      </div>
-      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
-}
-
-// ================================================================
 // PAGE PRINCIPAL
 // ================================================================
-export default function AdminMaquinaria() {
-  const { currentUser, setCurrentUser, clearUser, loaded } = useCurrentUser();
+export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeUser, onSignOut }) {
   const hookProps = useAdminMaquinaria(currentUser?.proyecto_actual_id || null);
   const { tab, setTab, msg, registros, proyectosCompleto } = hookProps;
-
-  const [showIdentitySelector, setShowIdentitySelector] = useState(false);
-
-  // Mostrar selector de identidad si aún no hay usuario guardado (primera vez)
-  useEffect(() => {
-    if (loaded && currentUser === null) {
-      setShowIdentitySelector(true);
-    }
-  }, [loaded, currentUser]);
 
   // Si un supervisor intenta acceder a pestañas de administrador, forzar redirección
   useEffect(() => {
@@ -202,35 +46,6 @@ export default function AdminMaquinaria() {
   }, [tab]);
 
   const sidebarW = sidebarCollapsed ? SIDEBAR_MINI : SIDEBAR_FULL;
-
-  const handleSelectIdentity = (persona) => {
-    const user = {
-      id: persona.id,
-      nombre_completo: persona.nombre_completo,
-      rol: persona.rol,
-      proyecto_actual_id: persona.proyecto_actual_id || null,
-      proyecto: persona.proyectos || null,
-    };
-    setCurrentUser(user);
-    setShowIdentitySelector(false);
-  };
-
-  const handleSkipIdentity = () => {
-    const user = {
-      id: "admin-root",
-      nombre_completo: "Administrador General",
-      rol: "Administrador",
-      proyecto_actual_id: null,
-      proyecto: null,
-    };
-    setCurrentUser(user);
-    setShowIdentitySelector(false);
-  };
-
-  const handleChangeUser = () => {
-    clearUser();
-    setShowIdentitySelector(true);
-  };
 
   const esAdminGlobal = currentUser?.rol === "Administrador";
 
@@ -273,14 +88,6 @@ export default function AdminMaquinaria() {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
-
-      {/* Selector de identidad (overlay) */}
-      {showIdentitySelector && (
-        <IdentitySelector
-          onSelect={handleSelectIdentity}
-          onSkip={handleSkipIdentity}
-        />
-      )}
 
       <div style={{
         minHeight: "100vh",
@@ -484,7 +291,7 @@ export default function AdminMaquinaria() {
           <div style={{ padding: sidebarCollapsed ? "8px 0" : "8px 12px", borderTop: "1px solid var(--border-sidebar)", flexShrink: 0, display: "flex", justifyContent: sidebarCollapsed ? "center" : "stretch" }}>
             <button
               title={sidebarCollapsed ? "Cerrar sesión" : undefined}
-              onClick={() => { localStorage.removeItem("luke_auth"); localStorage.removeItem(STORAGE_KEY_USER); window.location.reload(); }}
+              onClick={onSignOut}
               style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: sidebarCollapsed ? "center" : "flex-start", gap: "8px", padding: sidebarCollapsed ? "10px 0" : "10px 12px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", cursor: "pointer", fontSize: "12px", fontWeight: 700, transition: "all 0.2s", textAlign: "left" }}
               onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.18)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "rgba(239,68,68,0.1)"; }}
