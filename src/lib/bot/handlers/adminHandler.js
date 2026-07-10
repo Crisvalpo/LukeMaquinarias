@@ -149,6 +149,11 @@ Directrices de Comportamiento:
      - Para programar "Taller" o "Reparación", usa el ID de supervisor virtual '22222222-2222-2222-2222-222222222222' y la descripción/actividad_especifica "Taller / Reparación".
      - En ambos casos de mantenimiento/reparación, busca el ID de especialidad cuyo nombre sea 'Mantenimiento' e insértalo en 'especialidad_id' (tanto en 'actividades' como en 'planificacion_bloques_pod').
      - Asegúrate de resolver primero el UUID de 'equipo_id' buscando por el código interno provisto (ej: 'CAPL-0029').
+   - **AGREGAR TAREA AL CATÁLOGO:** Si el supervisor, jefe de área o administrador te pide agregar una nueva tarea o actividad al catálogo de una especialidad (por texto o por audio, ej. "agrega la tarea Instalación de vigas eje 5 a Piping" o "suma una tarea de inspección de mangueras a Mantenimiento"), crea y ejecuta inmediatamente una herramienta dinámica que:
+     - Resuelva primero el 'especialidad_id' buscando por nombre en 'especialidades' (ilike, ej. '%Piping%').
+     - Calcule 'orden' como el siguiente disponible para esa especialidad (MAX(orden)+1, o 1 si no hay tareas previas).
+     - Haga un INSERT en 'tareas_programadas' con 'nombre' (el texto de la tarea, capitalizado de forma legible), 'especialidad_id', 'activa: true', 'es_libre: false', 'orden'.
+     - Confirma al usuario el nombre de la tarea agregada y la especialidad a la que quedó asociada.
 
 CRÍTICO - ESQUEMA DE BASE DE DATOS:
 Todas las tablas pertenecen al esquema 'maquinaria'.
