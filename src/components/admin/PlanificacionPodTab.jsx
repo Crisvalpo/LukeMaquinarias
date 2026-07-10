@@ -269,21 +269,23 @@ function SupervisorCard({ participante, isDragging, onDragStart, bloquesCount, o
       }}
     >
       {/* Botón desconectar */}
-      <button
-        onClick={e => { e.stopPropagation(); onDesconectar(participante); }}
-        title="Desconectar"
-        style={{
-          position: "absolute", top: "4px", right: "4px",
-          background: "none", border: "none", cursor: "pointer",
-          color: "rgba(0,0,0,0.15)", padding: "2px",
-          display: "flex", alignItems: "center",
-          transition: "color 0.15s",
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
-        onMouseLeave={e => e.currentTarget.style.color = "rgba(0,0,0,0.15)"}
-      >
-        <X size={11} />
-      </button>
+      {!participante.id.toString().startsWith("virtual-") && (
+        <button
+          onClick={e => { e.stopPropagation(); onDesconectar(participante); }}
+          title="Desconectar"
+          style={{
+            position: "absolute", top: "4px", right: "4px",
+            background: "none", border: "none", cursor: "pointer",
+            color: "rgba(0,0,0,0.15)", padding: "2px",
+            display: "flex", alignItems: "center",
+            transition: "color 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+          onMouseLeave={e => e.currentTarget.style.color = "rgba(0,0,0,0.15)"}
+        >
+          <X size={11} />
+        </button>
+      )}
 
       {/* Avatar */}
       <div style={{
@@ -543,18 +545,67 @@ function EquipoRow({ equipo, bloques, participantes, especialidades, draggingSup
 // ================================================================
 // MODAL: Confirmar asignación al hacer drop o click directo en tarjeta
 // ================================================================
-function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose, saving }) {
+function obtenerSiguienteRangoDisponible(equipoId, bloques, duracionMin = 60) {
+  const bloquesEquipo = (bloques || []).filter(b => b.equipos?.id === equipoId);
+  const ocupados = bloquesEquipo.map(b => ({
+    ini: minFromStr(b.hora_inicio),
+    fin: minFromStr(b.hora_fin)
+  }));
+
+  for (let min = HORA_INI * 60; min <= HORA_FIN * 60 - duracionMin; min += 30) {
+    const iniTest = min;
+    const finTest = min + duracionMin;
+
+    const solapa = ocupados.some(o => (iniTest < o.fin && finTest > o.ini));
+    if (!solapa) {
+      return { ini: iniTest, fin: finTest };
+    }
+  }
+  return { ini: HORA_INI * 60, fin: (HORA_INI + 1) * 60 };
+}
+
+function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose, saving, bloques }) {
+  const supId = data.supervisor?.personal?.id;
+  const esVirtual = supId === "11111111-1111-1111-1111-111111111111" || supId === "22222222-2222-2222-2222-222222222222";
+  
+  const getInitialEspId = () => {
+    if (esVirtual) {
+      const mantEsp = (especialidades || []).find(e => e.nombre_oficial.toLowerCase().includes("mantenimiento"));
+      return mantEsp?.id || "";
+    }
+    return data.supervisor?.personal?.especialidad_id || "";
+  };
+
+  const getInitialActividad = () => {
+    if (supId === "11111111-1111-1111-1111-111111111111") return "Mantenimiento Preventivo";
+    if (supId === "22222222-2222-2222-2222-222222222222") return "Taller / Reparación";
+    return "";
+  };
+
+  const getInitialHours = () => {
+    if (data.iniMin && data.finMin) {
+      return { ini: data.iniMin, fin: data.finMin };
+    }
+    const eqId = data.equipo?.id || "";
+    if (eqId) {
+      return obtenerSiguienteRangoDisponible(eqId, bloques);
+    }
+    return { ini: HORA_INI * 60, fin: (HORA_INI + 1) * 60 };
+  };
+
+  const initialHours = getInitialHours();
+
   const [form, setForm] = useState({
-    hora_inicio: horaStr(data.iniMin || 7 * 60),
-    hora_fin: horaStr(data.finMin || 8 * 60),
-    especialidad_id: data.supervisor?.personal?.especialidad_id || "",
-    actividad_especifica: "",
+    hora_inicio: horaStr(initialHours.ini),
+    hora_fin: horaStr(initialHours.fin),
+    especialidad_id: getInitialEspId(),
+    actividad_especifica: getInitialActividad(),
     equipo_id: data.equipo?.id || "",
   });
 
   // ── Tareas programadas para la especialidad seleccionada ──
   const [tareasModal, setTareasModal] = useState([]);
-  const [modoLibreModal, setModoLibreModal] = useState(false);
+  const [modoLibreModal, setModoLibreModal] = useState(esVirtual);
 
   useEffect(() => {
     if (!form.especialidad_id) { setTareasModal([]); return; }
@@ -573,6 +624,12 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
   const nombre = data.supervisor?.personal?.nombre_completo || "";
   const color = esp?.color || "#10b981";
   const initials = nombre.split(" ").map(n => n[0]).slice(0, 2).join("");
+
+  const bloquesEquipo = (bloques || []).filter(b => b.equipos?.id === (data.equipo?.id || form.equipo_id));
+  const iniMinSel = minFromStr(form.hora_inicio);
+  const finMinSel = minFromStr(form.hora_fin);
+  const bloqueSolapado = bloquesEquipo.find(o => (iniMinSel < minFromStr(o.hora_fin) && finMinSel > minFromStr(o.hora_inicio)));
+  const esHorarioInvalido = iniMinSel >= finMinSel;
 
   return (
     <div style={{
@@ -714,6 +771,19 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
           )}
         </div>
 
+        {/* Advertencias de Solapamiento e Horarios */}
+        {bloqueSolapado && (
+          <div style={{ padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: 600, marginBottom: "14px" }}>
+            ⚠️ Solapamiento de horario: Ya existe un bloque de {bloqueSolapado.supervisor?.nombre_completo || 'Mantenimiento'} ({bloqueSolapado.hora_inicio.slice(0,5)} - {bloqueSolapado.hora_fin.slice(0,5)}) para este equipo.
+          </div>
+        )}
+
+        {esHorarioInvalido && (
+          <div style={{ padding: "10px 12px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: "8px", color: "#dc2626", fontSize: "12px", fontWeight: 600, marginBottom: "14px" }}>
+            ⚠️ La hora de inicio debe ser menor a la hora de fin.
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ padding: "9px 18px", borderRadius: "8px", border: "1px solid var(--border-input,#e2e8f0)", background: "transparent", color: "var(--color-text-muted)", cursor: "pointer", fontSize: "14px", fontWeight: 600 }}>
             Cancelar
@@ -725,12 +795,12 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
               supervisor_id: data.supervisor.personal.id,
               fecha: data.fecha
             })}
-            disabled={saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id)}
+            disabled={saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id) || !!bloqueSolapado || esHorarioInvalido}
             style={{
               padding: "9px 22px", borderRadius: "8px", border: "none",
               background: "linear-gradient(135deg, #10b981, #059669)",
-              color: "white", cursor: saving ? "not-allowed" : "pointer",
-              fontSize: "14px", fontWeight: 700, opacity: (saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id)) ? 0.6 : 1,
+              color: "white", cursor: (saving || !!bloqueSolapado || esHorarioInvalido) ? "not-allowed" : "pointer",
+              fontSize: "14px", fontWeight: 700, opacity: (saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id) || !!bloqueSolapado || esHorarioInvalido) ? 0.6 : 1,
               display: "flex", alignItems: "center", gap: "8px",
             }}
           >
@@ -818,17 +888,54 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
     return () => clearInterval(pollRef.current);
   }, [cargarParticipantes]);
 
+  // ── Añadir participantes virtuales de Mantenimiento y Taller al listado de conectados ──
+  const participantesConVirtuales = [
+    {
+      id: "virtual-mant-prev",
+      fecha: fechaPOD,
+      proyecto_id: proyectoActivoId,
+      personal_id: "11111111-1111-1111-1111-111111111111",
+      joined_at: new Date().toISOString(),
+      personal: {
+        id: "11111111-1111-1111-1111-111111111111",
+        nombre_completo: "Mantenimiento Preventivo",
+        rol: "Supervisor",
+        especialidades: {
+          nombre_oficial: "Mantenimiento",
+          color: "#d97706"
+        }
+      }
+    },
+    {
+      id: "virtual-mant-rep",
+      fecha: fechaPOD,
+      proyecto_id: proyectoActivoId,
+      personal_id: "22222222-2222-2222-2222-222222222222",
+      joined_at: new Date().toISOString(),
+      personal: {
+        id: "22222222-2222-2222-2222-222222222222",
+        nombre_completo: "Taller / Reparación",
+        rol: "Supervisor",
+        especialidades: {
+          nombre_oficial: "Mantenimiento",
+          color: "#dc2626"
+        }
+      }
+    },
+    ...participantes
+  ];
+
   // ── Supervisores del proyecto aún NO conectados ──
   const todoElPersonal = personalCompleto.data || [];
   const supervisoresProyecto = todoElPersonal.filter(p =>
     (p.rol === "Supervisor" || p.rol === "Jefe de Area") &&
     (!proyectoActivoId || p.proyecto_actual_id === proyectoActivoId)
   );
-  const idsConectados = new Set(participantes.map(pa => pa.personal?.id));
+  const idsConectados = new Set(participantesConVirtuales.map(pa => pa.personal?.id));
   const supervisoresPendientes = supervisoresProyecto.filter(s => !idsConectados.has(s.id));
 
   // ── Contar bloques asignados por supervisor ──
-  const bloquesPorSupervisor = participantes.reduce((acc, pa) => {
+  const bloquesPorSupervisor = participantesConVirtuales.reduce((acc, pa) => {
     const supId = pa.personal?.id;
     if (!supId) return acc;
     acc[supId] = bloques.filter(b => b.supervisor?.id === supId).length;
@@ -1032,19 +1139,19 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
               </div>
             </div>
             <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-              {participantes.length} conectado{participantes.length !== 1 ? "s" : ""} · Arrastra o clic para asignar
+              {participantesConVirtuales.length} conectado{participantesConVirtuales.length !== 1 ? "s" : ""} · Arrastra o clic para asignar
             </div>
           </div>
 
           {/* Supervisores conectados */}
           <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-            {participantes.length === 0 && (
+            {participantesConVirtuales.length === 0 && (
               <div style={{ padding: "16px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "12px" }}>
                 Esperando supervisores…<br />
                 <span style={{ fontSize: "11px", opacity: 0.7 }}>Comparte el QR para que se unan</span>
               </div>
             )}
-            {participantes.map(p => (
+            {participantesConVirtuales.map(p => (
               <SupervisorCard
                 key={p.id}
                 participante={p}
@@ -1220,6 +1327,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
           onConfirm={handleConfirmDrop}
           onClose={() => setPendingDrop(null)}
           saving={saving}
+          bloques={bloques}
         />
       )}
 
@@ -1232,6 +1340,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
           onConfirm={handleConfirmDrop}
           onClose={() => setPendingAssign(null)}
           saving={saving}
+          bloques={bloques}
         />
       )}
 
