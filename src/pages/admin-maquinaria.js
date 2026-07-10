@@ -261,7 +261,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
                 )}
 
                 <button
-                  onClick={handleChangeUser}
+                  onClick={onChangeUser}
                   style={{ marginTop: "8px", width: "100%", background: "transparent", border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", color: "#10b981", fontSize: "11px", fontWeight: 700, padding: "5px 8px", cursor: "pointer", transition: "all 0.2s" }}
                   onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
@@ -277,7 +277,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
             <div style={{ padding: "8px 0", borderTop: "1px solid var(--border-sidebar)", flexShrink: 0, display: "flex", justifyContent: "center" }}>
               <div
                 title={`${currentUser.nombre_completo}${currentUser.proyecto ? ` · ${currentUser.proyecto.codigo_cc}` : ""}\nHaz clic para cambiar`}
-                onClick={handleChangeUser}
+                onClick={onChangeUser}
                 style={{ width: "32px", height: "32px", borderRadius: "50%", background: "rgba(16,185,129,0.15)", border: "1.5px solid rgba(16,185,129,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 800, color: "#10b981", cursor: "pointer" }}
               >
                 {currentUser.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
