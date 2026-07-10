@@ -93,12 +93,45 @@ export default async function handler(req, res) {
       }
     }
 
+    // 5. Consultar si hay bloque de planificación POD para hoy asignado a este equipo
+    let podBloque = null;
+    try {
+      const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+      const { data: bloque, error: errorBloque } = await supabase
+        .from("planificacion_bloques_pod")
+        .select(`
+          id, hora_inicio, hora_fin, confirmado_at,
+          supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey(id, nombre_completo),
+          especialidades(id, nombre_oficial, color)
+        `)
+        .eq("equipo_id", equipo.id)
+        .eq("fecha", hoy)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!errorBloque && bloque) {
+        podBloque = {
+          id: bloque.id,
+          hora_inicio: bloque.hora_inicio?.slice(0, 5),
+          hora_fin: bloque.hora_fin?.slice(0, 5),
+          confirmado_at: bloque.confirmado_at,
+          supervisor_nombre: bloque.supervisor?.nombre_completo,
+          especialidad: bloque.especialidades?.nombre_oficial,
+          color: bloque.especialidades?.color,
+        };
+      }
+    } catch (e) {
+      console.error("Error obteniendo bloque POD en qr-landing-data:", e.message);
+    }
+
     return res.status(200).json({
       success: true,
       equipo,
       operador,
       reportes,
-      botPhone
+      botPhone,
+      podBloque
     });
 
   } catch (err) {

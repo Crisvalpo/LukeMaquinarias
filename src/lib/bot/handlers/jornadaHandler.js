@@ -368,7 +368,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
@@ -458,7 +458,7 @@ export async function handleJornadaFlow(ctx, res) {
         resultado.mensaje_conversacional_bot = null;
       }
       // Corregir lectura asignada por error a final en lugar de combustible
-      const esCierreExplicit = sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || resultado.tipo_evento === "CIERRE";
+      const esCierreExplicit = sesion.estado_espera?.startsWith("ESPERANDO_CHECKOUT_") || resultado.tipo_evento === "CIERRE";
       if (!esCierreExplicit) {
         if (resultado.horometro_final && !resultado.horometro_carga_combustible) {
           resultado.horometro_carga_combustible = resultado.horometro_final;
@@ -498,8 +498,18 @@ export async function handleJornadaFlow(ctx, res) {
         ? `_"Cierre, kilometraje final ochenta y cuatro mil quinientos, sin carga de combustible"_`
         : `_"Cierre, horómetro final dos mil trescientos diez, sin combustible"_`;
 
-      const msgPedirLectura = resultado.mensaje_conversacional_bot
-        || `🏁 *Entendido, cierre de jornada solicitado.*\n\nPara consolidar tu reporte, por favor indica por *audio o texto* el **${esVehiculo ? 'odómetro (kilometraje) final' : 'horómetro final'}** y si realizaste carga de combustible.\n\n_Ejemplo: ${ejemploCierre}_`;
+      let msgPedirLectura = `🏁 *Entendido, cierre de jornada solicitado.*\n\nPara consolidar tu reporte, por favor indica por *audio o texto* el **${esVehiculo ? 'odómetro (kilometraje) final' : 'horómetro final'}** y si realizaste carga de combustible.\n\n_Ejemplo: ${ejemploCierre}_`;
+
+      if (resultado.mensaje_conversacional_bot && (
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("horómetro") ||
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("horometro") ||
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("odómetro") ||
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("odometro") ||
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("kilometraje") ||
+        resultado.mensaje_conversacional_bot.toLowerCase().includes("combustible")
+      )) {
+        msgPedirLectura = resultado.mensaje_conversacional_bot;
+      }
 
       await guardarMensajeChat(supabase, phoneClean, "model", msgPedirLectura, "texto", sesion.reporte_activo_id);
       await enviarMensajeWhatsApp(jid, phoneClean, msgPedirLectura, !!audio, geminiKey);
@@ -555,7 +565,7 @@ export async function handleJornadaFlow(ctx, res) {
         resultado.mensaje_conversacional_bot = `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n📋 *Actividad Planificada:* ${bloque.actividad_especifica}`;
         hitoInsertado = true;
       } else if (bloque.supervisor?.whatsapp) {
-        // Escenario 2: Actividad vacía, preguntar proactivamente al supervisor
+        // Escenario 2: Actividad vacía → preguntar al supervisor con lista de tareas programadas
         const { data: nuevoEvento } = await supabase
           .from("eventos_jornada")
           .insert({
@@ -572,8 +582,45 @@ export async function handleJornadaFlow(ctx, res) {
           .single();
 
         if (nuevoEvento) {
-          const msgSupervisor = `El operador *${personal.nombre_completo}* indica que inició trabajos de *${resultado.especialidad_detectada || "montaje"}* con el equipo *${reporteActual.equipos?.codigo_interno}* en su bloque asignado. Por favor, responda a este mensaje indicando la actividad específica del programa o describa la labor fuera de programa que están ejecutando.`;
-          
+          // ── Obtener tareas programadas para la especialidad del bloque ──
+          const { data: tareasDb } = await supabase
+            .from("tareas_programadas")
+            .select("id, nombre, codigo")
+            .eq("especialidad_id", bloque.especialidad_id)
+            .eq("activa", true)
+            .eq("es_libre", false)
+            .order("orden", { ascending: true })
+            .order("nombre", { ascending: true })
+            .limit(8);
+
+          const tareas = tareasDb || [];
+
+          // Construir mensaje con lista numerada si hay tareas
+          let msgSupervisor;
+          let tareasEnviadas = null;
+
+          if (tareas.length > 0) {
+            const numeros = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
+            const listaTexto = tareas
+              .map((t, i) => `${numeros[i] || `${i + 1}.`} ${t.nombre}${t.codigo ? ` _(${t.codigo})_` : ""}`)
+              .join("\n");
+
+            msgSupervisor =
+              `🔧 *${reporteActual.equipos?.codigo_interno}* listo con operador *${personal.nombre_completo}*.\n` +
+              `¿Qué actividad ejecutarás hoy en *${resultado.especialidad_detectada || "montaje"}*?\n\n` +
+              listaTexto +
+              `\n\n0️⃣ Otra actividad (describe brevemente)\n\n` +
+              `_Responde con el número de tu tarea o escribe la actividad libremente._`;
+
+            tareasEnviadas = tareas.map((t, i) => ({ orden: i + 1, id: t.id, nombre: t.nombre }));
+          } else {
+            // Sin tareas programadas → comportamiento anterior (texto libre)
+            msgSupervisor =
+              `El operador *${personal.nombre_completo}* inició trabajos de *${resultado.especialidad_detectada || "montaje"}* ` +
+              `con el equipo *${reporteActual.equipos?.codigo_interno}*. ` +
+              `Por favor, responda indicando la actividad específica o describa la labor fuera de programa.`;
+          }
+
           await enviarMensajeWhatsApp(null, bloque.supervisor.whatsapp, msgSupervisor, false, geminiKey);
 
           await supabase
@@ -583,10 +630,15 @@ export async function handleJornadaFlow(ctx, res) {
               planificacion_id: bloque.id,
               evento_operador_id: nuevoEvento.id,
               estado_pregunta: "Pendiente_Actividad",
-              updated_at: new Date().toISOString()
+              tareas_enviadas: tareasEnviadas,
+              esperando_libre: false,
+              updated_at: new Date().toISOString(),
             }, { onConflict: "telefono_supervisor" });
 
-          resultado.mensaje_conversacional_bot = `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n💬 Solicitando confirmación de actividad específica a tu supervisor *${bloque.supervisor.nombre_completo}*.`;
+          resultado.mensaje_conversacional_bot =
+            `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n` +
+            `💬 Solicitando confirmación de actividad a tu supervisor *${bloque.supervisor.nombre_completo}*` +
+            (tareas.length > 0 ? ` con ${tareas.length} opciones de tarea.` : ".");
           hitoInsertado = true;
         }
       }

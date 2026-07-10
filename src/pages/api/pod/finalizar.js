@@ -46,7 +46,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: `No hay bloques planificados para ${fechaStr}.`, alertas_enviadas: 0 });
     }
 
-    // 3. Agrupar bloques por supervisor
+    // 3. ── PROTECCIÓN ANTI-BANEO WhatsApp ──
+    // Solo se puede enviar WA free-form a usuarios que hayan interactuado
+    // con el bot en las últimas 24h. Los supervisores que escanearon el QR
+    // y participaron en la sesión POD de hoy SÍ tienen esa ventana activa.
+    const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+    const { data: participantesHoy } = await supabase
+      .from("pod_sesion_participantes")
+      .select("personal_id")
+      .eq("fecha", hoy);
+
+    const idsConVentana24h = new Set((participantesHoy || []).map(p => p.personal_id));
+
+    // 4. Agrupar bloques por supervisor
     const porSupervisor = new Map();
     for (const bloque of bloques) {
       if (!bloque.supervisor?.id) continue;
@@ -58,13 +70,33 @@ export default async function handler(req, res) {
 
     let alertasEnviadas = 0;
     const equiposPlatAlertados = new Set();
+    const sinContacto = []; // supervisores con bloques pero sin ventana 24h activa
 
-    // 4. Enviar resumen a cada supervisor
+    // 5. Enviar resumen a cada supervisor que participó en la POD de hoy
     for (const [, { supervisor, bloques: bloquesSuper }] of porSupervisor) {
-      if (!supervisor.whatsapp) continue;
+
+      // ── Saltar si no tiene ventana de 24h activa ──
+      if (!idsConVentana24h.has(supervisor.id)) {
+        sinContacto.push({
+          nombre_completo: supervisor.nombre_completo,
+          whatsapp: supervisor.whatsapp || null,
+          bloques_asignados: bloquesSuper.length,
+          motivo: "No participó en la sesión POD del día (sin ventana 24h activa)",
+        });
+        continue;
+      }
+
+      if (!supervisor.whatsapp) {
+        sinContacto.push({
+          nombre_completo: supervisor.nombre_completo,
+          whatsapp: null,
+          bloques_asignados: bloquesSuper.length,
+          motivo: "Sin número de WhatsApp registrado",
+        });
+        continue;
+      }
 
       // Obtener proyecto del primer bloque
-      const primerEquipo = bloquesSuper[0]?.equipos;
       const proyectoCodigo = bloquesSuper[0]?.proyectos?.proyectos?.codigo_cc || "";
       const proyectoNombre = bloquesSuper[0]?.proyectos?.proyectos?.nombre_proyecto || "";
 
@@ -105,6 +137,8 @@ export default async function handler(req, res) {
       success: true,
       message: `POD inicializado. Resúmenes enviados a ${alertasEnviadas} supervisor${alertasEnviadas !== 1 ? "es" : ""}.`,
       alertas_enviadas: alertasEnviadas,
+      sin_contacto: sinContacto,
+      sin_contacto_total: sinContacto.length,
       fecha_pod: fechaPOD,
     });
 

@@ -78,6 +78,11 @@ export default function QrLanding() {
   const [combustibleNivel, setCombustibleNivel] = useState(100);
   const [capacidadEstanque, setCapacidadEstanque] = useState("");
 
+  // Estados de integración POD del día siguiente
+  const [podBloque, setPodBloque] = useState(null);
+  const [confirmandoPod, setConfirmandoPod] = useState(false);
+  const [podConfirmadoLocal, setPodConfirmadoLocal] = useState(false);
+
   // Consultar datos iniciales del equipo y bot al montar
   useEffect(() => {
     if (!router.isReady || !codigo) return;
@@ -125,8 +130,17 @@ export default function QrLanding() {
       if (res.ok && data.success) {
         setEquipo(data.equipo);
         setBotPhone(data.botPhone);
-        if (data.equipo && data.equipo.combustible_nivel_porcentaje != null) {
+         if (data.equipo && data.equipo.combustible_nivel_porcentaje != null) {
           setCombustibleNivel(data.equipo.combustible_nivel_porcentaje);
+        }
+        
+        // Cargar bloque POD si existe
+        if (data.podBloque) {
+          setPodBloque(data.podBloque);
+          setPodConfirmadoLocal(!!data.podBloque.confirmado_at);
+        } else {
+          setPodBloque(null);
+          setPodConfirmadoLocal(false);
         }
         
         if (data.operador) {
@@ -177,6 +191,36 @@ export default function QrLanding() {
     setIdentificador("");
     setUbicacionOk(false);
     setCoords(null);
+    setPodBloque(null);
+    setPodConfirmadoLocal(false);
+  };
+
+  // Confirmar asignación POD
+  const handleConfirmarAsignacion = async () => {
+    if (!podBloque || !operador || !equipo) return;
+    setConfirmandoPod(true);
+    setErrorMessageLocal("");
+    try {
+      const res = await fetch("/api/pod/confirmar-asignacion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bloque_id: podBloque.id,
+          operador_id: operador.id,
+          equipo_id: equipo.id
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPodConfirmadoLocal(true);
+      } else {
+        setErrorMessageLocal(data.error || "No se pudo confirmar la asignación.");
+      }
+    } catch (e) {
+      setErrorMessageLocal("Error de red al confirmar asignación.");
+    } finally {
+      setConfirmandoPod(false);
+    }
   };
 
   // Activar captura de foto (Cámara frontal)
@@ -569,6 +613,78 @@ export default function QrLanding() {
                   <p className="no-pdf-txt">No se encontraron reportes PDF consolidados de tus turnos anteriores.</p>
                 )}
               </div>
+
+              {/* Banner / Card de Asignación POD del día */}
+              {podBloque && (
+                <div style={{
+                  background: podConfirmadoLocal ? "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.04))" : "linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05))",
+                  border: podConfirmadoLocal ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(245,158,11,0.4)",
+                  borderRadius: "14px", padding: "16px", marginBottom: "20px",
+                  display: "flex", flexDirection: "column", gap: "10px",
+                  boxShadow: podConfirmadoLocal ? "0 4px 20px rgba(16,185,129,0.06)" : "0 4px 20px rgba(245,158,11,0.06)",
+                  position: "relative",
+                  overflow: "hidden"
+                }} className="animate-fade-in">
+                  <div style={{
+                    position: "absolute", top: "0", left: "0", width: "4px", height: "100%",
+                    background: podConfirmadoLocal ? "#10b981" : "#f59e0b"
+                  }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "10px", color: podConfirmadoLocal ? "#10b981" : "#f59e0b", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase" }}>
+                      {podConfirmadoLocal ? "✅ ASIGNACIÓN CONFIRMADA" : "⚠️ ASIGNADO EN POD HOY"}
+                    </span>
+                    {podBloque.especialidad && (
+                      <span style={{
+                        background: `${podBloque.color || '#6b7280'}20`,
+                        border: `1px solid ${podBloque.color || '#6b7280'}50`,
+                        color: podBloque.color || '#cbd5e1',
+                        borderRadius: "6px", padding: "2px 8px", fontSize: "10px", fontWeight: 700
+                      }}>
+                        {podBloque.especialidad}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div style={{ fontSize: "13px", color: "#f8fafc", lineHeight: 1.4 }}>
+                    Este equipo fue solicitado en la planificación para:<br />
+                    👤 Supervisor: <strong style={{ color: "white" }}>{podBloque.supervisor_nombre}</strong><br />
+                    ⏰ Bloque: <strong style={{ color: "white" }}>{podBloque.hora_inicio} a {podBloque.hora_fin} hrs</strong>
+                  </div>
+
+                  {!podConfirmadoLocal ? (
+                    <button
+                      type="button"
+                      onClick={handleConfirmarAsignacion}
+                      disabled={confirmandoPod}
+                      style={{
+                        background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                        border: "none", borderRadius: "10px", color: "white",
+                        padding: "10px 14px", fontSize: "13px", fontWeight: 700,
+                        cursor: "pointer", transition: "all 0.2s",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+                    >
+                      {confirmandoPod ? (
+                        <>
+                          <Loader2 className="spinner" size={14} style={{ animation: "spin 1s linear infinite" }} />
+                          <span>Confirmando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap size={14} />
+                          <span>Confirmar y Empezar Check-in</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                      Tu supervisor ya recibió una notificación de tu check-in por WhatsApp.
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Formulario de Check-in Web Consolidado */}
               <form onSubmit={handleCheckinWeb} className="checkin-web-form">

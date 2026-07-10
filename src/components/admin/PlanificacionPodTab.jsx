@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   RefreshCw, Calendar, ChevronLeft, ChevronRight,
-  Loader2, Send, Trash2, X, Users, Wifi, QrCode, Clock
+  Loader2, Send, Trash2, X, Users, Wifi, QrCode, Clock,
+  Copy, Check, Zap, Link2
 } from "lucide-react";
 
 // ================================================================
@@ -229,9 +230,9 @@ function BloqueTimeline({ bloque, equipoRowRef, especialidades, onResize, onDele
 }
 
 // ================================================================
-// COMPONENTE: Tarjeta de Supervisor (arrastrable)
+// COMPONENTE: Tarjeta de Supervisor (arrastrable + click para asignar)
 // ================================================================
-function SupervisorCard({ participante, isDragging, onDragStart }) {
+function SupervisorCard({ participante, isDragging, onDragStart, bloquesCount, onDesconectar, onClick }) {
   const esp = participante.personal?.especialidades;
   const nombre = participante.personal?.nombre_completo || "?";
   const color = esp?.color || "#10b981";
@@ -241,9 +242,11 @@ function SupervisorCard({ participante, isDragging, onDragStart }) {
     <div
       draggable
       onDragStart={e => onDragStart(e, participante)}
+      onClick={onClick}
+      title="Clic para asignar · Arrastra sobre un equipo"
       style={{
-        background: `${color}12`,
-        border: `1.5px solid ${color}50`,
+        background: `${color}15`,
+        border: `1.5px solid ${color}60`,
         borderRadius: "12px",
         padding: "12px 14px",
         cursor: "grab",
@@ -251,19 +254,49 @@ function SupervisorCard({ participante, isDragging, onDragStart }) {
         display: "flex", alignItems: "center", gap: "10px",
         transition: "all 0.15s",
         opacity: isDragging ? 0.5 : 1,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+        position: "relative",
+        animation: "cardPulse 2.5s ease-in-out infinite",
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = "translateX(2px)"; e.currentTarget.style.boxShadow = `0 4px 16px ${color}30`; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = "translateX(0)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.06)"; }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = "translateX(2px)";
+        e.currentTarget.style.boxShadow = `0 4px 20px ${color}40`;
+        e.currentTarget.style.animation = "none";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = "translateX(0)";
+        e.currentTarget.style.boxShadow = "";
+        e.currentTarget.style.animation = "cardPulse 2.5s ease-in-out infinite";
+      }}
     >
+      {/* Botón desconectar */}
+      <button
+        onClick={e => { e.stopPropagation(); onDesconectar(participante); }}
+        title="Desconectar"
+        style={{
+          position: "absolute", top: "4px", right: "4px",
+          background: "none", border: "none", cursor: "pointer",
+          color: "rgba(0,0,0,0.15)", padding: "2px",
+          display: "flex", alignItems: "center",
+          transition: "color 0.15s",
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = "#ef4444"}
+        onMouseLeave={e => e.currentTarget.style.color = "rgba(0,0,0,0.15)"}
+      >
+        <X size={11} />
+      </button>
+
+      {/* Avatar */}
       <div style={{
-        width: "36px", height: "36px", borderRadius: "50%",
-        background: `${color}25`, border: `2px solid ${color}60`,
+        width: "40px", height: "40px", borderRadius: "50%",
+        background: `${color}30`, border: `2px solid ${color}`,
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: "13px", fontWeight: 800, color, flexShrink: 0,
+        fontSize: "14px", fontWeight: 800, color, flexShrink: 0,
+        boxShadow: `0 0 10px ${color}50`,
       }}>
         {initials}
       </div>
+
+      {/* Info */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {nombre.split(" ").slice(0, 2).join(" ")}
@@ -274,10 +307,134 @@ function SupervisorCard({ participante, isDragging, onDragStart }) {
           </div>
         )}
       </div>
-      <div style={{
-        width: "8px", height: "8px", borderRadius: "50%",
-        background: "#10b981", boxShadow: "0 0 6px rgba(16,185,129,0.6)", flexShrink: 0,
-      }} title="Conectado" />
+
+      {/* Badges */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px", flexShrink: 0 }}>
+        <div style={{
+          width: "8px", height: "8px", borderRadius: "50%",
+          background: "#10b981", boxShadow: "0 0 8px rgba(16,185,129,0.8)",
+        }} />
+        {bloquesCount > 0 && (
+          <div style={{
+            background: `${color}20`, border: `1px solid ${color}50`,
+            borderRadius: "6px", padding: "1px 6px",
+            fontSize: "10px", fontWeight: 800, color,
+          }}>
+            {bloquesCount}b
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ================================================================
+// MODAL: Panel QR grande (tipo "mostrar en pantalla")
+// ================================================================
+function ModalQR({ qrImgSrc, podJoinUrl, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(podJoinUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(15, 23, 42, 0.3)", backdropFilter: "blur(6px)",
+        zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "var(--bg-container, #ffffff)",
+          border: "1px solid rgba(16, 185, 129, 0.25)",
+          borderRadius: "20px", padding: "32px",
+          width: "min(440px, 92vw)", textAlign: "center",
+          boxShadow: "0 20px 50px rgba(0,0,0,0.1), 0 0 0 1px rgba(16, 185, 129, 0.05)",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{
+              width: "32px", height: "32px", borderRadius: "8px",
+              background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.3)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <QrCode size={16} color="#10b981" />
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontSize: "14px", fontWeight: 800, color: "var(--color-text, #1f2937)" }}>Escanea para unirte</div>
+              <div style={{ fontSize: "11px", color: "#10b981", fontWeight: 700 }}>SALA POD — EN VIVO</div>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.06)", borderRadius: "8px", cursor: "pointer", color: "var(--color-text-muted, #6b7280)", padding: "6px", display: "flex" }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* QR grande */}
+        <div style={{
+          display: "inline-block", padding: "12px",
+          background: "#ffffff", borderRadius: "16px",
+          boxShadow: "0 10px 30px rgba(16,185,129,0.12), 0 1px 3px rgba(0,0,0,0.05)",
+          border: "1px solid rgba(0, 0, 0, 0.04)",
+          marginBottom: "20px",
+        }}>
+          {qrImgSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qrImgSrc} alt="QR Sala POD" style={{ width: "240px", height: "240px", display: "block", borderRadius: "8px" }} />
+          ) : (
+            <div style={{ width: "240px", height: "240px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: "14px" }}>
+              Sin QR disponible
+            </div>
+          )}
+        </div>
+
+        {/* Descripción */}
+        <div style={{ color: "var(--color-text-muted, #6b7280)", fontSize: "13px", marginBottom: "18px", lineHeight: 1.5 }}>
+          Escanea el código QR con la cámara de tu celular<br />
+          para ingresar tu nombre y aparecer en la lista de la sala
+        </div>
+
+        {/* URL copiable */}
+        {podJoinUrl && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            background: "var(--bg-input, #f9fafb)", border: "1px solid var(--border-input, #d1d5db)",
+            borderRadius: "10px", padding: "8px 12px", marginBottom: "12px",
+          }}>
+            <Link2 size={13} color="var(--color-text-muted, #6b7280)" style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, fontSize: "11px", color: "var(--color-text-muted, #6b7280)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left" }}>
+              {podJoinUrl}
+            </span>
+            <button
+              onClick={handleCopy}
+              style={{
+                background: copied ? "rgba(16,185,129,0.15)" : "rgba(0,0,0,0.04)",
+                border: `1px solid ${copied ? "rgba(16,185,129,0.3)" : "rgba(0,0,0,0.06)"}`,
+                borderRadius: "6px", cursor: "pointer",
+                color: copied ? "#059669" : "var(--color-text, #1f2937)",
+                padding: "4px 8px", fontSize: "11px", fontWeight: 700,
+                display: "flex", alignItems: "center", gap: "4px",
+                transition: "all 0.2s",
+              }}
+            >
+              {copied ? <><Check size={11} /> Copiado</> : <><Copy size={11} /> Copiar</>}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -384,20 +541,38 @@ function EquipoRow({ equipo, bloques, participantes, especialidades, draggingSup
 }
 
 // ================================================================
-// MODAL: Confirmar asignación al hacer drop
+// MODAL: Confirmar asignación al hacer drop o click directo en tarjeta
 // ================================================================
-function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
+function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose, saving }) {
   const [form, setForm] = useState({
-    hora_inicio: horaStr(data.iniMin),
-    hora_fin: horaStr(data.finMin),
+    hora_inicio: horaStr(data.iniMin || 7 * 60),
+    hora_fin: horaStr(data.finMin || 8 * 60),
     especialidad_id: data.supervisor?.personal?.especialidad_id || "",
     actividad_especifica: "",
+    equipo_id: data.equipo?.id || "",
   });
+
+  // ── Tareas programadas para la especialidad seleccionada ──
+  const [tareasModal, setTareasModal] = useState([]);
+  const [modoLibreModal, setModoLibreModal] = useState(false);
+
+  useEffect(() => {
+    if (!form.especialidad_id) { setTareasModal([]); return; }
+    fetch(`/api/admin/tareas-programadas?especialidad_id=${form.especialidad_id}`)
+      .then(r => r.json())
+      .then(j => { if (j.success) setTareasModal(j.data || []); })
+      .catch(() => setTareasModal([]));
+  }, [form.especialidad_id]);
 
   const horasOpciones = Array.from({ length: (HORA_FIN - HORA_INI) * 2 + 1 }, (_, i) => {
     const min = HORA_INI * 60 + i * 30;
     return horaStr(min);
   });
+
+  const esp = data.supervisor?.personal?.especialidades;
+  const nombre = data.supervisor?.personal?.nombre_completo || "";
+  const color = esp?.color || "#10b981";
+  const initials = nombre.split(" ").map(n => n[0]).slice(0, 2).join("");
 
   return (
     <div style={{
@@ -406,24 +581,53 @@ function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
     }}>
       <div style={{
         background: "var(--bg-card, #fff)", borderRadius: "16px", padding: "28px",
-        width: "min(480px, 94vw)", boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
+        width: "min(500px, 94vw)", boxShadow: "0 24px 64px rgba(0,0,0,0.25)",
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "var(--color-text)" }}>
-            Asignar bloque
+            ⚡ Asignar bloque
           </h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)" }}>
             <X size={18} />
           </button>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", marginBottom: "18px", padding: "12px", background: "rgba(16,185,129,0.06)", borderRadius: "10px" }}>
-          <div style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
-            <strong style={{ color: "var(--color-text)" }}>{data.supervisor?.personal?.nombre_completo}</strong>
-            {" → "}
-            <strong style={{ color: "var(--color-text)" }}>{data.equipo?.codigo_interno}</strong>
+        {/* Supervisor info */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "18px", padding: "12px", background: "rgba(16,185,129,0.06)", borderRadius: "10px", alignItems: "center" }}>
+          <div style={{
+            width: "36px", height: "36px", borderRadius: "50%",
+            background: `${color}25`, border: `2px solid ${color}`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "13px", fontWeight: 800, color, flexShrink: 0,
+          }}>
+            {initials}
+          </div>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text)" }}>{nombre}</div>
+            {esp && <div style={{ fontSize: "11px", color, fontWeight: 600 }}>{esp.nombre_oficial}</div>}
           </div>
         </div>
+
+        {/* Equipo: selector si viene de click directo, fijo si viene de drop */}
+        {data.equipo ? (
+          <div style={{ marginBottom: "14px", padding: "8px 12px", background: "rgba(16,185,129,0.06)", borderRadius: "8px", fontSize: "13px", fontWeight: 700, color: "var(--color-text)" }}>
+            🔧 {data.equipo.codigo_interno} — {data.equipo.descripcion_equipo}
+          </div>
+        ) : (
+          <div style={{ marginBottom: "14px" }}>
+            <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Equipo</label>
+            <select
+              value={form.equipo_id}
+              onChange={e => setForm(f => ({ ...f, equipo_id: e.target.value }))}
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
+            >
+              <option value="">Seleccionar equipo…</option>
+              {(equiposList || []).map(eq => (
+                <option key={eq.id} value={eq.id}>{eq.codigo_interno} — {eq.descripcion_equipo}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
           <div>
@@ -452,7 +656,10 @@ function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
           <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Especialidad</label>
           <select
             value={form.especialidad_id}
-            onChange={e => setForm(f => ({ ...f, especialidad_id: e.target.value }))}
+            onChange={e => {
+              setForm(f => ({ ...f, especialidad_id: e.target.value, actividad_especifica: "" }));
+              setModoLibreModal(false);
+            }}
             style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
           >
             <option value="">Sin especialidad</option>
@@ -461,13 +668,50 @@ function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
         </div>
 
         <div style={{ marginBottom: "20px" }}>
-          <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Actividad (opcional)</label>
-          <input
-            type="text" value={form.actividad_especifica}
-            onChange={e => setForm(f => ({ ...f, actividad_especifica: e.target.value }))}
-            placeholder="Ej: Instalación vigas eje 5"
-            style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
-          />
+          <label style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", display: "block", marginBottom: "6px" }}>Actividad</label>
+
+          {/* Select de tareas programadas si hay para la especialidad */}
+          {tareasModal.length > 0 && !modoLibreModal ? (
+            <select
+              value={form.actividad_especifica}
+              onChange={e => {
+                if (e.target.value === "__libre__") {
+                  setModoLibreModal(true);
+                  setForm(f => ({ ...f, actividad_especifica: "" }));
+                } else {
+                  setForm(f => ({ ...f, actividad_especifica: e.target.value }));
+                }
+              }}
+              style={{ width: "100%", background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", fontSize: "13px", cursor: "pointer" }}
+            >
+              <option value="">— Seleccionar tarea programada —</option>
+              {tareasModal.map(t => (
+                <option key={t.id} value={t.nombre}>
+                  {t.codigo ? `[${t.codigo}] ` : ""}{t.nombre}
+                </option>
+              ))}
+              <option value="__libre__">✏️ Otra actividad (escribir)</option>
+            </select>
+          ) : (
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <input
+                type="text" value={form.actividad_especifica}
+                onChange={e => setForm(f => ({ ...f, actividad_especifica: e.target.value }))}
+                placeholder={tareasModal.length > 0 ? "Describe la actividad no programada" : "Ej: Instalación vigas eje 5"}
+                style={{ flex: 1, background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box" }}
+              />
+              {tareasModal.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setModoLibreModal(false); setForm(f => ({ ...f, actividad_especifica: "" })); }}
+                  title="Volver al listado"
+                  style={{ background: "var(--bg-input,#f8fafc)", border: "1px solid var(--border-input,#e2e8f0)", borderRadius: "8px", padding: "9px 10px", cursor: "pointer", color: "var(--color-text-muted)", fontSize: "12px", whiteSpace: "nowrap" }}
+                >
+                  📋 Lista
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
@@ -475,17 +719,22 @@ function ModalAsignacion({ data, especialidades, onConfirm, onClose, saving }) {
             Cancelar
           </button>
           <button
-            onClick={() => onConfirm({ ...form, equipo_id: data.equipo.id, supervisor_id: data.supervisor.personal.id, fecha: data.fecha })}
-            disabled={saving || !form.especialidad_id}
+            onClick={() => onConfirm({
+              ...form,
+              equipo_id: data.equipo?.id || form.equipo_id,
+              supervisor_id: data.supervisor.personal.id,
+              fecha: data.fecha
+            })}
+            disabled={saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id)}
             style={{
               padding: "9px 22px", borderRadius: "8px", border: "none",
               background: "linear-gradient(135deg, #10b981, #059669)",
               color: "white", cursor: saving ? "not-allowed" : "pointer",
-              fontSize: "14px", fontWeight: 700, opacity: saving ? 0.7 : 1,
+              fontSize: "14px", fontWeight: 700, opacity: (saving || !form.especialidad_id || !(data.equipo?.id || form.equipo_id)) ? 0.6 : 1,
               display: "flex", alignItems: "center", gap: "8px",
             }}
           >
-            {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+            {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Zap size={14} />}
             Crear bloque
           </button>
         </div>
@@ -508,9 +757,10 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
   const [loadingBloques, setLoadingBloques] = useState(false);
   const [participantes, setParticipantes] = useState([]);
   const [draggingSup, setDraggingSup] = useState(null);
-  const [pendingDrop, setPendingDrop] = useState(null); // para modal de confirmación
+  const [pendingDrop, setPendingDrop] = useState(null);
+  const [pendingAssign, setPendingAssign] = useState(null); // asignación directa por click en tarjeta
   const [enviandoPOD, setEnviandoPOD] = useState(false);
-  const [showQR, setShowQR] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   const pollRef = useRef(null);
 
@@ -526,14 +776,12 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
 
   const especialidadesList = especialidades.data || [];
 
-  // ── URL del QR → wa.me directo al bot ──
-  // El supervisor escanea, WhatsApp se abre con el texto PRE-CARGADO
-  const botPhoneClean = (botPhone || "").replace(/[^0-9]/g, "");
-  const qrUrl = botPhoneClean
-    ? `https://wa.me/${botPhoneClean}?text=PARTICIPAR_POD`
+  // ── URL del QR → /pod-join web directo (ya no va a WhatsApp) ──
+  const podJoinUrl = typeof window !== "undefined" && proyectoActivoId
+    ? `${window.location.origin}/pod-join?fecha=${fechaPOD}&proyecto_id=${proyectoActivoId}`
     : "";
-  const qrImgSrc = qrUrl
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}&bgcolor=0f1f2e&color=10b981&margin=10`
+  const qrImgSrc = podJoinUrl
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(podJoinUrl)}&bgcolor=ffffff&color=000000&margin=10`
     : null;
 
   // ── Cargar bloques ──
@@ -550,7 +798,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
   }, [fechaPOD, proyectoActivoId]);
 
   // ── Cargar participantes (polling) ──
-  const cargarParticipantes = useCallback(async (silent = false) => {
+  const cargarParticipantes = useCallback(async () => {
     if (!proyectoActivoId) return;
     try {
       const r = await fetch(`/api/pod/sesion?fecha=${fechaPOD}&proyecto_id=${proyectoActivoId}`);
@@ -564,7 +812,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
 
   // Polling de participantes cada 4s
   useEffect(() => {
-    pollRef.current = setInterval(() => cargarParticipantes(true), 4000);
+    pollRef.current = setInterval(() => cargarParticipantes(), 4000);
     return () => clearInterval(pollRef.current);
   }, [cargarParticipantes]);
 
@@ -576,6 +824,14 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
   );
   const idsConectados = new Set(participantes.map(pa => pa.personal?.id));
   const supervisoresPendientes = supervisoresProyecto.filter(s => !idsConectados.has(s.id));
+
+  // ── Contar bloques asignados por supervisor ──
+  const bloquesPorSupervisor = participantes.reduce((acc, pa) => {
+    const supId = pa.personal?.id;
+    if (!supId) return acc;
+    acc[supId] = bloques.filter(b => b.supervisor?.id === supId).length;
+    return acc;
+  }, {});
 
   // ── Preview local de resize ──
   const handleResize = useCallback((bloqueId, { iniMin, finMin, preview }) => {
@@ -614,7 +870,43 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
     setPendingDrop({ equipo, supervisor, iniMin, finMin, fecha: fechaPOD });
   };
 
-  // ── Confirmar asignación desde modal ──
+  // ── Click en tarjeta conectada → modal de asignación directa ──
+  const handleCardClick = (participante) => {
+    setPendingAssign({
+      supervisor: participante,
+      equipo: null,
+      iniMin: 7 * 60,
+      finMin: 8 * 60,
+      fecha: fechaPOD,
+    });
+  };
+
+  // ── Click en tarjeta PENDIENTE → asignar igual aunque no asistió ──
+  // El supervisor pendiente tiene estructura plana (s.id, s.nombre_completo...)
+  // lo adaptamos al formato {personal: ...} que espera el modal.
+  const handlePendingCardClick = (supervisor) => {
+    setPendingAssign({
+      supervisor: { personal: supervisor },
+      equipo: null,
+      iniMin: 7 * 60,
+      finMin: 8 * 60,
+      fecha: fechaPOD,
+    });
+  };
+
+  // ── Desconectar supervisor ──
+  const handleDesconectar = async (participante) => {
+    try {
+      await fetch(`/api/pod/sesion?fecha=${fechaPOD}&proyecto_id=${proyectoActivoId}&personal_id=${participante.personal?.id}`, {
+        method: "DELETE"
+      });
+      cargarParticipantes();
+    } catch (e) {
+      showMsg(`❌ ${e.message}`, false);
+    }
+  };
+
+  // ── Confirmar asignación desde modal (drop o click) ──
   const handleConfirmDrop = async (formData) => {
     setSaving(true);
     try {
@@ -627,6 +919,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
       if (json.success) {
         showMsg("✅ Bloque creado");
         setPendingDrop(null);
+        setPendingAssign(null);
         cargarBloques();
       } else {
         showMsg(`❌ ${json.error}`, false);
@@ -737,7 +1030,7 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
               </div>
             </div>
             <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px" }}>
-              {participantes.length} conectado{participantes.length !== 1 ? "s" : ""} · Arrastra sobre un equipo
+              {participantes.length} conectado{participantes.length !== 1 ? "s" : ""} · Arrastra o clic para asignar
             </div>
           </div>
 
@@ -754,10 +1047,13 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
                 key={p.id}
                 participante={p}
                 isDragging={draggingSup?.id === p.id}
+                bloquesCount={bloquesPorSupervisor[p.personal?.id] || 0}
                 onDragStart={(e, part) => {
                   setDraggingSup(part);
                   e.dataTransfer.effectAllowed = "copy";
                 }}
+                onDesconectar={handleDesconectar}
+                onClick={() => handleCardClick(p)}
               />
             ))}
 
@@ -769,78 +1065,76 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
                   Pendiente
                   <div style={{ flex: 1, height: "1px", background: "var(--border-container,#e2e8f0)" }} />
                 </div>
-                {supervisoresPendientes.map(s => {
-                  const color = s.especialidades?.color || "#6b7280";
-                  return (
-                    <div key={s.id} style={{
-                      display: "flex", alignItems: "center", gap: "8px",
-                      padding: "10px 12px", borderRadius: "10px",
-                      background: "rgba(107,114,128,0.06)", border: "1px dashed rgba(107,114,128,0.2)",
-                      marginBottom: "6px", opacity: 0.7,
-                    }}>
-                      <div style={{
-                        width: "30px", height: "30px", borderRadius: "50%",
-                        background: "rgba(107,114,128,0.1)", border: "1px dashed rgba(107,114,128,0.3)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: "11px", fontWeight: 700, color: "#6b7280", flexShrink: 0,
-                      }}>
-                        {s.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {s.nombre_completo.split(" ").slice(0, 2).join(" ")}
+                  {supervisoresPendientes.map(s => {
+                    const color = s.especialidades?.color || "#6b7280";
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => handlePendingCardClick(s)}
+                        title="Clic para asignar equipo aunque no asistió a la POD"
+                        style={{
+                          display: "flex", alignItems: "center", gap: "8px",
+                          padding: "10px 12px", borderRadius: "10px",
+                          background: "rgba(107,114,128,0.06)", border: "1px dashed rgba(107,114,128,0.3)",
+                          marginBottom: "6px", opacity: 0.75,
+                          cursor: "pointer", transition: "all 0.15s",
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.opacity = "1";
+                          e.currentTarget.style.background = "rgba(107,114,128,0.12)";
+                          e.currentTarget.style.border = "1px solid rgba(107,114,128,0.4)";
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.opacity = "0.75";
+                          e.currentTarget.style.background = "rgba(107,114,128,0.06)";
+                          e.currentTarget.style.border = "1px dashed rgba(107,114,128,0.3)";
+                        }}
+                      >
+                        <div style={{
+                          width: "30px", height: "30px", borderRadius: "50%",
+                          background: "rgba(107,114,128,0.1)", border: "1px dashed rgba(107,114,128,0.3)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: "11px", fontWeight: 700, color: "#6b7280", flexShrink: 0,
+                        }}>
+                          {s.nombre_completo.split(" ").map(n => n[0]).slice(0, 2).join("")}
                         </div>
-                        {s.especialidades && (
-                          <div style={{ fontSize: "10px", color, fontWeight: 600 }}>{s.especialidades.nombre_oficial}</div>
-                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {s.nombre_completo.split(" ").slice(0, 2).join(" ")}
+                          </div>
+                          {s.especialidades && (
+                            <div style={{ fontSize: "10px", color, fontWeight: 600 }}>{s.especialidades.nombre_oficial}</div>
+                          )}
+                        </div>
+                        {/* Indicador: sin conectar, pero asignable */}
+                        <div style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 600, flexShrink: 0 }}>
+                          + asignar
+                        </div>
                       </div>
-                      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#6b7280", flexShrink: 0 }} />
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </div>
 
-          {/* QR */}
+          {/* Botón QR → abre modal grande */}
           {proyectoActivoId && (
             <div style={{ padding: "12px 16px", borderTop: "1px solid var(--border-container, #e2e8f0)" }}>
               <button
-                onClick={() => setShowQR(!showQR)}
+                onClick={() => setShowQRModal(true)}
                 style={{
-                  width: "100%", display: "flex", alignItems: "center", gap: "8px",
-                  background: showQR ? "rgba(16,185,129,0.1)" : "rgba(16,185,129,0.06)",
-                  border: "1px solid rgba(16,185,129,0.25)", borderRadius: "10px",
+                  width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                  background: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.08))",
+                  border: "1px solid rgba(16,185,129,0.35)", borderRadius: "10px",
                   padding: "10px 14px", cursor: "pointer", color: "#10b981",
                   fontSize: "12px", fontWeight: 700, transition: "all 0.15s",
                 }}
+                onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.14))"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.08))"; }}
               >
                 <QrCode size={14} />
-                {showQR ? "Ocultar QR" : "📱 QR WhatsApp para supervisores"}
+                📱 Mostrar QR a supervisores
               </button>
-              {showQR && (
-                <div style={{ marginTop: "12px", textAlign: "center" }}>
-                  {qrImgSrc ? (
-                    <div style={{
-                      display: "inline-block", padding: "10px",
-                      background: "#0f1f2e", borderRadius: "12px",
-                      border: "2px solid rgba(16,185,129,0.3)",
-                    }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrImgSrc} alt="QR WA POD" style={{ width: "170px", height: "170px", display: "block", borderRadius: "6px" }} />
-                    </div>
-                  ) : (
-                    <div style={{ padding: "20px", color: "#64748b", fontSize: "12px" }}>
-                      ⚠️ Configura el número del bot en Puente WhatsApp
-                    </div>
-                  )}
-                  <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "8px", lineHeight: 1.5 }}>
-                    El supervisor escanea con su célular
-                    <br />WhatsApp se abre con <strong>PARTICIPAR_POD</strong> listo para enviar
-                    <br />El bot confirma y lo registra en la sala ✅
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -906,13 +1200,35 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
         </div>
       </div>
 
-      {/* Modal de confirmación de asignación */}
+      {/* Modal QR grande */}
+      {showQRModal && (
+        <ModalQR
+          qrImgSrc={qrImgSrc}
+          podJoinUrl={podJoinUrl}
+          onClose={() => setShowQRModal(false)}
+        />
+      )}
+
+      {/* Modal de confirmación de asignación (drag & drop) */}
       {pendingDrop && (
         <ModalAsignacion
           data={pendingDrop}
           especialidades={especialidadesList}
+          equiposList={equiposList}
           onConfirm={handleConfirmDrop}
           onClose={() => setPendingDrop(null)}
+          saving={saving}
+        />
+      )}
+
+      {/* Modal de asignación directa (click en tarjeta) */}
+      {pendingAssign && (
+        <ModalAsignacion
+          data={pendingAssign}
+          especialidades={especialidadesList}
+          equiposList={equiposList}
+          onConfirm={handleConfirmDrop}
+          onClose={() => setPendingAssign(null)}
           saving={saving}
         />
       )}
@@ -923,6 +1239,10 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
         @keyframes pulse {
           0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(16,185,129,0.6); }
           50% { opacity: 0.6; box-shadow: 0 0 12px rgba(16,185,129,0.9); }
+        }
+        @keyframes cardPulse {
+          0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+          50% { box-shadow: 0 2px 16px rgba(16,185,129,0.25); }
         }
       `}</style>
     </div>

@@ -183,10 +183,45 @@ export default async function handler(req, res) {
           return res.status(200).json({ success: true, action: "RESPUESTA_SUPERVISOR_VACIA" });
         }
 
-        // A. Actualizar planificacion_bloques_pod
+        // ── Interpretar respuesta: modo libre, numérico o texto libre ──
+        const tareasEnviadas = consultaPendiente.tareas_enviadas || [];
+        let actividadFinal = respuestaTexto;
+        let modoLibreActivo = consultaPendiente.esperando_libre;
+
+        if (!modoLibreActivo) {
+          const numero = parseInt(respuestaTexto, 10);
+          if (!isNaN(numero) && /^\d+$/.test(respuestaTexto.trim())) {
+            if (numero === 0) {
+              // Supervisor elige actividad libre → pedir descripción
+              await supabase.from("estados_consulta_bot")
+                .update({ esperando_libre: true, updated_at: new Date().toISOString() })
+                .eq("id", consultaPendiente.id);
+              await enviarMensajeWhatsApp(jid, phoneClean,
+                `✏️ Describe brevemente la actividad que ejecutarás hoy:`,
+                !!audio, geminiKey
+              );
+              return res.status(200).json({ success: true, action: "ESPERANDO_ACTIVIDAD_LIBRE" });
+            } else if (tareasEnviadas.length > 0) {
+              const tareaElegida = tareasEnviadas.find(t => t.orden === numero);
+              if (tareaElegida) {
+                actividadFinal = tareaElegida.nombre; // tarea programada por nombre
+              } else {
+                await enviarMensajeWhatsApp(jid, phoneClean,
+                  `⚠️ Número inválido. Responde con un número del *1* al *${tareasEnviadas.length}*, o *0* para otra actividad.`,
+                  !!audio, geminiKey
+                );
+                return res.status(200).json({ success: true, action: "NUMERO_FUERA_RANGO" });
+              }
+            }
+          }
+          // Texto que no sea número → usar directamente como actividad libre
+        } else {
+          // Modo libre: prefijo para identificar en reportes
+          actividadFinal = `[NO PROGRAMADA] ${respuestaTexto}`;
+        }
         const { error: errPlan } = await supabase
           .from("planificacion_bloques_pod")
-          .update({ actividad_especifica: respuestaTexto })
+          .update({ actividad_especifica: actividadFinal, actividad_respondida_at: new Date().toISOString() })
           .eq("id", consultaPendiente.planificacion_id);
 
         if (errPlan) {
@@ -197,7 +232,7 @@ export default async function handler(req, res) {
         if (consultaPendiente.evento_operador_id) {
           const { error: errEv } = await supabase
             .from("eventos_jornada")
-            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${respuestaTexto}` })
+            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${actividadFinal}` })
             .eq("id", consultaPendiente.evento_operador_id);
 
           if (errEv) {
@@ -214,7 +249,10 @@ export default async function handler(req, res) {
 
             const opWa = eventoInfo?.reportes_diarios?.personal?.whatsapp;
             if (opWa) {
-              await enviarMensajeWhatsApp(null, opWa, `📢 *Confirmación de Actividad*:\nTu supervisor ha confirmado la labor a realizar:\n\n_"${respuestaTexto}"_`, false, geminiKey);
+              await enviarMensajeWhatsApp(null, opWa,
+                `📢 *Actividad confirmada por tu supervisor:*\n\n_"${actividadFinal}"_\n\n¡Buena jornada! 💪`,
+                false, geminiKey
+              );
             }
           } catch (errNotif) {
             console.error("[whatsapp-incoming] Error al notificar al operador:", errNotif.message);

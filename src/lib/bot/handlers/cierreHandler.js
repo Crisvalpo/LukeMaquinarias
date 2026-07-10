@@ -13,8 +13,23 @@ export async function handleCierreFlow(ctx, res) {
   const tipoSeguimiento = ctx.tipoSeguimiento || "estandar";
   const reporteActual = ctx.reporteActual;
 
-  const horometroFinal = resultado.horometro_final;
-  const kmFinal = resultado.km_final;
+  const horometroFinal = (resultado.horometro_final !== null && resultado.horometro_final !== undefined)
+    ? resultado.horometro_final
+    : (reporteActual?.horometro_final || null);
+
+  const kmFinal = (resultado.km_final !== null && resultado.km_final !== undefined)
+    ? resultado.km_final
+    : (reporteActual?.km_final || null);
+
+  const petroleoLitros = (resultado.petroleo_litros !== null && resultado.petroleo_litros !== undefined && resultado.petroleo_litros !== 0)
+    ? resultado.petroleo_litros
+    : (reporteActual?.petroleo_litros || 0);
+
+  const horometroCargaCombustible = resultado.horometro_carga_combustible || reporteActual?.horometro_carga_combustible || null;
+
+  const combustibleNivelPorcentaje = (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined)
+    ? resultado.combustible_nivel_porcentaje
+    : (reporteActual?.combustible_final_porcentaje || null);
 
   const esVehiculo = tipoSeguimiento === 'vehiculo';
   const lecturaFinal = esVehiculo ? kmFinal : horometroFinal;
@@ -131,12 +146,11 @@ export async function handleCierreFlow(ctx, res) {
   const updateData = { estado_final: esFalla ? "Detenido por Falla" : "Disponible" };
   if (horometroFinal) updateData.horometro_final = horometroFinal;
   if (kmFinal) updateData.km_final = kmFinal;
-  if (resultado.petroleo_litros) updateData.petroleo_litros = resultado.petroleo_litros;
-  if (resultado.horometro_carga_combustible)
-    updateData.horometro_carga_combustible = resultado.horometro_carga_combustible;
-  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
-    updateData.combustible_final_porcentaje = resultado.combustible_nivel_porcentaje;
-    updateData.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  if (petroleoLitros) updateData.petroleo_litros = petroleoLitros;
+  if (horometroCargaCombustible) updateData.horometro_carga_combustible = horometroCargaCombustible;
+  if (combustibleNivelPorcentaje !== null && combustibleNivelPorcentaje !== undefined) {
+    updateData.combustible_final_porcentaje = combustibleNivelPorcentaje;
+    updateData.combustible_nivel_porcentaje = combustibleNivelPorcentaje;
   }
 
   await supabase
@@ -152,8 +166,8 @@ export async function handleCierreFlow(ctx, res) {
   };
   if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
   if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
-  if (resultado.combustible_nivel_porcentaje !== null && resultado.combustible_nivel_porcentaje !== undefined) {
-    eqUpdate.combustible_nivel_porcentaje = resultado.combustible_nivel_porcentaje;
+  if (combustibleNivelPorcentaje !== null && combustibleNivelPorcentaje !== undefined) {
+    eqUpdate.combustible_nivel_porcentaje = combustibleNivelPorcentaje;
   }
   await supabase.from("equipos").update(eqUpdate).eq("id", reporteActual.equipo_id);
 
@@ -262,17 +276,15 @@ export async function handleCierreFlow(ctx, res) {
       if (equipo?.tipo_seguimiento === 'vehiculo') {
         const kmFinalCalculado = kmFinal || reporteCompleto.km_final;
         const kmRecorridos = kmFinalCalculado && reporteCompleto.km_inicial ? (kmFinalCalculado - reporteCompleto.km_inicial) : null;
-        await enviarMensajeWhatsApp(jid, phoneClean,
-          `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n🚗 Odómetro: ${reporteCompleto.km_inicial?.toLocaleString("es-CL") || "—"} → ${kmFinalCalculado?.toLocaleString("es-CL") || "—"} km\n${kmRecorridos !== null ? `⏱ Kilómetros recorridos: ${kmRecorridos.toLocaleString("es-CL")} km\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`,
-          !!audio,
-          geminiKey
-        );
+        const msgText = `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n🚗 Odómetro: ${reporteCompleto.km_inicial?.toLocaleString("es-CL") || "—"} → ${kmFinalCalculado?.toLocaleString("es-CL") || "—"} km\n${kmRecorridos !== null ? `⏱ Kilómetros recorridos: ${kmRecorridos.toLocaleString("es-CL")} km\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`;
+        
+        await guardarMensajeChat(supabase, phoneClean, "model", msgText, "texto", sesion.reporte_activo_id);
+        await enviarMensajeWhatsApp(jid, phoneClean, msgText, !!audio, geminiKey);
       } else {
-        await enviarMensajeWhatsApp(jid, phoneClean,
-          `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`,
-          !!audio,
-          geminiKey
-        );
+        const msgText = `✅ *Reporte Diario de Jornada consolidado con éxito.*\n\n📊 Horómetro: ${reporteCompleto.horometro_inicio} → ${horometroFinal || "—"} hrs\n${horometroFinal ? `⏱ Horas trabajadas: ${(horometroFinal - reporteCompleto.horometro_inicio).toFixed(1)} hrs\n` : ""}\n📄 Descarga tu reporte aquí:\n👉 ${baseUrl}${pdfUrl}\n\n¡Buen término de jornada, ${personal.nombre_completo}! 👷‍♂️`;
+        
+        await guardarMensajeChat(supabase, phoneClean, "model", msgText, "texto", sesion.reporte_activo_id);
+        await enviarMensajeWhatsApp(jid, phoneClean, msgText, !!audio, geminiKey);
       }
     } catch (pdfErr) {
       console.error("[cierreHandler] Error generando PDF en segundo plano:", pdfErr.message);
