@@ -27,7 +27,7 @@ const STORAGE_KEY_USER = "luke_user";
 // ================================================================
 // PAGE PRINCIPAL
 // ================================================================
-export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeUser, onSignOut }) {
+function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onSignOut }) {
   const hookProps = useAdminMaquinaria(currentUser?.proyecto_actual_id || null, currentUser?.rol || null);
   const { tab, setTab, msg, registros, proyectosCompleto } = hookProps;
 
@@ -94,7 +94,7 @@ export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeU
   const pendientesCount = registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).length;
 
   return (
-    <AdminAuthWrapper>
+    <>
       <Head>
         <title>LukeEquipos — Control de Maquinaria</title>
         <meta name="description" content="Sistema de Control Operacional por Voz y Gestión de Maquinaria Pesada en Faena" />
@@ -340,6 +340,14 @@ export default function AdminMaquinaria({ currentUser, setCurrentUser, onChangeU
           {renderActiveTab()}
         </div>
       </div>
+    </>
+  );
+}
+
+export default function AdminMaquinaria() {
+  return (
+    <AdminAuthWrapper>
+      <AdminMaquinariaContent />
     </AdminAuthWrapper>
   );
 }
