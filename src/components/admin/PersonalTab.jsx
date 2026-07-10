@@ -129,7 +129,7 @@ export default function PersonalTab({ hookProps }) {
   const [showForm, setShowForm] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState(null);
 
-  const rolColors = { "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
+  const rolColors = { "Administrador": "#10b981", "Supervisor": "#ff303e", "Jefe de Area": "#c21a25", "Operador": "#2563eb", "Rigger": "#9333ea" };
 
   return (
     <>
@@ -182,7 +182,7 @@ export default function PersonalTab({ hookProps }) {
             <FormRow label="Rol *">
               <select style={selectStyle} value={formPersonal.rol}
                 onChange={e => setFormPersonal(p => ({ ...p, rol: e.target.value }))}>
-                {["Operador", "Supervisor", "Rigger", "Jefe de Area"].map(r => (
+                {["Operador", "Supervisor", "Rigger", "Jefe de Area", "Administrador"].map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
@@ -218,6 +218,11 @@ export default function PersonalTab({ hookProps }) {
                 value={formPersonal.foto_url}
                 onChange={e => setFormPersonal(p => ({ ...p, foto_url: e.target.value }))} />
             </FormRow>
+            <FormRow label="Correo Electrónico (Para Login)">
+              <input style={inputStyle} placeholder="ejemplo@correo.com"
+                value={formPersonal.email || ""}
+                onChange={e => setFormPersonal(p => ({ ...p, email: e.target.value }))} />
+            </FormRow>
             <FormRow label="Especialidad">
               <select style={selectStyle} value={formPersonal.especialidad_id}
                 onChange={e => setFormPersonal(p => ({ ...p, especialidad_id: e.target.value }))}>
@@ -229,7 +234,7 @@ export default function PersonalTab({ hookProps }) {
             </FormRow>
           </div>
           <button
-            onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", especialidad_id: "", foto_url: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
+            onClick={() => handleSubmit("/api/personal", formPersonal, () => setFormPersonal({ rut: "", nombre_completo: "", whatsapp: "", rol: "Operador", turno_tipo: "14x14", jornada_tipo: "Dia", proyecto_actual_id: "", especialidad_id: "", foto_url: "", email: "" }), () => { personalPaginado.refresh(); personalCompleto.refresh(); })}
             disabled={saving}
             style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none", color: "white", borderRadius: "8px", padding: "9px 20px", cursor: "pointer", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}
           >
@@ -249,7 +254,7 @@ export default function PersonalTab({ hookProps }) {
         <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
           <thead>
             <tr style={{ background: "var(--bg-sidebar)" }}>
-              {["Foto", "Nombre", "RUT", "WhatsApp", "Rol", "Especialidad", "Proyecto", "Turno / Jornada", "Acciones"].map((h, idx, arr) => (
+              {["Foto", "Nombre", "RUT", "Email", "WhatsApp", "Rol", "Especialidad", "Proyecto", "Turno / Jornada", "Acciones"].map((h, idx, arr) => (
                 <th key={h} style={{
                   padding: "12px 16px",
                   textAlign: "left",
@@ -296,6 +301,14 @@ export default function PersonalTab({ hookProps }) {
                       <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
                         <input
                           style={{ ...inputStyle, padding: "6px 10px" }}
+                          placeholder="correo@ejemplo.com"
+                          value={formEditPersonal.email || ""}
+                          onChange={e => setFormEditPersonal(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                      </td>
+                      <td style={{ padding: "8px 16px", borderBottom: "1px solid var(--border-container)" }}>
+                        <input
+                          style={{ ...inputStyle, padding: "6px 10px" }}
                           value={formEditPersonal.whatsapp}
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, whatsapp: e.target.value }))}
                         />
@@ -306,7 +319,7 @@ export default function PersonalTab({ hookProps }) {
                           value={formEditPersonal.rol}
                           onChange={e => setFormEditPersonal(prev => ({ ...prev, rol: e.target.value }))}
                         >
-                          {["Operador", "Supervisor", "Rigger", "Jefe de Area"].map(rol => (
+                          {["Operador", "Supervisor", "Rigger", "Jefe de Area", "Administrador"].map(rol => (
                             <option key={rol} value={rol}>{rol}</option>
                           ))}
                         </select>
@@ -413,6 +426,9 @@ export default function PersonalTab({ hookProps }) {
                         {p.rut}
                       </td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
+                        {p.email || <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin login</span>}
+                      </td>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.whatsapp}
                       </td>
                       <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
@@ -484,7 +500,8 @@ export default function PersonalTab({ hookProps }) {
                                     especialidad_id: p.especialidad_id || "",
                                     turno_tipo: p.turno_tipo || "14x14",
                                     jornada_tipo: p.jornada_tipo || "Dia",
-                                    foto_url: p.foto_url || ""
+                                    foto_url: p.foto_url || "",
+                                    email: p.email || ""
                                   });
                                   setActiveMenuId(null);
                                 }}

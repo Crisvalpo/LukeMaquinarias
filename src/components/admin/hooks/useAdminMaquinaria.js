@@ -191,7 +191,8 @@ export function useAdminMaquinaria(proyectoActivoId) {
     jornada_tipo: "Dia",
     proyecto_actual_id: "",
     especialidad_id: "",
-    foto_url: ""
+    foto_url: "",
+    email: ""
   });
 
   const [formEspecialidad, setFormEspecialidad] = useState({
@@ -217,7 +218,8 @@ export function useAdminMaquinaria(proyectoActivoId) {
     especialidad_id: "",
     turno_tipo: "14x14",
     jornada_tipo: "Dia",
-    foto_url: ""
+    foto_url: "",
+    email: ""
   });
 
   const [botPhone, setBotPhone] = useState("");

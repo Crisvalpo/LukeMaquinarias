@@ -71,13 +71,14 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id, foto_url, especialidad_id } = req.body;
+    const { rut, nombre_completo, whatsapp, rol, turno_tipo, jornada_tipo, proyecto_actual_id, foto_url, especialidad_id, email } = req.body;
     if (!rut || !nombre_completo || !whatsapp || !rol) {
       return res.status(400).json({ success: false, message: "Faltan campos requeridos" });
     }
 
     const cleanProyectoId = proyecto_actual_id === "" ? null : proyecto_actual_id;
     const formattedRut = formatRut(rut);
+    const cleanEmail = email ? email.trim().toLowerCase() : null;
 
     // 1. Verificar si el RUT ya existe en la base de datos (activo o inactivo)
     const { data: existente } = await supabase
@@ -100,6 +101,7 @@ export default async function handler(req, res) {
           proyecto_actual_id: cleanProyectoId,
           especialidad_id: especialidad_id || null,
           foto_url: foto_url || null,
+          email: cleanEmail || null,
           activo: true // Reactivar
         })
         .eq("id", existente.id)
@@ -122,6 +124,7 @@ export default async function handler(req, res) {
           proyecto_actual_id: cleanProyectoId,
           especialidad_id: especialidad_id || null,
           foto_url: foto_url || null,
+          email: cleanEmail || null,
           activo: true
         })
         .select()

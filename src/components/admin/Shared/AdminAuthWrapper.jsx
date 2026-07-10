@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Head from "next/head";
-import { Lock, Loader2, Key, User, ChevronRight, Mail } from "lucide-react";
+import { Lock, Loader2, Key, Mail } from "lucide-react";
 import { createBrowserClient } from "../../../lib/supabase-client";
 
 const STORAGE_KEY_USER = "luke_user";
@@ -12,13 +12,64 @@ export default function AdminAuthWrapper({ children }) {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
-
-  // Paso 2: selección de identidad
-  const [step, setStep] = useState(1); // 1 = contraseña/auth, 2 = identidad
-  const [personalList, setPersonalList] = useState([]);
-  const [loadingPersonal, setLoadingPersonal] = useState(false);
-  const [searchPersonal, setSearchPersonal] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+
+  const resolveUserIdentity = async (userEmail) => {
+    const cleanEmail = userEmail.trim().toLowerCase();
+    
+    // 1. Caso especial: cristianluke@gmail.com siempre es Administrador General
+    if (cleanEmail === "cristianluke@gmail.com") {
+      try {
+        const { data: persona } = await supabase
+          .from("personal")
+          .select("*, proyectos(*)")
+          .eq("email", cleanEmail)
+          .maybeSingle();
+
+        return {
+          id: persona?.id || "admin-root",
+          nombre_completo: persona?.nombre_completo || "Administrador General",
+          rol: "Administrador",
+          proyecto_actual_id: persona?.proyecto_actual_id || null,
+          proyecto: persona?.proyectos || null,
+          email: cleanEmail
+        };
+      } catch {
+        return {
+          id: "admin-root",
+          nombre_completo: "Administrador General",
+          rol: "Administrador",
+          proyecto_actual_id: null,
+          proyecto: null,
+          email: cleanEmail
+        };
+      }
+    }
+
+    // 2. Otros usuarios: buscar en la tabla personal por email
+    try {
+      const { data: persona } = await supabase
+        .from("personal")
+        .select("*, proyectos(*)")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+
+      if (persona && persona.activo) {
+        return {
+          id: persona.id,
+          nombre_completo: persona.nombre_completo,
+          rol: persona.rol, // Puede ser Supervisor, Operador, Administrador, etc.
+          proyecto_actual_id: persona.proyecto_actual_id || null,
+          proyecto: persona.proyectos || null,
+          email: cleanEmail
+        };
+      }
+    } catch (err) {
+      console.error("Error al buscar identidad por correo:", err);
+    }
+    
+    return null;
+  };
 
   useEffect(() => {
     // Verificar sesión existente en Supabase Auth
@@ -26,14 +77,18 @@ export default function AdminAuthWrapper({ children }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          setIsAuthenticated(true);
-          const raw = localStorage.getItem(STORAGE_KEY_USER);
-          if (raw) {
-            setCurrentUser(JSON.parse(raw));
+          const userEmail = session.user.email;
+          const user = await resolveUserIdentity(userEmail);
+          if (user) {
+            setIsAuthenticated(true);
+            setCurrentUser(user);
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
           } else {
-            // Ir al paso 2 si no tiene identidad seleccionada
-            setStep(2);
-            loadPersonal();
+            setLoginError("Tu correo no está registrado en el sistema de personal. Contacta al administrador.");
+            await supabase.auth.signOut();
+            setIsAuthenticated(false);
+            setCurrentUser(null);
+            localStorage.removeItem(STORAGE_KEY_USER);
           }
         }
       } catch (err) {
@@ -45,9 +100,20 @@ export default function AdminAuthWrapper({ children }) {
     checkSession();
 
     // Escuchar cambios de estado en Auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
-        setIsAuthenticated(true);
+        const userEmail = session.user.email;
+        const user = await resolveUserIdentity(userEmail);
+        if (user) {
+          setIsAuthenticated(true);
+          setCurrentUser(user);
+          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+        } else {
+          setLoginError("Tu correo no está registrado en el sistema de personal. Contacta al administrador.");
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+          localStorage.removeItem(STORAGE_KEY_USER);
+        }
       } else {
         setIsAuthenticated(false);
         setCurrentUser(null);
@@ -72,71 +138,32 @@ export default function AdminAuthWrapper({ children }) {
     setCheckingAuth(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password
       });
 
       if (error) {
         setLoginError(error.message || "Error al iniciar sesión");
+        setCheckingAuth(false);
       } else {
-        setIsAuthenticated(true);
-        // Si no hay identidad guardada, ir al selector de identidad
-        const raw = localStorage.getItem(STORAGE_KEY_USER);
-        if (!raw) {
-          setStep(2);
-          await loadPersonal();
-        } else {
-          setCurrentUser(JSON.parse(raw));
-        }
+        // La suscripción onAuthStateChange se encargará de resolver el usuario
       }
     } catch (err) {
       setLoginError("Ocurrió un error inesperado al conectar con Supabase");
-    } finally {
       setCheckingAuth(false);
     }
   };
 
-  const loadPersonal = async () => {
-    setLoadingPersonal(true);
-    try {
-      const r = await fetch("/api/personal");
-      const json = await r.json();
-      if (json.success) setPersonalList(json.data || []);
-    } catch {}
-    setLoadingPersonal(false);
-  };
-
-  const handleSelectUser = (persona) => {
-    const user = {
-      id: persona.id,
-      nombre_completo: persona.nombre_completo,
-      rol: persona.rol,
-      proyecto_actual_id: persona.proyecto_actual_id || null,
-      proyecto: persona.proyectos || null,
-    };
-    setCurrentUser(user);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    setStep(1); // resetear para próxima vez
-  };
-
-  const handleSkipIdentity = () => {
-    const user = {
-      id: "admin-root",
-      nombre_completo: "Administrador General",
-      rol: "Administrador",
-      proyecto_actual_id: null,
-      proyecto: null,
-    };
-    setCurrentUser(user);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
-    setStep(1);
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem(STORAGE_KEY_USER);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
   };
 
   const handleChangeUser = () => {
-    localStorage.removeItem(STORAGE_KEY_USER);
-    setCurrentUser(null);
-    setStep(2);
-    loadPersonal();
+    // Para cambiar de usuario, simplemente cerramos la sesión y dejamos que se vuelvan a autenticar
+    handleSignOut();
   };
 
   // ──── Estilos compartidos ────
@@ -165,108 +192,6 @@ export default function AdminAuthWrapper({ children }) {
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a1120", color: "#64748b", fontFamily: "sans-serif" }}>
         <Loader2 className="animate-spin" size={32} style={{ color: "#ff303e" }} />
       </div>
-    );
-  }
-
-  // ──── Paso 2: Selector de identidad ────
-  if (isAuthenticated && step === 2) {
-    const filtrados = personalList.filter(p =>
-      p.nombre_completo.toLowerCase().includes(searchPersonal.toLowerCase()) ||
-      (p.proyectos?.codigo_cc || "").toLowerCase().includes(searchPersonal.toLowerCase())
-    );
-
-    return (
-      <>
-        <Head>
-          <title>¿Quién eres? — LukeEquipos</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-        </Head>
-        <div style={{
-          minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-          background: "radial-gradient(circle at center, #121e36, #090f1e)",
-          fontFamily: "'Inter', sans-serif", color: "white", padding: "24px",
-        }}>
-          <div style={{ position: "absolute", width: "350px", height: "350px", background: "rgba(16, 185, 129, 0.1)", borderRadius: "50%", filter: "blur(90px)", pointerEvents: "none", zIndex: 0 }} />
-
-          <div style={{ ...cardStyle, maxWidth: "500px" }}>
-            {/* Logo */}
-            <div style={{ marginBottom: "20px" }}>
-              <img src="https://www.eimontajes.com/wp-content/uploads/2025/09/logo-eimisa.svg" alt="EIMISA" style={{ width: "140px", height: "auto", margin: "0 auto", display: "block" }} />
-              <div style={{ color: "#10b981", fontSize: "11px", fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", marginTop: "10px", fontFamily: "monospace" }}>
-                ¿Quién eres hoy?
-              </div>
-            </div>
-
-            <h2 style={{ fontSize: "18px", fontWeight: 800, marginBottom: "6px", color: "white" }}>Selecciona tu identidad</h2>
-            <p style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "20px", lineHeight: 1.5 }}>
-              El sistema filtrará el POD según tu proyecto asignado.
-            </p>
-
-            {/* Buscador */}
-            <div style={{ position: "relative", marginBottom: "16px" }}>
-              <User size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
-              <input
-                type="text"
-                placeholder="Buscar por nombre o proyecto..."
-                value={searchPersonal}
-                onChange={e => setSearchPersonal(e.target.value)}
-                style={{ ...inputSt, padding: "11px 14px 11px 38px" }}
-                onFocus={e => { e.target.style.borderColor = "#10b981"; e.target.style.boxShadow = "0 0 0 2px rgba(16,185,129,0.2)"; }}
-                onBlur={e => { e.target.style.borderColor = "#1c2e52"; e.target.style.boxShadow = "none"; }}
-              />
-            </div>
-
-            {/* Lista de personal */}
-            <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginBottom: "16px" }}>
-              {loadingPersonal ? (
-                <div style={{ padding: "20px", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> Cargando personal...
-                </div>
-              ) : filtrados.length === 0 ? (
-                <div style={{ padding: "20px", color: "#64748b", fontSize: "13px" }}>Sin resultados</div>
-              ) : filtrados.map(persona => (
-                <button
-                  key={persona.id}
-                  onClick={() => handleSelectUser(persona)}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "10px", padding: "12px 14px", cursor: "pointer", color: "white",
-                    textAlign: "left", transition: "all 0.15s", width: "100%",
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(16,185,129,0.12)"; e.currentTarget.style.borderColor = "rgba(16,185,129,0.4)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-                >
-                  <div>
-                    <div style={{ fontSize: "14px", fontWeight: 700 }}>{persona.nombre_completo}</div>
-                    <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>
-                      {persona.rol}
-                      {persona.proyectos ? ` · ${persona.proyectos.codigo_cc} — ${persona.proyectos.nombre_proyecto}` : " · Sin proyecto asignado"}
-                    </div>
-                  </div>
-                  <ChevronRight size={16} style={{ color: "#64748b", flexShrink: 0 }} />
-                </button>
-              ))}
-            </div>
-
-            {/* Omitir / Administrador General */}
-            <button
-              onClick={handleSkipIdentity}
-              style={{
-                width: "100%", background: "transparent", border: "1px solid #1c2e52",
-                color: "#94a3b8", borderRadius: "8px", padding: "10px",
-                fontSize: "13px", cursor: "pointer", transition: "all 0.2s",
-                fontWeight: 600
-              }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(16,185,129,0.5)"; e.currentTarget.style.color = "#10b981"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "#1c2e52"; e.currentTarget.style.color = "#94a3b8"; }}
-            >
-              🔑 Ingresar como Administrador General (Ver todo)
-            </button>
-          </div>
-        </div>
-      </>
     );
   }
 
@@ -357,13 +282,6 @@ export default function AdminAuthWrapper({ children }) {
       </>
     );
   }
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    localStorage.removeItem(STORAGE_KEY_USER);
-    setCurrentUser(null);
-    setIsAuthenticated(false);
-  };
 
   // ──── Autenticado: pasar currentUser como prop a los children ────
   return (
