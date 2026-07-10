@@ -24,7 +24,7 @@ export default function Home() {
           Bienvenido al Sistema de Gestión de Equipos
         </h1>
         <p style={{ fontSize: "1.2rem", textAlign: "center", maxWidth: "600px" }}>
-          Esta plataforma permite registrar, monitorear y administrar la flota de maquinaria interna.
+          .
         </p>
         <Link href="/admin-maquinaria" passHref>
           <a style={{
