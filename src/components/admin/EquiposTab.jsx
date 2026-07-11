@@ -129,6 +129,11 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     arriendo_fecha_inicio: equipo?.arriendo_fecha_inicio || "",
     arriendo_fecha_fin: equipo?.arriendo_fecha_fin || "",
     capacidad_estanque_litros: equipo?.capacidad_estanque_litros !== null && equipo?.capacidad_estanque_litros !== undefined ? equipo.capacidad_estanque_litros.toString() : "",
+    pm1_umbral: equipo?.pm1_umbral !== null && equipo?.pm1_umbral !== undefined ? equipo.pm1_umbral.toString() : "",
+    pm2_umbral: equipo?.pm2_umbral !== null && equipo?.pm2_umbral !== undefined ? equipo.pm2_umbral.toString() : "",
+    pm3_umbral: equipo?.pm3_umbral !== null && equipo?.pm3_umbral !== undefined ? equipo.pm3_umbral.toString() : "",
+    pm4_umbral: equipo?.pm4_umbral !== null && equipo?.pm4_umbral !== undefined ? equipo.pm4_umbral.toString() : "",
+    tolerancia_pm: equipo?.tolerancia_pm !== null && equipo?.tolerancia_pm !== undefined ? equipo.tolerancia_pm.toString() : "",
   });
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
@@ -208,6 +213,11 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         arriendo_fecha_inicio: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_inicio || null) : null,
         arriendo_fecha_fin: formData.clasificacion_comercial === "DISPONIBLE PARA ARRIENDO" ? (formData.arriendo_fecha_fin || null) : null,
         capacidad_estanque_litros: formData.capacidad_estanque_litros.trim() !== "" ? parseInt(formData.capacidad_estanque_litros) : null,
+        pm1_umbral: formData.pm1_umbral.trim() !== "" ? parseFloat(formData.pm1_umbral) : null,
+        pm2_umbral: formData.pm2_umbral.trim() !== "" ? parseFloat(formData.pm2_umbral) : null,
+        pm3_umbral: formData.pm3_umbral.trim() !== "" ? parseFloat(formData.pm3_umbral) : null,
+        pm4_umbral: formData.pm4_umbral.trim() !== "" ? parseFloat(formData.pm4_umbral) : null,
+        tolerancia_pm: formData.tolerancia_pm.trim() !== "" ? parseFloat(formData.tolerancia_pm) : null,
       };
 
       const r = await fetch("/api/equipos", {
@@ -402,6 +412,30 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
                 boxSizing: "border-box",
               }}
             />
+          </FormRow>
+        </div>
+
+        <div style={{ marginBottom: "18px" }}>
+          <FormRow label="Perfil de Mantención (PM1-PM4)">
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
+              {["pm1_umbral", "pm2_umbral", "pm3_umbral", "pm4_umbral", "tolerancia_pm"].map((campo, idx) => (
+                <div key={campo}>
+                  <div style={{ fontSize: "10px", color: "var(--color-text-muted)", marginBottom: "4px" }}>
+                    {idx < 4 ? `PM${idx + 1}` : "Tolerancia"}
+                  </div>
+                  <input
+                    style={inputStyle}
+                    type="number"
+                    placeholder={idx < 4 ? "Ej: 250" : "Ej: 50"}
+                    value={formData[campo]}
+                    onChange={e => setFormData(p => ({ ...p, [campo]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "6px" }}>
+              En horas (horómetro) o km (odómetro), según el tipo de seguimiento del equipo. Déjalo vacío si este equipo no participa del cálculo de mantención.
+            </div>
           </FormRow>
         </div>
 

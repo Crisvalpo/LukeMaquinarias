@@ -4,7 +4,7 @@ import Link from "next/link";
 import {
   LayoutGrid, MapPin, HardHat, Building2, Users, FileText,
   MessageSquare, CalendarDays, ChevronLeft, ChevronRight,
-  User, Loader2, Tag, TrendingUp
+  User, Loader2, Tag, TrendingUp, Wrench
 } from "lucide-react";
 import { useAdminMaquinaria } from "../components/admin/hooks/useAdminMaquinaria";
 import { useCurrentUser } from "../components/admin/hooks/useCurrentUser";
@@ -19,6 +19,7 @@ import ReportesTab from "../components/admin/ReportesTab";
 import PlanificacionPodTab from "../components/admin/PlanificacionPodTab";
 import EspecialidadesTab from "../components/admin/EspecialidadesTab";
 import IndicadoresTab from "../components/admin/IndicadoresTab";
+import MantencionTab from "../components/admin/MantencionTab";
 
 const SIDEBAR_FULL = 220;
 const SIDEBAR_MINI = 58;
@@ -34,6 +35,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
   const esAdminGlobal = currentUser?.rol === "Administrador";
   const puedeGestionarRegistros = esAdminGlobal || currentUser?.rol === "Jefe de Area";
   const puedeVerIndicadores = esAdminGlobal || currentUser?.rol === "Jefe de Area";
+  const puedeVerMantencion = esAdminGlobal || currentUser?.rol === "Jefe de Area";
 
   // Si un usuario sin permisos intenta acceder a pestañas restringidas, forzar redirección
   useEffect(() => {
@@ -45,8 +47,10 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
       setTab("monitor");
     } else if (tab === "indicadores" && !puedeVerIndicadores) {
       setTab("monitor");
+    } else if (tab === "mantencion" && !puedeVerMantencion) {
+      setTab("monitor");
     }
-  }, [tab, currentUser, esAdminGlobal, puedeGestionarRegistros, puedeVerIndicadores, setTab]);
+  }, [tab, currentUser, esAdminGlobal, puedeGestionarRegistros, puedeVerIndicadores, puedeVerMantencion, setTab]);
 
   // Auto-colapsar sidebar al entrar a POD
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -71,6 +75,9 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
     ...(puedeVerIndicadores ? [
       { id: "indicadores",    label: "Indicadores", icon: TrendingUp },
     ] : []),
+    ...(puedeVerMantencion ? [
+      { id: "mantencion",     label: "Mantención",  icon: Wrench },
+    ] : []),
     { id: "reportes",       label: "Reportes",    icon: FileText },
     { id: "pod",            label: "Sala POD",    icon: CalendarDays },
   ];
@@ -85,6 +92,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
       case "personal":       return <PersonalTab hookProps={hookProps} />;
       case "registros":      return <RegistrosTab hookProps={hookProps} />;
       case "indicadores":    return <IndicadoresTab currentUser={currentUser} />;
+      case "mantencion":     return <MantencionTab currentUser={currentUser} />;
       case "reportes":       return <ReportesTab hookProps={hookProps} />;
       case "pod":            return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
       default:               return <ConsoleTab hookProps={hookProps} />;
