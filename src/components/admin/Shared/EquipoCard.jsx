@@ -2,6 +2,7 @@ import React from "react";
 import { Pencil, Clock } from "lucide-react";
 import PersonalAvatar from "./PersonalAvatar";
 import { ESTADO_CONFIG } from "./constants";
+import { formatEquipoLabel } from "../../../lib/equipoLabel";
 
 export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
   const cfg = ESTADO_CONFIG[equipo.estado_actual] || ESTADO_CONFIG["Disponible"];
@@ -37,7 +38,7 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px", flexShrink: 0 }}>
           <div>
             <div style={{ color: "var(--color-primary-hover)", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase" }}>
-              {equipo.codigo_interno}
+              {formatEquipoLabel(equipo)}
             </div>
             <div style={{ color: "var(--color-text)", fontWeight: 700, fontSize: "14px", marginTop: "2px", lineHeight: 1.3 }}>
               {equipo.descripcion_equipo}

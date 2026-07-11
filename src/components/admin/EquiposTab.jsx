@@ -4,6 +4,7 @@ import FormRow from "./Shared/FormRow";
 import { ESTADO_CONFIG } from "./Shared/constants";
 import QrEquipoModal from "./Shared/QrEquipoModal";
 import SearchableSelect from "./Shared/SearchableSelect";
+import { formatEquipoLabel } from "../../lib/equipoLabel";
 
 const inputStyle = {
   width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
@@ -764,7 +765,7 @@ export default function EquiposTab({ hookProps }) {
                   const cfg = ESTADO_CONFIG[eq.estado_actual] || ESTADO_CONFIG["Disponible"];
                   return (
                     <tr key={eq.id} style={{ background: i % 2 === 0 ? "transparent" : "rgba(16, 185, 129, 0.02)" }}>
-                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>{eq.codigo_interno}</td>
+                      <td style={{ padding: "12px 16px", color: "#ff303e", fontWeight: 700, fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>{formatEquipoLabel(eq)}</td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>{eq.descripcion_equipo}</td>
                       <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>
                     <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, borderRadius: "12px", padding: "3px 10px", fontSize: "11px", fontWeight: 700 }}>

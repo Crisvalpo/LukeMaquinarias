@@ -15,6 +15,7 @@ import {
   RefreshCw, 
   Cpu
 } from "lucide-react";
+import { formatEquipoLabel } from "../../lib/equipoLabel";
 
 // Función para formatear el RUT chileno dinámicamente (ej: 12.345.678-K)
 function formatRut(value) {
@@ -450,7 +451,7 @@ export default function QrLanding() {
   return (
     <>
       <Head>
-        <title>{equipo ? `${equipo.codigo_interno} — LukeEquipos` : "LukeEquipos"}</title>
+        <title>{equipo ? `${formatEquipoLabel(equipo)} — LukeEquipos` : "LukeEquipos"}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -482,7 +483,7 @@ export default function QrLanding() {
             <div className="form-section animate-fade-in">
               <h2>Validación de Operador</h2>
               <p className="section-desc">
-                Antes de iniciar turno en <strong>{equipo?.descripcion_equipo} ({equipo?.codigo_interno})</strong>, por favor identifícate.
+                Antes de iniciar turno en <strong>{equipo?.descripcion_equipo} ({formatEquipoLabel(equipo)})</strong>, por favor identifícate.
               </p>
 
               {authError && (
@@ -580,7 +581,7 @@ export default function QrLanding() {
                   <Cpu size={20} color="#ff303e" />
                 </div>
                 <div className="item-metadata">
-                  <div className="item-code">{equipo.codigo_interno}</div>
+                  <div className="item-code">{formatEquipoLabel(equipo)}</div>
                   <div className="item-title">{equipo.descripcion_equipo}</div>
                   <div className="item-project">📍 CC: {equipo.proyectos?.codigo_cc} — {equipo.proyectos?.nombre_proyecto || "En Taller"}</div>
                 </div>
@@ -603,7 +604,7 @@ export default function QrLanding() {
                           <span className="pdf-date">
                             {new Date(rep.fecha).toLocaleDateString("es-CL", { timeZone: "UTC" })}
                           </span>
-                          <span className="pdf-machine">{rep.equipos?.codigo_interno}</span>
+                          <span className="pdf-machine">{formatEquipoLabel(rep.equipos)}</span>
                         </div>
                         <Download size={14} className="download-icon" />
                       </a>

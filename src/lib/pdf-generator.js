@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 import { createClient } from "@supabase/supabase-js";
+import { formatEquipoLabel } from "./equipoLabel";
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
 
@@ -185,7 +186,7 @@ export async function generarReportePDF({
         .fontSize(14)
         .font("Helvetica-Bold")
         .fillColor(NARANJA)
-        .text(equipo.codigo_interno, 50, 68, { align: "right", width: W });
+        .text(formatEquipoLabel(equipo), 50, 68, { align: "right", width: W });
 
       // Línea divisoria inferior de la cabecera
       doc.moveTo(50, 115).lineTo(50 + W, 115).strokeColor(AZUL_ACENTO).lineWidth(2).stroke();
@@ -206,7 +207,7 @@ export async function generarReportePDF({
       };
 
       filaInfo("Equipo", equipo.descripcion_equipo, 50, y);
-      filaInfo("Código", equipo.codigo_interno, 280, y);
+      filaInfo("Código", formatEquipoLabel(equipo), 280, y);
       filaInfo("Proveedor", equipo.proveedor, 430, y);
       y += 45;
 

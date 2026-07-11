@@ -7,8 +7,9 @@ import {
   procesarAudioOperador, 
   procesarAudioVehiculo, 
   procesarTextoVehiculo, 
-  procesarMensajeConContexto 
+  procesarMensajeConContexto
 } from "../../gemini";
+import { formatEquipoLabel } from "../../equipoLabel";
 
 export async function handleJornadaFlow(ctx, res) {
   const { supabase, personal, phoneClean, jid, message, audio, image, location, geminiKey } = ctx;
@@ -22,7 +23,7 @@ export async function handleJornadaFlow(ctx, res) {
 
     const { data: reporte } = await supabase
       .from("reportes_diarios")
-      .select("equipo_id, equipos(codigo_interno, descripcion_equipo)")
+      .select("equipo_id, equipos(codigo_interno, descripcion_equipo, patente)")
       .eq("id", sesion.reporte_activo_id)
       .maybeSingle();
 
@@ -52,7 +53,7 @@ export async function handleJornadaFlow(ctx, res) {
         });
 
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `📍 *Ubicación Registrada*\n\nCoordenadas de *${reporte.equipos?.descripcion_equipo || "Equipo"}* (${reporte.equipos?.codigo_interno}) actualizadas con éxito.\n(Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)})`,
+        `📍 *Ubicación Registrada*\n\nCoordenadas de *${reporte.equipos?.descripcion_equipo || "Equipo"}* (${formatEquipoLabel(reporte.equipos)}) actualizadas con éxito.\n(Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)})`,
         !!audio,
         geminiKey
       );
@@ -107,16 +108,52 @@ export async function handleJornadaFlow(ctx, res) {
 
     const codigoEquipo = msgUpper.replace("REPORTE:", "").trim();
 
-    // Buscar equipo
-    const { data: equipo } = await supabase
+    // Buscar equipo: código interno exacto -> patente exacta -> sufijo de patente
+    // (algunos operadores reconocen el equipo por los últimos dígitos de la patente, ej. "25")
+    let equipo = null;
+    let equiposAmbiguos = null;
+
+    const { data: porCodigo } = await supabase
       .from("equipos")
       .select("*, proyectos(*)")
       .eq("codigo_interno", codigoEquipo)
       .maybeSingle();
+    equipo = porCodigo;
+
+    if (!equipo) {
+      const { data: porPatente } = await supabase
+        .from("equipos")
+        .select("*, proyectos(*)")
+        .ilike("patente", codigoEquipo)
+        .maybeSingle();
+      equipo = porPatente;
+    }
+
+    if (!equipo && codigoEquipo.length >= 2 && codigoEquipo.length <= 4) {
+      const { data: porSufijo } = await supabase
+        .from("equipos")
+        .select("*, proyectos(*)")
+        .ilike("patente", `%${codigoEquipo}`);
+      if (porSufijo && porSufijo.length === 1) {
+        equipo = porSufijo[0];
+      } else if (porSufijo && porSufijo.length > 1) {
+        equiposAmbiguos = porSufijo;
+      }
+    }
+
+    if (equiposAmbiguos) {
+      const listado = equiposAmbiguos.map(e => `• ${formatEquipoLabel(e)} — ${e.descripcion_equipo}`).join("\n");
+      await enviarMensajeWhatsApp(jid, phoneClean,
+        `🤔 Encontré más de un equipo con esa patente:\n\n${listado}\n\nPor favor responde con el *código interno* completo del que corresponde.`,
+        !!audio,
+        geminiKey
+      );
+      return res.status(200).json({ success: true, action: "PATENTE_AMBIGUA" });
+    }
 
     if (!equipo) {
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `❌ No encontré el equipo *${codigoEquipo}*.\nVerifica el código e intenta nuevamente.`,
+        `❌ No encontré el equipo *${codigoEquipo}*.\nVerifica el código o la patente e intenta nuevamente.`,
         !!audio,
         geminiKey
       );
@@ -125,7 +162,7 @@ export async function handleJornadaFlow(ctx, res) {
 
     if (equipo.seguimiento_completo === false) {
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `ℹ️ Estimado(a) *${personal.nombre_completo}*.\n\nEl equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) no requiere asignación de operador ni seguimiento de jornada.`,
+        `ℹ️ Estimado(a) *${personal.nombre_completo}*.\n\nEl equipo *${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)}) no requiere asignación de operador ni seguimiento de jornada.`,
         !!audio,
         geminiKey
       );
@@ -145,7 +182,7 @@ export async function handleJornadaFlow(ctx, res) {
       const obraEquipoNombre = equipo.proyectos ? equipo.proyectos.nombre_proyecto : "Sin asignar";
 
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `❌ *Proyecto No Coincide*\n\nHola *${personal.nombre_completo}*, no puedes registrar tu jornada en el equipo *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) porque pertenece al proyecto *"${obraEquipoNombre}"*, y tú estás asignado al proyecto *"${obraPersonalNombre}"*.\n\nPor favor, contacta a tu supervisor para regularizar tu asignación.`,
+        `❌ *Proyecto No Coincide*\n\nHola *${personal.nombre_completo}*, no puedes registrar tu jornada en el equipo *${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)}) porque pertenece al proyecto *"${obraEquipoNombre}"*, y tú estás asignado al proyecto *"${obraPersonalNombre}"*.\n\nPor favor, contacta a tu supervisor para regularizar tu asignación.`,
         !!audio,
         geminiKey
       );
@@ -180,7 +217,7 @@ export async function handleJornadaFlow(ctx, res) {
           ? `_"Odómetro 84.320, voy al sector norte"_`
           : `_"Horómetro inicial dos mil trescientos, equipo operativo"_`;
         await enviarMensajeWhatsApp(jid, phoneClean,
-          `⏳ *${personal.nombre_completo}*, tienes un check-in pendiente para *${eqData?.descripcion_equipo || equipo.descripcion_equipo}* (${equipo.codigo_interno}).\n\n🎤 Aún no he recibido tu audio de inicio. Por favor envíalo ahora.\nEjemplo: ${ejemploAudio}`,
+          `⏳ *${personal.nombre_completo}*, tienes un check-in pendiente para *${eqData?.descripcion_equipo || equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)}).\n\n🎤 Aún no he recibido tu audio de inicio. Por favor envíalo ahora.\nEjemplo: ${ejemploAudio}`,
           !!audio,
           geminiKey
         );
@@ -198,7 +235,7 @@ export async function handleJornadaFlow(ctx, res) {
       if (lecturaReg > 0) {
         const sufijoMedida = equipo.tipo_seguimiento === 'vehiculo' ? 'km' : 'hrs';
         await enviarMensajeWhatsApp(jid, phoneClean,
-          `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos el inicio de tu jornada en *${equipo.descripcion_equipo}* (${equipo.codigo_interno}) con un valor inicial de *${lecturaReg.toLocaleString("es-CL")} ${sufijoMedida}*.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
+          `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos el inicio de tu jornada en *${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)}) con un valor inicial de *${lecturaReg.toLocaleString("es-CL")} ${sufijoMedida}*.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
           !!audio,
           geminiKey
         );
@@ -245,11 +282,11 @@ export async function handleJornadaFlow(ctx, res) {
     const tipoSeguimientoEquipo = equipo.tipo_seguimiento || 'estandar';
     let mensajeInstruccion;
     if (tipoSeguimientoEquipo === 'vehiculo') {
-      mensajeInstruccion = `🚗 *${personal.nombre_completo}*, vehículo registrado:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica el *kilometraje (odómetro)* y tu destino por *audio o texto*.\n_Ejemplo: "Odómetro 84.320, voy al sector norte"_`;
+      mensajeInstruccion = `🚗 *${personal.nombre_completo}*, vehículo registrado:\n*${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica el *kilometraje (odómetro)* y tu destino por *audio o texto*.\n_Ejemplo: "Odómetro 84.320, voy al sector norte"_`;
     } else if (tipoSeguimientoEquipo === 'camion') {
-      mensajeInstruccion = `🚛 *${personal.nombre_completo}*, inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del camión por *audio o texto*.\n_Ejemplo: "Horómetro 15.200, camión operativo"_`;
+      mensajeInstruccion = `🚛 *${personal.nombre_completo}*, inicio de turno para:\n*${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del camión por *audio o texto*.\n_Ejemplo: "Horómetro 15.200, camión operativo"_`;
     } else {
-      mensajeInstruccion = `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${equipo.codigo_interno})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del equipo por *audio o texto*.\n_Ejemplo: "Horómetro 2.300, equipo operativo, trabajando con Piping"_`;
+      mensajeInstruccion = `🚜 *${personal.nombre_completo}*, tu inicio de turno para:\n*${equipo.descripcion_equipo}* (${formatEquipoLabel(equipo)})${equipo.proyectos ? `\n📍 Proyecto: ${equipo.proyectos.nombre_proyecto}` : ""}${mensajePauta}\n\n💬 Indica tu *horómetro inicial* y el estado del equipo por *audio o texto*.\n_Ejemplo: "Horómetro 2.300, equipo operativo, trabajando con Piping"_`;
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean, mensajeInstruccion, !!audio, geminiKey);
@@ -266,21 +303,27 @@ export async function handleJornadaFlow(ctx, res) {
     const codigoScan = msgUpperC.replace("REPORTE:", "").trim();
     const { data: reporteActivo } = await supabase
       .from("reportes_diarios")
-      .select("*, equipos(descripcion_equipo, codigo_interno)")
+      .select("*, equipos(descripcion_equipo, codigo_interno, patente)")
       .eq("id", sesion.reporte_activo_id)
       .maybeSingle();
     const equipoActivo = reporteActivo?.equipos;
 
-    if (equipoActivo && equipoActivo.codigo_interno.toUpperCase() === codigoScan) {
+    const patenteActiva = (equipoActivo?.patente || "").toUpperCase();
+    const esMismoEquipo = equipoActivo && (
+      equipoActivo.codigo_interno.toUpperCase() === codigoScan ||
+      (patenteActiva && (patenteActiva === codigoScan || patenteActiva.endsWith(codigoScan)))
+    );
+
+    if (esMismoEquipo) {
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos que tu jornada para *${equipoActivo.descripcion_equipo}* (${equipoActivo.codigo_interno}) se encuentra activa y registrada con éxito.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
+        `👷‍♂️ *¡Jornada Activa!* 🚜\n\nHola *${personal.nombre_completo}*, confirmamos que tu jornada para *${equipoActivo.descripcion_equipo}* (${formatEquipoLabel(equipoActivo)}) se encuentra activa y registrada con éxito.\n\nDurante el día, puedes registrar tus hitos (ej. "En colación", "Trabajando", "Detenido por falla") enviando audios de voz o textos.`,
         !!audio,
         geminiKey
       );
       return res.status(200).json({ success: true, action: "SESION_YA_ACTIVA_MISMO_EQUIPO" });
     } else {
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo?.codigo_interno || ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`,
+        `⚠️ *${personal.nombre_completo}*, ya tienes una jornada activa para:\n*${equipoActivo?.descripcion_equipo || "equipo"}* (${equipoActivo ? formatEquipoLabel(equipoActivo) : ""})\n\nPara cambiar de equipo, primero cierra tu jornada actual diciendo:\n_"Cierre de jornada, horómetro final XXXX"_`,
         !!audio,
         geminiKey
       );
@@ -332,7 +375,7 @@ export async function handleJornadaFlow(ctx, res) {
 
       const { data: reporte } = await supabase
         .from("reportes_diarios")
-        .select("supervisor_id, equipos(codigo_interno, descripcion_equipo)")
+        .select("supervisor_id, equipos(codigo_interno, descripcion_equipo, patente)")
         .eq("id", sesion.reporte_activo_id)
         .maybeSingle();
 
@@ -340,7 +383,7 @@ export async function handleJornadaFlow(ctx, res) {
         await notificarSupervisor(
           supabase,
           reporte.supervisor_id,
-          `🔴 Equipo ${reporte.equipos?.codigo_interno} - ${reporte.equipos?.descripcion_equipo}\nOperador: ${personal.nombre_completo}\n\nAnálisis IA: ${analisis}`
+          `🔴 Equipo ${formatEquipoLabel(reporte.equipos)} - ${reporte.equipos?.descripcion_equipo}\nOperador: ${personal.nombre_completo}\n\nAnálisis IA: ${analisis}`
         );
       }
 
@@ -368,7 +411,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento, usa_plataforma)")
+    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento, usa_plataforma, patente)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
@@ -607,7 +650,7 @@ export async function handleJornadaFlow(ctx, res) {
               .join("\n");
 
             msgSupervisor =
-              `🔧 *${reporteActual.equipos?.codigo_interno}* listo con operador *${personal.nombre_completo}*.\n` +
+              `🔧 *${formatEquipoLabel(reporteActual.equipos)}* listo con operador *${personal.nombre_completo}*.\n` +
               `¿Qué actividad ejecutarás hoy en *${resultado.especialidad_detectada || "montaje"}*?\n\n` +
               listaTexto +
               `\n\n0️⃣ Otra actividad (describe brevemente)\n\n` +
@@ -618,7 +661,7 @@ export async function handleJornadaFlow(ctx, res) {
             // Sin tareas programadas → comportamiento anterior (texto libre)
             msgSupervisor =
               `El operador *${personal.nombre_completo}* inició trabajos de *${resultado.especialidad_detectada || "montaje"}* ` +
-              `con el equipo *${reporteActual.equipos?.codigo_interno}*. ` +
+              `con el equipo *${formatEquipoLabel(reporteActual.equipos)}*. ` +
               `Por favor, responda indicando la actividad específica o describa la labor fuera de programa.`;
           }
 
@@ -696,7 +739,7 @@ export async function handleJornadaFlow(ctx, res) {
         await notificarSupervisor(
           supabase,
           reporteActual.supervisor_id,
-          `⚠️ *ALERTA DE SUMINISTRO*:\nEl equipo crítico *${reporteActual.equipos?.codigo_interno || '—'}* reporta un nivel de combustible del *${nivelCombustible}%*. Requiere reabastecimiento en frente de trabajo. 📍 Coordenadas listas.`
+          `⚠️ *ALERTA DE SUMINISTRO*:\nEl equipo crítico *${reporteActual.equipos ? formatEquipoLabel(reporteActual.equipos) : '—'}* reporta un nivel de combustible del *${nivelCombustible}%*. Requiere reabastecimiento en frente de trabajo. 📍 Coordenadas listas.`
         );
       }
     } else if (tipoSeguimiento === 'vehiculo' && nivelCombustible <= 50) {
@@ -726,7 +769,7 @@ export async function handleJornadaFlow(ctx, res) {
   if (estadoHito === "Detenido por Falla" || resultado.es_falla_critica) {
     const { data: rpt } = await supabase
       .from("reportes_diarios")
-      .select("supervisor_id, equipos(codigo_interno)")
+      .select("supervisor_id, equipos(codigo_interno, patente)")
       .eq("id", sesion.reporte_activo_id)
       .maybeSingle();
 
@@ -734,7 +777,7 @@ export async function handleJornadaFlow(ctx, res) {
       await notificarSupervisor(
         supabase,
         rpt.supervisor_id,
-        `🔴 Alerta de Terreno - Equipo ${rpt.equipos?.codigo_interno}\nOperador: ${personal.nombre_completo}\n\nReportó: ${resultado.detalles_texto || "Falla técnica"}`
+        `🔴 Alerta de Terreno - Equipo ${formatEquipoLabel(rpt.equipos)}\nOperador: ${personal.nombre_completo}\n\nReportó: ${resultado.detalles_texto || "Falla técnica"}`
       );
     }
   }

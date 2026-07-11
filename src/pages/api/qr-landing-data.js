@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     // 1. Obtener datos del equipo
     const { data: equipo, error: errorEquipo } = await supabase
       .from("equipos")
-      .select("id, codigo_interno, descripcion_equipo, proveedor, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, ultimo_horometro, ultimo_odometro, pauta_preventiva_activa, tipo_seguimiento, combustible_nivel_porcentaje, proyectos(nombre_proyecto, codigo_cc), capacidad_estanque_litros")
+      .select("id, codigo_interno, descripcion_equipo, proveedor, patente, seguimiento_completo, latitud_actual, longitud_actual, ultima_ubicacion_fecha, ultimo_horometro, ultimo_odometro, pauta_preventiva_activa, tipo_seguimiento, combustible_nivel_porcentaje, proyectos(nombre_proyecto, codigo_cc), capacidad_estanque_litros")
       .eq("codigo_interno", codigo)
       .maybeSingle();
 
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
         // 4. Obtener los últimos 5 reportes consolidados en PDF de este operador
         const { data: repList, error: errorRep } = await supabase
           .from("reportes_diarios")
-          .select("id, fecha, pdf_url, equipos(codigo_interno)")
+          .select("id, fecha, pdf_url, equipos(codigo_interno, patente)")
           .eq("operador_id", operador.id)
           .not("pdf_url", "is", null)
           .order("fecha", { ascending: false })
