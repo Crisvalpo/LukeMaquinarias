@@ -115,7 +115,8 @@ export async function handleAdminFlow(ctx, res) {
       pm2_umbral: "NUMERIC",
       pm3_umbral: "NUMERIC",
       pm4_umbral: "NUMERIC",
-      tolerancia_pm: "NUMERIC"
+      tolerancia_pm: "NUMERIC",
+      usa_plataforma: "BOOLEAN (default true; false = el bot no pregunta estado de plataforma Cargada/Limpia al cerrar jornada, ej. gruas)"
     },
     mantenciones_ejecutadas: { id: "UUID", equipo_id: "UUID REFERENCES equipos(id)", tipo_pm: "PM1 | PM2 | PM3 | PM4", fecha: "DATE", lectura_al_momento: "NUMERIC (horometro u odometro al momento de la PM)", responsable_id: "UUID REFERENCES personal(id)", notas: "TEXT" },
     reportes_diarios: { id: "UUID", equipo_id: "UUID", operador_id: "UUID", supervisor_id: "UUID", fecha: "DATE", horometro_inicio: "NUMERIC", horometro_final: "NUMERIC", horas_trabajadas: "NUMERIC", petroleo_litros: "NUMERIC", estado_final: "TEXT", pdf_url: "TEXT" },
@@ -165,6 +166,7 @@ Directrices de Comportamiento:
      - Haga un INSERT en 'tareas_programadas' con 'nombre' (el texto de la tarea, capitalizado de forma legible), 'especialidad_id', 'activa: true', 'es_libre: false', 'orden'.
      - Confirma al usuario el nombre de la tarea agregada y la especialidad a la que quedó asociada.
    - **PERFIL DE MANTENCIÓN (PM1-PM4):** Si te piden configurar los umbrales de mantención de un equipo o de toda una categoría/tipo (ej. "a todos los camiones aljibe configúrales PM1 en 250 horas, PM2 500, PM3 1000, PM4 2000, tolerancia 50"), crea y ejecuta una herramienta dinámica que haga un UPDATE en 'equipos' sobre las columnas 'pm1_umbral', 'pm2_umbral', 'pm3_umbral', 'pm4_umbral' y 'tolerancia_pm' (todas NUMERIC, en horas si el equipo se controla por horómetro o en km si 'tipo_seguimiento' es 'vehiculo'), filtrando por 'categoria' o 'tipo' según corresponda. Confirma cuántos equipos quedaron actualizados.
+   - **CARACTERÍSTICAS OPERACIONALES DEL EQUIPO:** Si te piden que un equipo o una categoría completa no maneje cierta característica (ej. "las grúas no manejan estado de plataforma", "el CAPL-0029 no necesita control de plataforma", "cambia el CAAL-0002 a tipo vehículo"), crea y ejecuta una herramienta dinámica que haga un UPDATE en 'equipos' sobre 'usa_plataforma' (BOOLEAN) y/o 'tipo_seguimiento' ('estandar'|'camion'|'vehiculo'), filtrando por 'categoria', 'tipo' o 'codigo_interno' según corresponda. Confirma cuántos equipos quedaron actualizados.
    - **REGISTRAR PM EJECUTADA:** Si te informan que se ejecutó una mantención (ej. "se hizo la PM2 al CAAL-0002 hoy, quedó en 550 horas"), crea y ejecuta una herramienta dinámica que haga un INSERT en 'mantenciones_ejecutadas' con 'equipo_id' (resuelto por 'codigo_interno'), 'tipo_pm' ('PM1'|'PM2'|'PM3'|'PM4'), 'fecha' (hoy si no se especifica, formato YYYY-MM-DD), 'lectura_al_momento' (el valor de horómetro/km indicado) y 'responsable_id' (el id de 'personal' de quien te escribe, ya disponible en el contexto). Confirma el registro al usuario.
 
 CRÍTICO - ESQUEMA DE BASE DE DATOS:

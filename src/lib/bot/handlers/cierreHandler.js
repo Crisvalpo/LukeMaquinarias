@@ -31,6 +31,7 @@ export async function handleCierreFlow(ctx, res) {
     ? resultado.combustible_nivel_porcentaje
     : (reporteActual?.combustible_final_porcentaje || null);
 
+  const usaPlataforma = reporteActual?.equipos?.usa_plataforma !== false;
   const esVehiculo = tipoSeguimiento === 'vehiculo';
   const lecturaFinal = esVehiculo ? kmFinal : horometroFinal;
   const lecturaInicio = esVehiculo ? (reporteActual?.km_inicial || 0) : (reporteActual?.horometro_inicio || 0);
@@ -69,8 +70,8 @@ export async function handleCierreFlow(ctx, res) {
     return res.status(200).json({ success: true, action: "LECTURA_FINAL_INVALIDA" });
   }
 
-  // 3. Flujo de Control de Plataforma (Cargada/Limpia)
-  if (sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA" && sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
+  // 3. Flujo de Control de Plataforma (Cargada/Limpia) — se omite si el equipo tiene usa_plataforma = false
+  if (usaPlataforma && sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA" && sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
     // Guardar lecturas validadas en el reporte de forma temporal para no perderlas
     const updateTemp = {};
     if (horometroFinal) updateTemp.horometro_final = horometroFinal;
@@ -158,12 +159,12 @@ export async function handleCierreFlow(ctx, res) {
     .update(updateData)
     .eq("id", sesion.reporte_activo_id);
 
-  const eqUpdate = { 
-    estado_actual: estadoFinalCierre,
-    plataforma_estado: platEstado,
-    plataforma_especialidad_id: platEspId,
-    plataforma_detalle: platDetalle
-  };
+  const eqUpdate = { estado_actual: estadoFinalCierre };
+  if (usaPlataforma) {
+    eqUpdate.plataforma_estado = platEstado;
+    eqUpdate.plataforma_especialidad_id = platEspId;
+    eqUpdate.plataforma_detalle = platDetalle;
+  }
   if (horometroFinal) eqUpdate.ultimo_horometro = horometroFinal;
   if (kmFinal) eqUpdate.ultimo_odometro = kmFinal;
   if (combustibleNivelPorcentaje !== null && combustibleNivelPorcentaje !== undefined) {
@@ -176,7 +177,7 @@ export async function handleCierreFlow(ctx, res) {
     reporte_id: sesion.reporte_activo_id,
     estado_hito: estadoFinalCierre,
     hora_evento: new Date().toISOString(),
-    nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}${horometroFinal ? ` | Horómetro: ${horometroFinal}` : ""}${platEstado === 'Cargada' ? ` | Plataforma Cargada (${platDetalle || 'sin detalle'})` : ' | Plataforma Limpia'}`,
+    nota_transcripcion: `CHECK-OUT: ${resultado.detalles_texto || "Cierre de jornada"}${kmFinal ? ` | Odómetro: ${kmFinal}` : ""}${horometroFinal ? ` | Horómetro: ${horometroFinal}` : ""}${usaPlataforma ? (platEstado === 'Cargada' ? ` | Plataforma Cargada (${platDetalle || 'sin detalle'})` : ' | Plataforma Limpia') : ''}`,
   });
 
   await enviarMensajeWhatsApp(jid, phoneClean,

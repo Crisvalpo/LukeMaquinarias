@@ -134,6 +134,8 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     pm3_umbral: equipo?.pm3_umbral !== null && equipo?.pm3_umbral !== undefined ? equipo.pm3_umbral.toString() : "",
     pm4_umbral: equipo?.pm4_umbral !== null && equipo?.pm4_umbral !== undefined ? equipo.pm4_umbral.toString() : "",
     tolerancia_pm: equipo?.tolerancia_pm !== null && equipo?.tolerancia_pm !== undefined ? equipo.tolerancia_pm.toString() : "",
+    tipo_seguimiento: equipo?.tipo_seguimiento || "estandar",
+    usa_plataforma: equipo?.usa_plataforma !== false,
   });
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
@@ -218,6 +220,8 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         pm3_umbral: formData.pm3_umbral.trim() !== "" ? parseFloat(formData.pm3_umbral) : null,
         pm4_umbral: formData.pm4_umbral.trim() !== "" ? parseFloat(formData.pm4_umbral) : null,
         tolerancia_pm: formData.tolerancia_pm.trim() !== "" ? parseFloat(formData.tolerancia_pm) : null,
+        tipo_seguimiento: formData.tipo_seguimiento,
+        usa_plataforma: formData.usa_plataforma,
       };
 
       const r = await fetch("/api/equipos", {
@@ -397,6 +401,36 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               value={formData.combustible_nivel_porcentaje}
               onChange={e => setFormData(p => ({ ...p, combustible_nivel_porcentaje: e.target.value }))}
             />
+          </FormRow>
+        </div>
+
+        <div style={{ marginBottom: "18px" }}>
+          <FormRow label="Características Operacionales">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: "10px", color: "var(--color-text-muted)", marginBottom: "4px" }}>Tipo de seguimiento</div>
+                <select
+                  style={selectStyle}
+                  value={formData.tipo_seguimiento}
+                  onChange={e => setFormData(p => ({ ...p, tipo_seguimiento: e.target.value }))}
+                >
+                  <option value="estandar">Estándar (horómetro, con especialidad)</option>
+                  <option value="camion">Camión (horómetro, sin especialidad)</option>
+                  <option value="vehiculo">Vehículo (kilometraje)</option>
+                </select>
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--color-text)", cursor: "pointer", marginTop: "14px" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.usa_plataforma}
+                  onChange={e => setFormData(p => ({ ...p, usa_plataforma: e.target.checked }))}
+                />
+                Usa control de plataforma (Cargada/Limpia)
+              </label>
+            </div>
+            <div style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "6px" }}>
+              Define qué le pregunta el bot a este equipo al iniciar/cerrar jornada. Desmarca "plataforma" para equipos donde no aplica (ej. grúas).
+            </div>
           </FormRow>
         </div>
 

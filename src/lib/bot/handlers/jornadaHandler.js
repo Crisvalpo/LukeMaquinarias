@@ -368,7 +368,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento)")
+    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento, usa_plataforma)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
