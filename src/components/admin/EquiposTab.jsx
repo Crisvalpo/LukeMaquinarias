@@ -141,6 +141,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
   const [subiendoFondo, setSubiendoFondo] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [seccionActiva, setSeccionActiva] = useState("general");
   const fileInputRef = useRef(null);
 
   const handleUploadFondo = async (e) => {
@@ -245,6 +246,13 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
 
   const CATEGORIAS_MAESTRAS = ["GRÚAS", "CAMIONES", "MAQUINARIA PESADA", "MAQUINARIA SEMIPESADA", "VEHÍCULOS MENORES", "EQUIPOS MENORES"];
 
+  const SECCIONES = [
+    { id: "general", label: "General" },
+    { id: "comercial", label: "Estado y Comercial" },
+    { id: "mantencion", label: "Mantención y Bot" },
+    { id: "imagen", label: "Imagen" },
+  ];
+
   return (
     <div style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
@@ -253,10 +261,10 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
     }}>
       <div style={{
         background: "var(--bg-container)", border: "1px solid var(--border-container)",
-        borderRadius: "var(--border-radius-base)", boxShadow: "0 10px 40px rgba(0,0,0,0.08)", padding: "24px", width: "100%", maxWidth: "700px",
-        maxHeight: "90vh", overflowY: "auto", boxSizing: "border-box"
+        borderRadius: "var(--border-radius-base)", boxShadow: "0 10px 40px rgba(0,0,0,0.08)", padding: "24px", width: "100%", maxWidth: "860px",
+        maxHeight: "90vh", display: "flex", flexDirection: "column", boxSizing: "border-box"
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px", flexShrink: 0 }}>
           <div>
             <div style={{ color: "var(--color-text)", fontWeight: 800, fontSize: "18px" }}>Editar Maquinaria / Equipo</div>
             <div style={{ color: "var(--color-text-muted)", fontSize: "12px", marginTop: "2px" }}>
@@ -269,12 +277,42 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
         </div>
 
         {errorMsg && (
-          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#c21a25", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "16px", fontWeight: 600 }}>
+          <div style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#c21a25", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", marginBottom: "16px", fontWeight: 600, flexShrink: 0 }}>
             ⚠️ {errorMsg}
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "18px" }}>
+        <div style={{ display: "flex", gap: "4px", marginBottom: "18px", borderBottom: "1px solid var(--border-container)", flexShrink: 0 }}>
+          {SECCIONES.map(s => {
+            const active = seccionActiva === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSeccionActiva(s.id)}
+                style={{
+                  padding: "9px 14px",
+                  background: "none",
+                  border: "none",
+                  borderBottom: active ? "2px solid var(--color-primary)" : "2px solid transparent",
+                  color: active ? "var(--color-primary-hover)" : "var(--color-text-muted)",
+                  fontWeight: active ? 700 : 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  marginBottom: "-1px",
+                  transition: "color 0.15s, border-color 0.15s",
+                }}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px" }}>
+
+        {seccionActiva === "general" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px", marginBottom: "18px" }}>
           <FormRow label="Código Interno *">
             <input style={inputStyle} value={formData.codigo_interno}
               onChange={e => setFormData(p => ({ ...p, codigo_interno: e.target.value }))} />
@@ -319,13 +357,11 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             <input style={inputStyle} value={formData.proveedor}
               onChange={e => setFormData(p => ({ ...p, proveedor: e.target.value }))} />
           </FormRow>
-          <FormRow label="Seguimiento de Horas por Especialidad/Operador">
-            <select style={selectStyle} value={formData.seguimiento_completo.toString()}
-              onChange={e => setFormData(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
-              <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
-              <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
-            </select>
-          </FormRow>
+        </div>
+        )}
+
+        {seccionActiva === "comercial" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "18px" }}>
           <FormRow label="Proyecto / Obra Asociada">
             <SearchableSelect
               options={[
@@ -404,8 +440,18 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             />
           </FormRow>
         </div>
+        )}
 
+        {seccionActiva === "mantencion" && (
         <div style={{ marginBottom: "18px" }}>
+          <FormRow label="Seguimiento de Horas por Especialidad/Operador">
+            <select style={selectStyle} value={formData.seguimiento_completo.toString()}
+              onChange={e => setFormData(p => ({ ...p, seguimiento_completo: e.target.value === "true" }))}>
+              <option value="true">Sí (Flujo Completo con Operador, Horómetro y Especialidades)</option>
+              <option value="false">No (Sin enlace a Operador, ej: Torres de Iluminación)</option>
+            </select>
+          </FormRow>
+
           <FormRow label="Características Operacionales">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", alignItems: "center" }}>
               <div>
@@ -433,24 +479,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               Define qué le pregunta el bot a este equipo al iniciar/cerrar jornada. Desmarca "plataforma" para equipos donde no aplica (ej. grúas).
             </div>
           </FormRow>
-        </div>
 
-        <div style={{ marginBottom: "18px" }}>
-          <FormRow label="Pauta Preventiva Activa">
-            <textarea
-              value={formData.pauta_preventiva_activa}
-              onChange={e => setFormData(p => ({ ...p, pauta_preventiva_activa: e.target.value }))}
-              placeholder="Instrucciones especiales para el operador al iniciar jornada..."
-              style={{
-                width: "100%", minHeight: "80px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "12px", fontSize: "13px",
-                resize: "vertical", outline: "none", fontFamily: "inherit",
-                boxSizing: "border-box",
-              }}
-            />
-          </FormRow>
-        </div>
-
-        <div style={{ marginBottom: "18px" }}>
           <FormRow label="Perfil de Mantención (PM1-PM4)">
             <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
               {["pm1_umbral", "pm2_umbral", "pm3_umbral", "pm4_umbral", "tolerancia_pm"].map((campo, idx) => (
@@ -472,8 +501,23 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
               En horas (horómetro) o km (odómetro), según el tipo de seguimiento del equipo. Déjalo vacío si este equipo no participa del cálculo de mantención.
             </div>
           </FormRow>
-        </div>
 
+          <FormRow label="Pauta Preventiva Activa">
+            <textarea
+              value={formData.pauta_preventiva_activa}
+              onChange={e => setFormData(p => ({ ...p, pauta_preventiva_activa: e.target.value }))}
+              placeholder="Instrucciones especiales para el operador al iniciar jornada..."
+              style={{
+                width: "100%", minHeight: "70px", background: "var(--bg-input)", border: "1px solid var(--border-input)", borderRadius: "var(--border-radius-sm)", color: "var(--color-input-text)", padding: "12px", fontSize: "13px",
+                resize: "vertical", outline: "none", fontFamily: "inherit",
+                boxSizing: "border-box",
+              }}
+            />
+          </FormRow>
+        </div>
+        )}
+
+        {seccionActiva === "imagen" && (
         <div style={{ marginBottom: "18px" }}>
           <FormRow label="Fotografía de Fondo del Equipo">
             <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
@@ -544,8 +588,11 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
             )}
           </FormRow>
         </div>
+        )}
 
-        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", paddingTop: "16px", marginTop: "4px", borderTop: "1px solid var(--border-container)", flexShrink: 0 }}>
           <button onClick={onClose} style={{
             background: "transparent", border: "1px solid #1c2e52",
             color: "var(--color-text-muted)", borderRadius: "8px", padding: "10px 20px",
