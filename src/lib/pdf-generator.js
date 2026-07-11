@@ -287,25 +287,17 @@ export async function generarReportePDF({
 
         eventos.forEach((ev, i) => {
           const hora = new Date(ev.hora_evento).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
-          const bgColor = i % 2 === 0 ? GRIS_CLARO : "white";
-          
-          doc.rect(50, y, W, 22).fill(bgColor).stroke("#e2e8f0");
 
-          doc.fontSize(8.5).font("Helvetica").fillColor(AZUL_OSCURO).text(hora, colHoraX, y + 7, { width: colHoraW });
-          doc.fillColor(colorEstado(ev.estado_hito)).font("Helvetica-Bold").text(ev.estado_hito, colEstadoX, y + 7, { width: colEstadoW });
-          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(esVehiculo ? "—" : (ev.especialidad_nombre || "—"), colEspecX, y + 7, { width: colEspecW });
-          
           // Sanitizar y limpiar la nota para evitar caracteres extraños o LaTeX
           const notaLimpia = sanitizarTexto(ev.nota_transcripcion || "—");
-          doc.text(notaLimpia, colNotaX, y + 7, { width: colNotaW, height: 12, ellipsis: true });
-          
-          y += 22;
+          const notaHeight = doc.fontSize(8.5).heightOfString(notaLimpia, { width: colNotaW, lineGap: 2 });
+          const rowHeight = Math.max(22, notaHeight + 14);
 
-          // Nueva página si se agota el espacio
-          if (y > doc.page.height - 120) {
+          // Nueva página si esta fila no cabe entera
+          if (y + rowHeight > doc.page.height - 120) {
             doc.addPage();
             y = 50;
-            
+
             // Repetir encabezados en nueva página
             doc.rect(50, y, W, 20).fill(AZUL_OSCURO);
             doc.fontSize(8.5).font("Helvetica-Bold").fillColor("white");
@@ -315,6 +307,16 @@ export async function generarReportePDF({
             doc.text("NOTA", colNotaX, y + 6, { width: colNotaW });
             y += 20;
           }
+
+          const bgColor = i % 2 === 0 ? GRIS_CLARO : "white";
+          doc.rect(50, y, W, rowHeight).fill(bgColor).stroke("#e2e8f0");
+
+          doc.fontSize(8.5).font("Helvetica").fillColor(AZUL_OSCURO).text(hora, colHoraX, y + 7, { width: colHoraW });
+          doc.fillColor(colorEstado(ev.estado_hito)).font("Helvetica-Bold").text(ev.estado_hito, colEstadoX, y + 7, { width: colEstadoW });
+          doc.fillColor(AZUL_OSCURO).font("Helvetica").text(esVehiculo ? "—" : (ev.especialidad_nombre || "—"), colEspecX, y + 7, { width: colEspecW });
+          doc.font("Helvetica").text(notaLimpia, colNotaX, y + 7, { width: colNotaW, lineGap: 2 });
+
+          y += rowHeight;
         });
       } else {
         doc.fontSize(10).fillColor("#94a3b8").text("Sin hitos registrados en esta jornada.", 50, y + 5);
