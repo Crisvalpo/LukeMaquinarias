@@ -10,6 +10,7 @@ import {
   procesarMensajeConContexto
 } from "../../gemini";
 import { formatEquipoLabel } from "../../equipoLabel";
+import { crearConsultaPendiente } from "../services/podConsultaService";
 
 export async function handleJornadaFlow(ctx, res) {
   const { supabase, personal, phoneClean, jid, message, audio, image, location, geminiKey } = ctx;
@@ -626,63 +627,18 @@ export async function handleJornadaFlow(ctx, res) {
           .single();
 
         if (nuevoEvento) {
-          // ── Obtener tareas programadas para la especialidad del bloque ──
-          const { data: tareasDb } = await supabase
-            .from("tareas_programadas")
-            .select("id, nombre, codigo")
-            .eq("especialidad_id", bloque.especialidad_id)
-            .eq("activa", true)
-            .eq("es_libre", false)
-            .order("orden", { ascending: true })
-            .order("nombre", { ascending: true })
-            .limit(8);
-
-          const tareas = tareasDb || [];
-
-          // Construir mensaje con lista numerada si hay tareas
-          let msgSupervisor;
-          let tareasEnviadas = null;
-
-          if (tareas.length > 0) {
-            const numeros = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
-            const listaTexto = tareas
-              .map((t, i) => `${numeros[i] || `${i + 1}.`} ${t.nombre}${t.codigo ? ` _(${t.codigo})_` : ""}`)
-              .join("\n");
-
-            msgSupervisor =
-              `🔧 *${formatEquipoLabel(reporteActual.equipos)}* listo con operador *${personal.nombre_completo}*.\n` +
-              `¿Qué actividad ejecutarás hoy en *${resultado.especialidad_detectada || "montaje"}*?\n\n` +
-              listaTexto +
-              `\n\n0️⃣ Otra actividad (describe brevemente)\n\n` +
-              `_Responde con el número de tu tarea o escribe la actividad libremente._`;
-
-            tareasEnviadas = tareas.map((t, i) => ({ orden: i + 1, id: t.id, nombre: t.nombre }));
-          } else {
-            // Sin tareas programadas → comportamiento anterior (texto libre)
-            msgSupervisor =
-              `El operador *${personal.nombre_completo}* inició trabajos de *${resultado.especialidad_detectada || "montaje"}* ` +
-              `con el equipo *${formatEquipoLabel(reporteActual.equipos)}*. ` +
-              `Por favor, responda indicando la actividad específica o describa la labor fuera de programa.`;
-          }
-
-          await enviarMensajeWhatsApp(null, bloque.supervisor.whatsapp, msgSupervisor, false, geminiKey);
-
-          await supabase
-            .from("estados_consulta_bot")
-            .upsert({
-              telefono_supervisor: bloque.supervisor.whatsapp,
-              planificacion_id: bloque.id,
-              evento_operador_id: nuevoEvento.id,
-              estado_pregunta: "Pendiente_Actividad",
-              tareas_enviadas: tareasEnviadas,
-              esperando_libre: false,
-              updated_at: new Date().toISOString(),
-            }, { onConflict: "telefono_supervisor" });
+          const { tareasEnviadas } = await crearConsultaPendiente(supabase, {
+            telefonoSupervisor: bloque.supervisor.whatsapp,
+            planificacionId: bloque.id,
+            especialidadId: bloque.especialidad_id,
+            eventoOperadorId: nuevoEvento.id,
+            geminiKey,
+          });
 
           resultado.mensaje_conversacional_bot =
             `🟢 *Estado Registrado: Trabajando en ${resultado.especialidad_detectada || "montaje"}*\n\n` +
             `💬 Solicitando confirmación de actividad a tu supervisor *${bloque.supervisor.nombre_completo}*` +
-            (tareas.length > 0 ? ` con ${tareas.length} opciones de tarea.` : ".");
+            (tareasEnviadas.length > 0 ? ` con ${tareasEnviadas.length} opciones de tarea.` : ".");
           hitoInsertado = true;
         }
       }

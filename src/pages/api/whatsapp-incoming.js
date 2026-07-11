@@ -7,6 +7,7 @@ import { handleCheckinFlow } from "../../lib/bot/handlers/checkinHandler";
 import { handleJornadaFlow } from "../../lib/bot/handlers/jornadaHandler";
 import { enviarMensajeWhatsApp } from "../../lib/bot/services/messageService";
 import { transcribirAudioSupervisor } from "../../lib/gemini";
+import { resolverRespuestaSupervisor } from "../../lib/bot/services/podConsultaService";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -184,138 +185,27 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, action: "PARTICIPACION_POD_REGISTRADA" });
       }
 
-      // Caso 2: Responder a una consulta de actividad pendiente
-      const { data: consultaPendiente } = await supabase
-        .from("estados_consulta_bot")
-        .select("*")
-        .eq("telefono_supervisor", phoneClean)
-        .eq("estado_pregunta", "Pendiente_Actividad")
-        .maybeSingle();
-
-      if (consultaPendiente) {
-        let respuestaTexto = (message || "").trim();
-        if (audio && audio.data) {
-          try {
-            respuestaTexto = await transcribirAudioSupervisor(audio.data, audio.mimeType);
-          } catch (errTrans) {
-            console.error("[whatsapp-incoming] Error transcribiendo respuesta de supervisor:", errTrans.message);
-          }
+      // Caso 2: Responder a una o varias consultas de actividad pendientes
+      let respuestaTexto = (message || "").trim();
+      if (audio && audio.data) {
+        try {
+          respuestaTexto = await transcribirAudioSupervisor(audio.data, audio.mimeType);
+        } catch (errTrans) {
+          console.error("[whatsapp-incoming] Error transcribiendo respuesta de supervisor:", errTrans.message);
         }
+      }
 
-        if (!respuestaTexto) {
-          await enviarMensajeWhatsApp(jid, phoneClean, `⚠️ No logramos procesar tu respuesta. Por favor escribe tu respuesta en texto o envía un audio más claro.`, !!audio, geminiKey);
-          return res.status(200).json({ success: true, action: "RESPUESTA_SUPERVISOR_VACIA" });
-        }
+      const resultadoConsulta = await resolverRespuestaSupervisor(supabase, {
+        telefonoSupervisor: phoneClean,
+        respuestaTexto,
+        jid,
+        phoneClean,
+        audio,
+        geminiKey,
+      });
 
-        // ── Interpretar respuesta: modo libre, numérico o texto libre ──
-        const tareasEnviadas = consultaPendiente.tareas_enviadas || [];
-        let actividadFinal = respuestaTexto;
-        let tareaProgramadaId = null;
-        let modoLibreActivo = consultaPendiente.esperando_libre;
-
-        if (!modoLibreActivo) {
-          const numero = parseInt(respuestaTexto, 10);
-          if (!isNaN(numero) && /^\d+$/.test(respuestaTexto.trim())) {
-            if (numero === 0) {
-              // Supervisor elige actividad libre → pedir descripción
-              await supabase.from("estados_consulta_bot")
-                .update({ esperando_libre: true, updated_at: new Date().toISOString() })
-                .eq("id", consultaPendiente.id);
-              await enviarMensajeWhatsApp(jid, phoneClean,
-                `✏️ Describe brevemente la actividad que ejecutarás hoy:`,
-                !!audio, geminiKey
-              );
-              return res.status(200).json({ success: true, action: "ESPERANDO_ACTIVIDAD_LIBRE" });
-            } else if (tareasEnviadas.length > 0) {
-              const tareaElegida = tareasEnviadas.find(t => t.orden === numero);
-              if (tareaElegida) {
-                actividadFinal = tareaElegida.nombre; // tarea programada por nombre
-                tareaProgramadaId = tareaElegida.id || null;
-              } else {
-                await enviarMensajeWhatsApp(jid, phoneClean,
-                  `⚠️ Número inválido. Responde con un número del *1* al *${tareasEnviadas.length}*, o *0* para otra actividad.`,
-                  !!audio, geminiKey
-                );
-                return res.status(200).json({ success: true, action: "NUMERO_FUERA_RANGO" });
-              }
-            }
-          }
-          // Texto que no sea número → usar directamente como actividad libre
-        } else {
-          // Modo libre: prefijo para identificar en reportes
-          actividadFinal = `[NO PROGRAMADA] ${respuestaTexto}`;
-        }
-
-        // ── Crear la actividad estructurada (entidad `actividades`) y enlazarla ──
-        const { data: bloqueInfo } = await supabase
-          .from("planificacion_bloques_pod")
-          .select("fecha, especialidad_id, equipos(proyecto_actual_id)")
-          .eq("id", consultaPendiente.planificacion_id)
-          .maybeSingle();
-
-        const { data: nuevaActividad } = await supabase
-          .from("actividades")
-          .insert({
-            fecha: bloqueInfo?.fecha,
-            proyecto_id: bloqueInfo?.equipos?.proyecto_actual_id || null,
-            especialidad_id: bloqueInfo?.especialidad_id || null,
-            tarea_programada_id: tareaProgramadaId,
-            descripcion: tareaProgramadaId ? null : actividadFinal,
-            programada: !!tareaProgramadaId,
-          })
-          .select("id")
-          .single();
-
-        const actividadId = nuevaActividad?.id || null;
-
-        const { error: errPlan } = await supabase
-          .from("planificacion_bloques_pod")
-          .update({ actividad_especifica: actividadFinal, actividad_id: actividadId, actividad_respondida_at: new Date().toISOString() })
-          .eq("id", consultaPendiente.planificacion_id);
-
-        if (errPlan) {
-          console.error("[whatsapp-incoming] Error actualizando planificacion:", errPlan.message);
-        }
-
-        // B. Actualizar hito de eventos_jornada si existe
-        if (consultaPendiente.evento_operador_id) {
-          const { error: errEv } = await supabase
-            .from("eventos_jornada")
-            .update({ nota_transcripcion: `Actividad confirmada por supervisor: ${actividadFinal}`, actividad_id: actividadId })
-            .eq("id", consultaPendiente.evento_operador_id);
-
-          if (errEv) {
-            console.error("[whatsapp-incoming] Error actualizando evento del operador:", errEv.message);
-          }
-
-          // C. Notificar al operador
-          try {
-            const { data: eventoInfo } = await supabase
-              .from("eventos_jornada")
-              .select("reporte_id, reportes_diarios(operador_id, personal!reportes_diarios_operador_id_fkey(whatsapp, nombre_completo))")
-              .eq("id", consultaPendiente.evento_operador_id)
-              .maybeSingle();
-
-            const opWa = eventoInfo?.reportes_diarios?.personal?.whatsapp;
-            if (opWa) {
-              await enviarMensajeWhatsApp(null, opWa,
-                `📢 *Actividad confirmada por tu supervisor:*\n\n_"${actividadFinal}"_\n\n¡Buena jornada! 💪`,
-                false, geminiKey
-              );
-            }
-          } catch (errNotif) {
-            console.error("[whatsapp-incoming] Error al notificar al operador:", errNotif.message);
-          }
-        }
-
-        // D. Marcar la consulta como procesada
-        await supabase
-          .from("estados_consulta_bot")
-          .update({ estado_pregunta: "Procesado", updated_at: new Date().toISOString() })
-          .eq("id", consultaPendiente.id);
-
-        await enviarMensajeWhatsApp(jid, phoneClean, `¡Excelente! Hemos registrado la actividad para este bloque:\n\n_"${respuestaTexto}"_\n\nMuchas gracias.`, !!audio, geminiKey);
-        return res.status(200).json({ success: true, action: "RESPUESTA_SUPERVISOR_PROCESADA" });
+      if (resultadoConsulta.manejado) {
+        return res.status(200).json({ success: true, action: resultadoConsulta.action });
       }
     }
 

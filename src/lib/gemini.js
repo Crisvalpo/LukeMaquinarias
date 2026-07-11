@@ -775,3 +775,65 @@ Responde ÚNICAMENTE con un JSON válido que contenga:
   }
 }
 
+export async function resolverActividadesSupervisor(pendientes, mensajeSupervisor) {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) throw new Error("[Gemini] GEMINI_API_KEY no configurada");
+
+  const listadoPendientes = pendientes.map(p => {
+    const tareas = (p.tareas || [])
+      .map(t => `   ${t.orden}. ${t.nombre}`)
+      .join("\n");
+    return `${p.ancla} Equipo *${p.codigo_equipo}*${p.esperando_libre ? " (esperando descripción libre)" : ""}\n${tareas}`;
+  }).join("\n\n");
+
+  const prompt = `Un supervisor de una faena industrial tiene varias confirmaciones de actividad pendientes, una por cada equipo/bloque de trabajo. Cada una tiene un ancla (símbolo ①②③...), un código de equipo, y una lista numerada de tareas posibles.
+
+Pendientes:
+${listadoPendientes}
+
+El supervisor envió este mensaje respondiendo a una o varias de estas preguntas (puede mencionar el código de equipo, el ancla, o simplemente responder en el mismo orden en que se le listaron):
+"${mensajeSupervisor}"
+
+Tu tarea es mapear el mensaje a cada pendiente que el supervisor efectivamente respondió. Para cada uno, indica el número de tarea elegido (si corresponde a una de la lista) o un texto libre (si describió una actividad no listada). NO inventes respuestas para pendientes que el mensaje no menciona ni permite inferir con confianza razonable — en ese caso simplemente omítelos del resultado.
+
+Responde ÚNICAMENTE con un JSON válido:
+{
+  "respuestas": [
+    { "ancla": "①", "tarea_orden": 1, "texto_libre": null },
+    { "ancla": "②", "tarea_orden": null, "texto_libre": "descripción de la actividad" }
+  ]
+}`;
+
+  const payload = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: "application/json",
+    }
+  };
+
+  const res = await fetch(
+    `${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${geminiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`[Gemini] Error al resolver actividades múltiples: ${res.status} - ${err}`);
+  }
+
+  const data = await res.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "{}";
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    const match = rawText.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return { respuestas: [] };
+  }
+}
+
