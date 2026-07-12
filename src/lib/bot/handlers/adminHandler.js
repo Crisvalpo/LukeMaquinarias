@@ -34,6 +34,32 @@ export async function handleAdminFlow(ctx, res) {
 
   const adminTools = [
     {
+      name: "aprobar_registro_personal",
+      description: "Aprueba una solicitud pendiente en 'registros_pendientes' y crea/reactiva el registro en 'personal'. SIEMPRE usa esta herramienta para aprobar registros -- NUNCA generes una herramienta dinámica con 'crear_herramienta_dinamica' para esto: esta valida el RUT, traspasa el WhatsApp automáticamente desde la solicitud, y envía la confirmación de bienvenida al usuario por WhatsApp.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          registro_id: { type: "STRING", description: "UUID de la solicitud en registros_pendientes." },
+          rut: { type: "STRING", description: "RUT de la persona (ej: 12.345.678-9). Obligatorio -- si no lo tienes, pídeselo al administrador antes de llamar a esta herramienta." },
+          rol_final: { type: "STRING", description: "Rol final a otorgar: Operador, Supervisor, Rigger o Jefe de Area. Si no se especifica, se usa el rol originalmente solicitado. Si el administrador pide otorgar Supervisor o Jefe de Area y no coincide con lo solicitado originalmente, confírmalo explícitamente con él antes de llamar a esta herramienta." },
+          proyecto_id: { type: "STRING", description: "UUID del proyecto a asignar. Opcional -- si no se especifica, se usa el proyecto ya asociado a la solicitud (si existe)." }
+        },
+        required: ["registro_id", "rut"]
+      }
+    },
+    {
+      name: "rechazar_registro_personal",
+      description: "Rechaza una solicitud pendiente en 'registros_pendientes' y notifica el motivo al usuario por WhatsApp.",
+      parameters: {
+        type: "OBJECT",
+        properties: {
+          registro_id: { type: "STRING", description: "UUID de la solicitud en registros_pendientes." },
+          motivo: { type: "STRING", description: "Motivo del rechazo a comunicar al usuario." }
+        },
+        required: ["registro_id"]
+      }
+    },
+    {
       name: "crear_herramienta_dinamica",
       description: "Crea y registra una nueva herramienta de consulta dinámica cuando el supervisor solicite un reporte, listado o búsqueda específica de datos de maquinaria, personal o reportes que no exista en el catálogo de herramientas. Debes proporcionarle el código JavaScript asíncrono compatible con Supabase ('supabase') y argumentos ('args') desestructurados en la primera línea, y el esquema JSON de parámetros.",
       parameters: {
@@ -153,6 +179,7 @@ Directrices de Comportamiento:
 6. Si te pregunta sobre su propio rol o qué proyecto/obra/faena/contrato tiene asociado, respóndele directamente usando los datos actuales proporcionados arriba. Si pregunta de forma general por "el proyecto" de un equipo específico u otra entidad, no lo confundas con el proyecto del supervisor: realiza la consulta adecuada en la base de datos.
 6b. Si te pregunta qué día u hora es, respóndele directamente con la fecha y hora actual indicada arriba (ya está en huso horario de Chile, no hace falta convertirla). Úsala también para interpretar referencias relativas como "ayer", "esta semana" o "el mes pasado" al construir consultas SQL con fechas.
 7. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
+7b. Para aprobar o rechazar una solicitud de registro pendiente (tabla 'registros_pendientes'), usa SIEMPRE las herramientas fijas "aprobar_registro_personal" / "rechazar_registro_personal" — nunca improvises SQL con "crear_herramienta_dinamica" para esto. Si falta el RUT, pídeselo al administrador antes de llamar a la herramienta. Si te piden otorgar el rol Supervisor o Jefe de Area y no coincide con lo que la persona solicitó originalmente, confírmalo explícitamente con el administrador antes de aprobar — son roles de mayor confianza y no deben asignarse a la ligera.
 8. Si te pide un reporte, listado o cruce de datos personalizado que NO exista en tu catálogo de herramientas dinámicas, DEBES programar la consulta y registrar la herramienta llamando a "crear_herramienta_dinamica" en silencio, y luego responder con los resultados.
 9. NOTAS DE DATOS Y COLUMNAS:
    - **HISTORIAL DE INTERACCIONES CON EL BOT:** La tabla 'mensajes_chat' registra CADA mensaje que cualquier persona (operador, supervisor, jefe de área, administrador) ha intercambiado contigo o con el resto del sistema, incluyendo los tuyos propios ('rol'='model'). La tabla 'sesiones_whatsapp' indica si alguien tiene una conversación o jornada abierta en este momento. Si te preguntan si una persona "ha interactuado contigo", "qué le respondiste a X", "muéstrame los últimos mensajes de X" o similar, SIEMPRE consulta 'mensajes_chat' (cruzando 'whatsapp_remitente' con 'personal.whatsapp' por nombre) antes de responder que no tienes esa información — si hay filas, sí interactuó.
@@ -278,7 +305,93 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
           try {
             if (name === "silenciar_usuario_por_desviacion") {
               dbResult = "Silenciado con éxito.";
-            } 
+            }
+            else if (name === "aprobar_registro_personal") {
+              const { registro_id, rut, rol_final, proyecto_id } = args;
+
+              if (!rut || !rut.trim()) {
+                dbResult = "Error: el RUT es obligatorio para aprobar un registro.";
+              } else {
+                const { data: registro, error: errGet } = await supabase
+                  .from("registros_pendientes")
+                  .select("*")
+                  .eq("id", registro_id)
+                  .maybeSingle();
+
+                if (errGet || !registro) {
+                  dbResult = "Error: no se encontró la solicitud de registro indicada.";
+                } else {
+                  const cleanRut = rut.trim();
+                  const rolFinal = rol_final || registro.rol_solicitado || "Operador";
+                  const proyectoFinal = proyecto_id || registro.proyecto_id || null;
+
+                  const { data: existente } = await supabase
+                    .from("personal")
+                    .select("id")
+                    .eq("rut", cleanRut)
+                    .maybeSingle();
+
+                  let errUpsert;
+                  if (existente) {
+                    const { error } = await supabase.from("personal").update({
+                      nombre_completo: registro.nombre_completo,
+                      whatsapp: registro.whatsapp,
+                      rol: rolFinal,
+                      activo: true,
+                      proyecto_actual_id: proyectoFinal
+                    }).eq("id", existente.id);
+                    errUpsert = error;
+                  } else {
+                    const { error } = await supabase.from("personal").insert({
+                      rut: cleanRut,
+                      nombre_completo: registro.nombre_completo,
+                      whatsapp: registro.whatsapp,
+                      rol: rolFinal,
+                      activo: true,
+                      proyecto_actual_id: proyectoFinal
+                    });
+                    errUpsert = error;
+                  }
+
+                  if (errUpsert) {
+                    dbResult = `Error al guardar personal: ${errUpsert.message}`;
+                  } else {
+                    await supabase.from("registros_pendientes").update({
+                      estado: "aprobado",
+                      rol_solicitado: rolFinal
+                    }).eq("id", registro_id);
+
+                    const mensajeBienvenida = `👷‍♂️ *¡Tu solicitud ha sido Aprobada!* 🎉\n\nHola *${registro.nombre_completo}*, el Administrador ha aprobado tu registro como *${rolFinal}* en LukeEquipos.\n\nPara iniciar tu jornada diaria, por favor escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`;
+                    await enviarMensajeWhatsApp(null, registro.whatsapp, mensajeBienvenida, false, geminiKey);
+
+                    dbResult = `Éxito: ${registro.nombre_completo} aprobado como ${rolFinal}${proyectoFinal ? ", proyecto asignado" : ", sin proyecto asignado"}. Se envió confirmación por WhatsApp.`;
+                  }
+                }
+              }
+            }
+            else if (name === "rechazar_registro_personal") {
+              const { registro_id, motivo } = args;
+              const { data: registro, error: errGet } = await supabase
+                .from("registros_pendientes")
+                .select("*")
+                .eq("id", registro_id)
+                .maybeSingle();
+
+              if (errGet || !registro) {
+                dbResult = "Error: no se encontró la solicitud de registro indicada.";
+              } else {
+                const notaFinal = motivo || "No cumple con los requisitos de la faena.";
+                await supabase.from("registros_pendientes").update({
+                  estado: "rechazado",
+                  nota_rechazo: notaFinal
+                }).eq("id", registro_id);
+
+                const mensajeRechazo = `❌ *Solicitud de Registro Rechazada*\n\nHola *${registro.nombre_completo || "Usuario"}*, tu solicitud de registro en LukeEquipos ha sido rechazada por el Administrador.\n\n*Motivo:* ${notaFinal}\n\nSi deseas volver a solicitar el registro, puedes responder a este chat indicando tu *Nombre Completo*.`;
+                await enviarMensajeWhatsApp(null, registro.whatsapp, mensajeRechazo, false, geminiKey);
+
+                dbResult = `Éxito: solicitud de ${registro.nombre_completo || registro.whatsapp} rechazada y notificada.`;
+              }
+            }
             else if (name === "crear_herramienta_dinamica") {
               const { nombre_funcion, descripcion, codigo_javascript, esquema_json } = args;
               console.log(`[adminHandler] 🛠️ Registrando nueva herramienta dinámica: ${nombre_funcion}`);
