@@ -412,7 +412,7 @@ export async function handleJornadaFlow(ctx, res) {
   const { data: especialidades } = await supabase.from("especialidades").select("*");
   const { data: reporteActual } = await supabase
     .from("reportes_diarios")
-    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento, usa_plataforma, patente)")
+    .select("equipo_id, horometro_inicio, km_inicial, horometro_final, km_final, petroleo_litros, horometro_carga_combustible, combustible_final_porcentaje, supervisor_id, created_at, equipos(id, codigo_interno, descripcion_equipo, pauta_preventiva_activa, seguimiento_completo, tipo_seguimiento, usa_plataforma, patente)")
     .eq("id", sesion.reporte_activo_id)
     .maybeSingle();
 
@@ -562,7 +562,7 @@ export async function handleJornadaFlow(ctx, res) {
   }
 
   // Si ya tenemos el horómetro final o estamos en checkout confirmado, llamamos a cierreHandler
-  if (intentoCierre || sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE") {
+  if (intentoCierre || sesion.estado_espera === "ESPERANDO_CHECKOUT_AUDIO" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA" || sesion.estado_espera === "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE" || sesion.estado_espera === "ESPERANDO_CONFIRMACION_TURNO_LARGO") {
     const contextCierre = {
       ...ctx,
       resultadoIA: resultado,

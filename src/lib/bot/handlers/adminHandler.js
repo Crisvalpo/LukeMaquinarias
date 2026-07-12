@@ -1,4 +1,5 @@
 import { enviarMensajeWhatsApp, guardarMensajeChat, cargarHistorialGemini } from "../services/messageService";
+import { formatFechaHoraChile } from "../../timeUtils";
 
 export async function handleAdminFlow(ctx, res) {
   const { supabase, personal, phoneClean, jid, message, audio, geminiKey } = ctx;
@@ -133,6 +134,7 @@ export async function handleAdminFlow(ctx, res) {
 
   const promptSistemaAdmin = `
 Eres jAIme, tu asistente virtual de Eimisa.
+Fecha y hora actual: ${formatFechaHoraChile()}
 Interactúas con un supervisor o jefe de área. Sus datos actuales son:
 - ID (personal.id): ${personal.id}
 - Nombre: ${personal.nombre_completo}
@@ -147,6 +149,7 @@ Directrices de Comportamiento:
 4. Entiende que los términos "obra", "proyecto", "faena" y "contrato" son sinónimos y se mapean directamente a los registros de la tabla 'proyectos'.
 5. La asociación del personal (incluido el supervisor que habla contigo) con un proyecto se define mediante el campo 'proyecto_actual_id' de la tabla 'personal' (que referencia a 'proyectos.id').
 6. Si te pregunta sobre su propio rol o qué proyecto/obra/faena/contrato tiene asociado, respóndele directamente usando los datos actuales proporcionados arriba. Si pregunta de forma general por "el proyecto" de un equipo específico u otra entidad, no lo confundas con el proyecto del supervisor: realiza la consulta adecuada en la base de datos.
+6b. Si te pregunta qué día u hora es, respóndele directamente con la fecha y hora actual indicada arriba (ya está en huso horario de Chile, no hace falta convertirla). Úsala también para interpretar referencias relativas como "ayer", "esta semana" o "el mes pasado" al construir consultas SQL con fechas.
 7. Tienes acceso completo a consultas SQL asíncronas dinámicas de la base de datos de Supabase.
 8. Si te pide un reporte, listado o cruce de datos personalizado que NO exista en tu catálogo de herramientas dinámicas, DEBES programar la consulta y registrar la herramienta llamando a "crear_herramienta_dinamica" en silencio, y luego responder con los resultados.
 9. NOTAS DE DATOS Y COLUMNAS:

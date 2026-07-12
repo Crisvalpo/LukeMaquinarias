@@ -9,6 +9,7 @@
  */
 
 import { GoogleGenAI } from "@google/genai";
+import { formatFechaHoraChile } from "./timeUtils";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -28,6 +29,7 @@ export async function procesarMensajeConContexto(historialConversacion, listaEsp
   const systemInstruction = `Eres Jaime, el asistente inteligente de operaciones para el proyecto LukeMontaje (LukeEquipos) en una faena industrial chilena.
 Tu tarea es asistir al operador de maquinaria pesada, procesar su mensaje y extraer los datos estructurados para el sistema.
 
+Fecha y hora actual: ${formatFechaHoraChile()}
 ${contexto.descripcion_equipo && contexto.codigo_equipo ? `Equipo asignado actualmente al operador: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion === "CHECKIN" && contexto.pauta_del_dia ? `Pauta preventiva del día fijada por el supervisor: "${contexto.pauta_del_dia}"` : ""}
 ${contexto.horometro_inicio ? `Horómetro de inicio registrado: ${contexto.horometro_inicio}` : ""}
@@ -162,6 +164,7 @@ Procesas el audio del CONDUCTOR de un camión de trabajo (pluma, aljibe, tolva, 
 Este equipo NO requiere Rigger ni especialidades de montaje.
 
 Contexto actual:
+- Fecha y hora actual: ${formatFechaHoraChile()}
 ${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Equipo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
@@ -253,6 +256,7 @@ Reglas de Mapeo Semántico ESTRICTAS:
   * Si pregunta qué hitos puede reportar, lístale de manera amigable y conversacional las opciones aplicables.
 
 Contexto actual:
+- Fecha y hora actual: ${formatFechaHoraChile()}
 ${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Equipo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.horometro_inicio ? `- Horómetro de inicio: ${contexto.horometro_inicio}` : ''}
@@ -341,6 +345,7 @@ Procesas el audio del CONDUCTOR o SUPERVISOR que toma un vehículo (camioneta, f
 Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
 
 Contexto actual:
+- Fecha y hora actual: ${formatFechaHoraChile()}
 ${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Vehículo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}
@@ -446,6 +451,7 @@ Procesas el mensaje de texto del CONDUCTOR o SUPERVISOR que toma un vehículo (c
 Este vehículo NO tiene horómetro ni especialidades. Se registra por KILOMETRAJE y DESTINO.
 
 Contexto actual:
+- Fecha y hora actual: ${formatFechaHoraChile()}
 ${contexto.descripcion_equipo && contexto.codigo_equipo ? `- Vehículo asignado actualmente: ${contexto.descripcion_equipo} (${contexto.codigo_equipo})` : ""}
 ${contexto.estado_sesion ? `- Estado de sesión: ${contexto.estado_sesion}` : ''}
 ${contexto.km_inicio ? `- Kilometraje de inicio registrado: ${contexto.km_inicio} km` : ''}

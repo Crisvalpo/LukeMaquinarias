@@ -3,6 +3,9 @@ import path from "path";
 import { enviarMensajeWhatsApp, guardarMensajeChat } from "../services/messageService";
 import { generarReportePDF } from "../../pdf-generator";
 import { procesarDeclaracionCarga } from "../../gemini";
+import { horasTranscurridas } from "../../timeUtils";
+
+const MAX_HORAS_TURNO = 20;
 
 const BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "evidencias-montaje";
 
@@ -68,6 +71,41 @@ export async function handleCierreFlow(ctx, res) {
     await guardarMensajeChat(supabase, phoneClean, "model", msgError, "texto", sesion.reporte_activo_id);
     await enviarMensajeWhatsApp(jid, phoneClean, msgError, !!audio, geminiKey);
     return res.status(200).json({ success: true, action: "LECTURA_FINAL_INVALIDA" });
+  }
+
+  // 2b. Validar que la lectura no implique un avance físicamente imposible dado el tiempo real transcurrido
+  const horasReales = reporteActual?.created_at ? horasTranscurridas(reporteActual.created_at) : null;
+  if (horasReales !== null) {
+    const delta = lecturaFinal - lecturaInicio;
+    const maxPlausible = esVehiculo ? (horasReales * 100 + 20) : (horasReales + 1.5);
+
+    if (delta > maxPlausible) {
+      await supabase
+        .from("sesiones_whatsapp")
+        .update({ estado_espera: "ESPERANDO_CHECKOUT_AUDIO", updated_at: new Date().toISOString() })
+        .eq("id", sesion.id);
+
+      const horasTexto = horasReales < 1 ? `${Math.round(horasReales * 60)} minutos` : `${horasReales.toFixed(1)} horas`;
+      const msgError = `⚠️ *Lectura no coincide con el tiempo transcurrido*\n\nIndicaste *${delta.toLocaleString("es-CL")} ${unidadLectura}* de avance en un turno de solo *${horasTexto}* desde tu check-in. Revisa el valor y reenvíalo por audio o texto.`;
+
+      await guardarMensajeChat(supabase, phoneClean, "model", msgError, "texto", sesion.reporte_activo_id);
+      await enviarMensajeWhatsApp(jid, phoneClean, msgError, !!audio, geminiKey);
+      return res.status(200).json({ success: true, action: "LECTURA_IMPLAUSIBLE_TIEMPO" });
+    }
+
+    // 2c. Turno anormalmente largo (probable sesión olvidada) — requiere confirmación explícita antes de proceder
+    if (horasReales > MAX_HORAS_TURNO && sesion.estado_espera !== "ESPERANDO_CONFIRMACION_TURNO_LARGO") {
+      await supabase
+        .from("sesiones_whatsapp")
+        .update({ estado_espera: "ESPERANDO_CONFIRMACION_TURNO_LARGO", updated_at: new Date().toISOString() })
+        .eq("id", sesion.id);
+
+      const msgError = `⚠️ *Han pasado ${horasReales.toFixed(1)} horas desde tu check-in* — mucho más que un turno normal.\n\nSi es un error, contacta a tu supervisor. Si de verdad corresponde a esta jornada, *reenvía la misma lectura* para confirmar y cerrar de todas formas.`;
+
+      await guardarMensajeChat(supabase, phoneClean, "model", msgError, "texto", sesion.reporte_activo_id);
+      await enviarMensajeWhatsApp(jid, phoneClean, msgError, !!audio, geminiKey);
+      return res.status(200).json({ success: true, action: "TURNO_DEMASIADO_LARGO_ESPERANDO_CONFIRMACION" });
+    }
   }
 
   // 3. Flujo de Control de Plataforma (Cargada/Limpia) — se omite si el equipo tiene usa_plataforma = false
