@@ -73,9 +73,12 @@ export async function handleCierreFlow(ctx, res) {
     return res.status(200).json({ success: true, action: "LECTURA_FINAL_INVALIDA" });
   }
 
+  // 2b/2c. Solo se validan en la primera lectura del cierre — no en cada continuación del sub-flujo de plataforma
+  const esPrimeraLecturaDelCierre = sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA" && sesion.estado_espera !== "ESPERANDO_CHECKOUT_PLATAFORMA_DETALLE";
+
   // 2b. Validar que la lectura no implique un avance físicamente imposible dado el tiempo real transcurrido
   const horasReales = reporteActual?.created_at ? horasTranscurridas(reporteActual.created_at) : null;
-  if (horasReales !== null) {
+  if (esPrimeraLecturaDelCierre && horasReales !== null) {
     const delta = lecturaFinal - lecturaInicio;
     const maxPlausible = esVehiculo ? (horasReales * 100 + 20) : (horasReales + 1.5);
 
