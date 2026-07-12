@@ -459,13 +459,13 @@ export default function PersonalTab({ hookProps }) {
                       <td style={{ padding: "12px 16px", color: "var(--color-text)", fontWeight: 600, fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.nombre_completo}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)", whiteSpace: "nowrap" }}>
                         {p.rut}
                       </td>
                       <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
                         {p.email || <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin login</span>}
                       </td>
-                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)" }}>
+                      <td style={{ padding: "12px 16px", color: "var(--color-text-muted)", fontSize: "13px", borderBottom: "1px solid var(--border-container)", whiteSpace: "nowrap" }}>
                         {p.whatsapp}
                       </td>
                       <td style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-container)" }}>

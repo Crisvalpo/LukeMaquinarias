@@ -1,4 +1,4 @@
-const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:3025";
+const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
 
 export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEntrante = false, geminiKey = null) {
   const dest = jid || `${phoneClean}@s.whatsapp.net`;

@@ -2,8 +2,7 @@ import path from "path";
 import fs from "fs";
 
 // Cargar puerto desde variables de entorno
-const WA_BRIDGE_PORT = process.env.WA_BRIDGE_MONTAJE_PORT || 3025;
-const WA_BRIDGE_URL = `http://localhost:${WA_BRIDGE_PORT}`;
+const WA_BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -38,7 +37,7 @@ export default async function handler(req, res) {
       success: false,
       status: "disconnected",
       qr: null,
-      message: `No se pudo conectar al puente de WhatsApp en el puerto ${WA_BRIDGE_PORT} (¿está corriendo?)`
+      message: `No se pudo conectar al puente de WhatsApp en ${WA_BRIDGE_URL} (¿está corriendo?)`
     });
   }
 }

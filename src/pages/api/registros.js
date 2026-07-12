@@ -1,6 +1,6 @@
 import { createAdminClient } from "../../lib/supabase-server";
 
-const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:3025";
+const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
 
 async function enviarMensaje(phone, texto) {
   try {

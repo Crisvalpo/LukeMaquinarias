@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ success: false });
   }
 
-  const bridgeUrl = process.env.WA_BRIDGE_URL || "http://localhost:3025";
+  const bridgeUrl = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
 
   try {
     const response = await fetch(`${bridgeUrl}/send`, {
