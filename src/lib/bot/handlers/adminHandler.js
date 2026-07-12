@@ -87,14 +87,19 @@ export async function handleAdminFlow(ctx, res) {
     }
   ];
 
-  const dynamicDeclarations = dbTools.map(t => {
-    const parameters = t.esquema_json.parameters || t.esquema_json;
-    return {
-      name: t.nombre_funcion,
-      description: t.description || t.descripcion,
-      parameters: parameters
-    };
-  });
+  // Evitar declaraciones duplicadas filtrando nombres de funciones que ya existen en basicTools o adminTools
+  const fixedToolNames = new Set([...basicTools, ...adminTools].map(t => t.name));
+  
+  const dynamicDeclarations = dbTools
+    .filter(t => !fixedToolNames.has(t.nombre_funcion))
+    .map(t => {
+      const parameters = t.esquema_json.parameters || t.esquema_json;
+      return {
+        name: t.nombre_funcion,
+        description: t.description || t.descripcion,
+        parameters: parameters
+      };
+    });
 
   const tools = [
     {
