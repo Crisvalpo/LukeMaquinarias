@@ -55,7 +55,10 @@ export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEn
   try {
     await fetch(`${BRIDGE_URL}/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "x-wa-bridge-secret": process.env.WA_BRIDGE_SECRET
+      },
       body: JSON.stringify({
         to: dest,
         text: audioBase64ParaEnviar ? "" : texto,

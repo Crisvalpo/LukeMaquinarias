@@ -43,10 +43,12 @@ export default async function handler(req, res) {
 
   // Simular presencia (escribiendo)
   const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
-  const destJid = jid || `${phoneClean}@s.whatsapp.net`;
   fetch(`${BRIDGE_URL}/presence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      "x-wa-bridge-secret": process.env.WA_BRIDGE_SECRET
+    },
     body: JSON.stringify({ to: destJid, state: audio ? "recording" : "composing" }),
   }).catch(() => {});
 
