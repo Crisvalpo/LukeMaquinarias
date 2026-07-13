@@ -191,10 +191,10 @@ export default function QrPuente() {
               </div>
               <h2>¡WhatsApp Vinculado!</h2>
               <p className="success-desc">
-                El puente de WhatsApp Web está activo y transmitiendo en el puerto 3025. El bot ya puede recibir comandos de voz e imágenes de faena de forma normal.
+                El puente de WhatsApp Web está activo y transmitiendo. El bot ya puede recibir comandos de voz e imágenes de faena de forma normal.
               </p>
               <div className="details-box">
-                <div>Servicio: <span className="highlight">luke-montaje-wa-bridge</span></div>
+                <div>Servicio: <span className="highlight">wa-bridge-service (equipos)</span></div>
                 <div>Estado: <span className="highlight verde">Operacional</span></div>
               </div>
               <Link href="/admin-maquinaria" className="primary-btn mt-6">
