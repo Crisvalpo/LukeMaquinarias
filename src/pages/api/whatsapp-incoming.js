@@ -43,6 +43,7 @@ export default async function handler(req, res) {
 
   // Simular presencia (escribiendo)
   const BRIDGE_URL = process.env.WA_BRIDGE_URL || "http://localhost:4000/equipos";
+  const destJid = jid || `${phoneClean}@s.whatsapp.net`;
   fetch(`${BRIDGE_URL}/presence`, {
     method: "POST",
     headers: { 
