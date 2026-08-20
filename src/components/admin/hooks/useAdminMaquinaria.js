@@ -165,6 +165,23 @@ export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
   );
   const especialidades = useApi("/api/especialidades", [tab]);
 
+  // Polling periódico silencioso (cada 10s) para reflejar cambios en caliente (combustible, estado, etc.)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (tab === "monitor" || tab === "equipos") {
+        equiposCompleto.refresh(true);
+        if (tab === "equipos") equiposPaginado.refresh(true);
+      } else if (tab === "reportes") {
+        reportes.refresh(true);
+      } else if (tab === "registros") {
+        registros.refresh(true);
+      }
+    }, 10000);
+
+    return () => clearInterval(timer);
+  }, [tab, equiposCompleto.refresh, equiposPaginado.refresh, reportes.refresh, registros.refresh]);
+
   // Estados de edición para la pestaña de registros
   const [editRegistros, setEditRegistros] = useState({});
   const [rechazoId, setRechazoId] = useState(null);
