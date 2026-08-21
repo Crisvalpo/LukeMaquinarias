@@ -32,16 +32,20 @@ export default async function handler(req, res) {
       .not("nombre_completo", "ilike", "%EIMI%")
       .not("nombre_completo", "ilike", "%Echeverr%");
 
-    // Excluir personal que tenga asignado un proyecto de EIMISA/MIPE
-    const { data: proyectosOcultos } = await supabase
+    // Filtrar personal que pertenezca a proyectos de TNS o sin proyecto asignado (global)
+    const { data: proyectosValidos } = await supabase
       .from("proyectos")
       .select("id")
-      .or("codigo_cc.ilike.EIMI%,codigo_cc.ilike.MIPE%,nombre_proyecto.ilike.%EIMI%,nombre_proyecto.ilike.%Echeverr%");
+      .not("codigo_cc", "ilike", "EIMI%")
+      .not("codigo_cc", "ilike", "MIPE%")
+      .not("nombre_proyecto", "ilike", "%EIMI%")
+      .not("nombre_proyecto", "ilike", "%Echeverr%");
 
-    if (proyectosOcultos && proyectosOcultos.length > 0) {
-      const idsOcultos = proyectosOcultos.map(p => p.id);
-      // Para excluir proyectos_actual_id en idsOcultos
-      query = query.not("proyecto_actual_id", "in", `(${idsOcultos.join(",")})`);
+    const idsValidos = (proyectosValidos || []).map(p => p.id);
+    if (idsValidos.length > 0) {
+      query = query.or(`proyecto_actual_id.is.null,proyecto_actual_id.in.(${idsValidos.join(",")})`);
+    } else {
+      query = query.is("proyecto_actual_id", null);
     }
 
     if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
