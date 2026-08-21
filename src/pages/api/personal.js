@@ -28,7 +28,21 @@ export default async function handler(req, res) {
     let query = supabase
       .from("personal")
       .select("*, proyectos(nombre_proyecto, codigo_cc), especialidades(id, nombre_oficial, color)", { count: "exact" })
-      .eq("activo", true);
+      .eq("activo", true)
+      .not("nombre_completo", "ilike", "%EIMI%")
+      .not("nombre_completo", "ilike", "%Echeverr%");
+
+    // Excluir personal que tenga asignado un proyecto de EIMISA/MIPE
+    const { data: proyectosOcultos } = await supabase
+      .from("proyectos")
+      .select("id")
+      .or("codigo_cc.ilike.EIMI%,codigo_cc.ilike.MIPE%,nombre_proyecto.ilike.%EIMI%,nombre_proyecto.ilike.%Echeverr%");
+
+    if (proyectosOcultos && proyectosOcultos.length > 0) {
+      const idsOcultos = proyectosOcultos.map(p => p.id);
+      // Para excluir proyectos_actual_id en idsOcultos
+      query = query.not("proyecto_actual_id", "in", `(${idsOcultos.join(",")})`);
+    }
 
     if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
       query = query.eq("proyecto_actual_id", proyecto_id);

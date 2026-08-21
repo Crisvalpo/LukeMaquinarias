@@ -8,7 +8,9 @@ export default async function handler(req, res) {
 
     let query = supabase
       .from("equipos")
-      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" });
+      .select("*, proyectos(nombre_proyecto, codigo_cc)", { count: "exact" })
+      .not("proveedor", "ilike", "%EIMI%")
+      .not("codigo_interno", "ilike", "EIMI%");
 
     if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
       query = query.eq("proyecto_actual_id", proyecto_id);
@@ -99,7 +101,7 @@ export default async function handler(req, res) {
       .insert({
         codigo_interno,
         descripcion_equipo,
-        proveedor: proveedor || "EIMISA",
+        proveedor: proveedor || "TNS",
         proyecto_actual_id: cleanProyectoId,
         pauta_preventiva_activa,
         seguimiento_completo: seguimiento_completo !== undefined ? seguimiento_completo : true,

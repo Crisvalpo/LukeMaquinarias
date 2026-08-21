@@ -33,8 +33,8 @@ export default function MapTab({ hookProps }) {
       const L = (await import("leaflet")).default;
       if (!isMounted || !mapContainerRef.current) return;
 
-      // Ubicación por defecto (Taller de Equipos Echeverria Izquierdo)
-      const centerCoord = [-33.6129369, -70.7164499];
+      // Ubicación por defecto (Base Operaciones TNS)
+      const centerCoord = [-34.0852, -70.4491];
 
       const map = L.map(mapContainerRef.current, {
         center: centerCoord,

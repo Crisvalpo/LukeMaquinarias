@@ -191,7 +191,7 @@ export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
   const [formEquipo, setFormEquipo] = useState({
     codigo_interno: "",
     descripcion_equipo: "",
-    proveedor: "EIMISA",
+    proveedor: "TNS",
     proyecto_actual_id: "",
     seguimiento_completo: true,
     clasificacion_comercial: "OPERATIVO - EN USO",

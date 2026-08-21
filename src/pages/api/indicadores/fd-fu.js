@@ -58,7 +58,11 @@ export default async function handler(req, res) {
   const hasta = semanas[semanas.length - 1].fin;
 
   try {
-    let queryEquipos = supabase.from("equipos").select("id, codigo_interno, descripcion_equipo, proyecto_actual_id");
+    let queryEquipos = supabase
+      .from("equipos")
+      .select("id, codigo_interno, descripcion_equipo, proyecto_actual_id")
+      .not("proveedor", "ilike", "%EIMI%")
+      .not("codigo_interno", "ilike", "EIMI%");
     if (proyecto_id) queryEquipos = queryEquipos.eq("proyecto_actual_id", proyecto_id);
     if (equipo_id) queryEquipos = queryEquipos.eq("id", equipo_id);
 

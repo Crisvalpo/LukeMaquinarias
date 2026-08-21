@@ -136,7 +136,7 @@ export default async function handler(req, res) {
         if (errUpdate) throw errUpdate;
 
         // C. Enviar WhatsApp de bienvenida
-        const mensajeBienvenida = `👷‍♂️ *¡Tu solicitud ha sido Aprobada!* 🎉\n\nHola *${nombreFinal}*, el Administrador ha aprobado tu registro como *${rolFinal}* en LukeEquipos.\n\nPara iniciar tu jornada diaria, por favor escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`;
+        const mensajeBienvenida = `👷‍♂️ *¡Tu solicitud ha sido Aprobada!* 🎉\n\nHola *${nombreFinal}*, el Administrador ha aprobado tu registro como *${rolFinal}* en LukeEquipos.\n\nPara iniciar tu jornada diaria, por favor escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:TNS-TRAC-01`;
         await enviarMensaje(registro.whatsapp, mensajeBienvenida);
 
         return res.status(200).json({ success: true, message: "Solicitud aprobada y personal creado" });

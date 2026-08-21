@@ -100,7 +100,7 @@ export default async function handler(req, res) {
         
         let proyectoId = personal.proyecto_actual_id || null;
 
-        // Intentar extraer código de proyecto o UUID del mensaje (ej: PARTICIPAR_POD_EIMI00413 o PARTICIPAR_POD EIMI00413)
+        // Intentar extraer código de proyecto o UUID del mensaje (ej: PARTICIPAR_POD_TNS-TEN-01 o PARTICIPAR_POD TNS-TEN-01)
         const cleanMsg = (message || "").trim();
         const partes = cleanMsg.split(/[\s_]+/);
         if (partes.length > 1) {

@@ -12,10 +12,12 @@ export default async function handler(req, res) {
       .from("reportes_diarios")
       .select(
         `*, 
-        equipos!inner(codigo_interno, descripcion_equipo, proyecto_actual_id),
+        equipos!inner(codigo_interno, descripcion_equipo, proyecto_actual_id, proveedor),
         personal!operador_id(nombre_completo)`,
         { count: "exact" }
       )
+      .not("equipos.proveedor", "ilike", "%EIMI%")
+      .not("equipos.codigo_interno", "ilike", "EIMI%")
       .order("fecha", { ascending: false })
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);

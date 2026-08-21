@@ -263,9 +263,9 @@ export default function PodJoin() {
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://www.eimontajes.com/wp-content/uploads/2025/09/logo-eimisa.svg"
-            alt="EIMISA"
-            style={{ height: "26px", filter: "brightness(0) invert(1)", opacity: 0.9 }}
+            src="https://transportestns.cl/logo2.png"
+            alt="Transportes TNS"
+            style={{ height: "30px", width: "auto" }}
           />
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "10px", color: "#10b981", fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>

@@ -136,17 +136,28 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
             justifyContent: sidebarCollapsed ? "center" : "space-between",
             flexShrink: 0, transition: "padding 0.25s",
           }}>
-            {!sidebarCollapsed && (
-              <div style={{ flex: 1, minWidth: 0 }}>
+            {!sidebarCollapsed ? (
+              <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "10px" }}>
                 <img
-                  src="https://www.eimontajes.com/wp-content/uploads/2025/09/logo-eimisa.svg"
-                  alt="EIMISA Logo"
-                  style={{ width: "100%", height: "auto", display: "block" }}
+                  src="https://transportestns.cl/logo2.png"
+                  alt="Transportes TNS"
+                  style={{ height: "40px", width: "auto", objectFit: "contain", display: "block" }}
                 />
-                <div style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", marginTop: "8px" }}>
-                  Control Maquinaria
+                <div>
+                  <div style={{ color: "#faa519", fontSize: "13px", fontWeight: 800, letterSpacing: "0.5px", lineHeight: "1.1" }}>
+                    TRANSPORTES TNS
+                  </div>
+                  <div style={{ color: "var(--color-text-muted)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.8px", textTransform: "uppercase", marginTop: "3px" }}>
+                    Control de Flota
+                  </div>
                 </div>
               </div>
+            ) : (
+              <img
+                src="https://transportestns.cl/logo2.png"
+                alt="TNS"
+                style={{ height: "26px", width: "auto", objectFit: "contain", display: "block", marginBottom: "4px" }}
+              />
             )}
             <button
               onClick={() => setSidebarCollapsed(c => !c)}
