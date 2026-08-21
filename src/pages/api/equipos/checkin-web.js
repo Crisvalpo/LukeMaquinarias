@@ -96,12 +96,15 @@ export default async function handler(req, res) {
     if (requiereSeguimiento) {
       if (esVehiculo) {
         updateData.km_inicial = valorLectura;
+        updateData.horometro_inicio = 0;
         if (destinoRuta) {
           updateData.destino_ruta = destinoRuta;
         }
       } else {
         updateData.horometro_inicio = valorLectura;
       }
+    } else {
+      updateData.horometro_inicio = 0;
     }
 
     if (combustibleNivel !== undefined && combustibleNivel !== null) {
