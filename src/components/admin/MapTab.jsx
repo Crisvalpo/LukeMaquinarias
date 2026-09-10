@@ -43,9 +43,9 @@ export default function MapTab({ hookProps }) {
       });
 
       L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
         {
-          attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxZoom: 19,
         }
       ).addTo(map);
