@@ -59,7 +59,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
   }
 
-  // Atajo directo: REGISTRO: Juan Pérez  o  REGISTRO: Juan Pérez_TNS-TEN-01
+  // Atajo directo: REGISTRO: Juan Pérez  o  REGISTRO: Juan Pérez_EIMI00413
   if (nombreDirecto) {
     const { nombre, proyecto } = await extraerNombreYProyecto(supabase, nombreDirecto);
 
@@ -110,7 +110,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `¡Gracias, *${nombre}*! ¿A qué proyecto u obra perteneces? Indícame el nombre o el código (ej: *TNS-TEN-01*).`,
+      `¡Gracias, *${nombre}*! ¿A qué proyecto u obra perteneces? Indícame el nombre o el código (ej: *EIMI00413*).`,
       !!audio,
       geminiKey
     );
@@ -182,7 +182,7 @@ export async function handleRegistroFlow(ctx, res) {
     }
 
     await enviarMensajeWhatsApp(jid, phoneClean,
-      `¡Gracias, *${nombre}*! ¿A qué proyecto u obra perteneces? Indícame el nombre o el código (ej: *TNS-TEN-01*).`,
+      `¡Gracias, *${nombre}*! ¿A qué proyecto u obra perteneces? Indícame el nombre o el código (ej: *EIMI00413*).`,
       !!audio,
       geminiKey
     );

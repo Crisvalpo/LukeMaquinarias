@@ -65,8 +65,6 @@ export default async function handler(req, res) {
     let queryEquipos = supabase
       .from("equipos")
       .select("id, codigo_interno, descripcion_equipo, tipo_seguimiento, ultimo_horometro, ultimo_odometro, pm1_umbral, pm2_umbral, pm3_umbral, pm4_umbral, tolerancia_pm, proyecto_actual_id")
-      .not("proveedor", "ilike", "%EIMI%")
-      .not("codigo_interno", "ilike", "EIMI%")
       .not("pm1_umbral", "is", null);
 
     if (proyecto_id) queryEquipos = queryEquipos.eq("proyecto_actual_id", proyecto_id);

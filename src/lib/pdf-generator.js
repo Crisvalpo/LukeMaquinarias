@@ -154,13 +154,13 @@ export async function generarReportePDF({
       // ============================================================
       // CABECERA CORPORATIVA
       // ============================================================
-      const pathLogo = path.join(process.cwd(), "public", "logo-tns.png");
+      const pathLogo = path.join(process.cwd(), "public", "logo-eimisa.png");
       if (fs.existsSync(pathLogo)) {
-        doc.image(pathLogo, 54, 55, { width: 100 });
+        doc.image(pathLogo, 54, 55, { width: 120 });
       } else {
         // Fallback si la imagen no se encontrara
-        doc.fontSize(15).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("TRANSPORTES TNS", 54, 60);
-        doc.fontSize(9).font("Helvetica").fillColor("#64748b").text("Control de Flota", 54, 78);
+        doc.fontSize(16).font("Helvetica-Bold").fillColor(AZUL_OSCURO).text("EIMISA", 54, 60);
+        doc.fontSize(9).font("Helvetica").fillColor("#64748b").text("LukeEquipos", 54, 78);
       }
 
       // Título a la derecha

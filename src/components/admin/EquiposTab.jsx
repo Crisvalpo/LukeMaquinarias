@@ -111,7 +111,7 @@ export function EditarEquipoModal({ equipo, proyectos, onClose, onSave }) {
   const [formData, setFormData] = useState({
     codigo_interno: equipo?.codigo_interno || "",
     descripcion_equipo: equipo?.descripcion_equipo || "",
-    proveedor: equipo?.proveedor || "TNS",
+    proveedor: equipo?.proveedor || "EIMISA",
     proyecto_actual_id: equipo?.proyecto_actual_id || "",
     estado_actual: equipo?.estado_actual || "Disponible",
     pauta_preventiva_activa: equipo?.pauta_preventiva_activa || "",
@@ -686,17 +686,17 @@ export default function EquiposTab({ hookProps }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
             <FormRow label="Código Interno *">
-              <input style={inputStyle} placeholder="TNS-TRAC-01"
+              <input style={inputStyle} placeholder="EIMI00387"
                 value={formEquipo.codigo_interno}
                 onChange={e => setFormEquipo(p => ({ ...p, codigo_interno: e.target.value }))} />
             </FormRow>
             <FormRow label="Descripción *">
-              <input style={inputStyle} placeholder="Volvo FH 540 6X4"
+              <input style={inputStyle} placeholder="Liebherr LR 1300"
                 value={formEquipo.descripcion_equipo}
                 onChange={e => setFormEquipo(p => ({ ...p, descripcion_equipo: e.target.value }))} />
             </FormRow>
             <FormRow label="Proveedor">
-              <input style={inputStyle} placeholder="TNS"
+              <input style={inputStyle} placeholder="EIMISA"
                 value={formEquipo.proveedor}
                 onChange={e => setFormEquipo(p => ({ ...p, proveedor: e.target.value }))} />
             </FormRow>
@@ -759,7 +759,7 @@ export default function EquiposTab({ hookProps }) {
             )}
           </div>
           <button
-            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "TNS", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "", capacidad_estanque_litros: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
+            onClick={() => handleSubmit("/api/equipos", formEquipo, () => setFormEquipo({ codigo_interno: "", descripcion_equipo: "", proveedor: "EIMISA", proyecto_actual_id: "", seguimiento_completo: true, clasificacion_comercial: "OPERATIVO - EN USO", arriendo_cliente: "", arriendo_fecha_inicio: "", arriendo_fecha_fin: "", capacidad_estanque_litros: "" }), () => { equiposPaginado.refresh(); equiposCompleto.refresh(); })}
             disabled={saving}
             style={{
               background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-hover))", border: "none",

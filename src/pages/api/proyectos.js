@@ -8,11 +8,7 @@ export default async function handler(req, res) {
 
     let query = supabase
       .from("proyectos")
-      .select("*", { count: "exact" })
-      .not("codigo_cc", "ilike", "EIMI%")
-      .not("codigo_cc", "ilike", "MIPE%")
-      .not("nombre_proyecto", "ilike", "%EIMI%")
-      .not("nombre_proyecto", "ilike", "%Echeverr%");
+      .select("*", { count: "exact" });
 
     // Filtrar por búsqueda si se provee
     if (search && search.trim() !== "") {

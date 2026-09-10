@@ -166,7 +166,7 @@ export async function handleAdminFlow(ctx, res) {
     : 'Ningún proyecto, obra, faena o contrato asignado actualmente.';
 
   const promptSistemaAdmin = `
-Eres jAIme, tu asistente virtual de Transportes TNS.
+Eres jAIme, tu asistente virtual de Eimisa.
 Fecha y hora actual: ${formatFechaHoraChile()}
 Interactúas con un supervisor o jefe de área. Sus datos actuales son:
 - ID (personal.id): ${personal.id}
@@ -177,7 +177,7 @@ Interactúas con un supervisor o jefe de área. Sus datos actuales son:
 
 Directrices de Comportamiento:
 1. Responde de forma atenta, sumamente profesional, clara y concisa en español.
-2. Identifícate de manera simple como "jAIme, el asistente virtual de Transportes TNS" SOLO en la primera interacción o saludo inicial, o si te lo preguntan. NUNCA repitas este saludo en cada mensaje de una conversación fluida, ni lo agregues como firma fija en cada respuesta.
+2. Identifícate de manera simple como "jAIme, tu asistente virtual de Eimisa" SOLO en la primera interacción o saludo inicial, o si te lo preguntan. NUNCA repitas este saludo en cada mensaje de una conversación fluida, ni lo agregues como firma fija en cada respuesta.
 3. Prohibido reportar el flujo técnico interno: NUNCA le digas al usuario "He registrado la herramienta...", "Un momento por favor mientras consulto la base de datos...", "He creado la función..." u otras explicaciones de tus herramientas internas. Simplemente ejecuta la herramienta dinámica/SQL de forma silenciosa e invisible para el usuario y responde de inmediato directamente con la información o datos solicitados.
 4. Entiende que los términos "obra", "proyecto", "faena" y "contrato" son sinónimos y se mapean directamente a los registros de la tabla 'proyectos'.
 5. La asociación del personal (incluido el supervisor que habla contigo) con un proyecto se define mediante el campo 'proyecto_actual_id' de la tabla 'personal' (que referencia a 'proyectos.id').
@@ -366,7 +366,7 @@ Directrices al programar 'codigo_javascript' para "crear_herramienta_dinamica":
                       rol_solicitado: rolFinal
                     }).eq("id", registro_id);
 
-                    const mensajeBienvenida = `👷‍♂️ *¡Tu solicitud ha sido Aprobada!* 🎉\n\nHola *${registro.nombre_completo}*, el Administrador ha aprobado tu registro como *${rolFinal}* en LukeEquipos.\n\nPara iniciar tu jornada diaria, por favor escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:TNS-TRAC-01`;
+                    const mensajeBienvenida = `👷‍♂️ *¡Tu solicitud ha sido Aprobada!* 🎉\n\nHola *${registro.nombre_completo}*, el Administrador ha aprobado tu registro como *${rolFinal}* en LukeEquipos.\n\nPara iniciar tu jornada diaria, por favor escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`;
                     await enviarMensajeWhatsApp(null, registro.whatsapp, mensajeBienvenida, false, geminiKey);
 
                     dbResult = `Éxito: ${registro.nombre_completo} aprobado como ${rolFinal}${proyectoFinal ? ", proyecto asignado" : ", sin proyecto asignado"}. Se envió confirmación por WhatsApp.`;

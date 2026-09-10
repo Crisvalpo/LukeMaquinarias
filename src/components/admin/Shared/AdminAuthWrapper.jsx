@@ -238,9 +238,9 @@ export default function AdminAuthWrapper({ children }) {
 
           <div style={cardStyle}>
             <div style={{ marginBottom: "28px" }}>
-              <img src="https://transportestns.cl/logo2.png" alt="Transportes TNS" style={{ width: "90px", height: "auto", margin: "0 auto", display: "block" }} />
-              <div style={{ color: "#faa519", fontSize: "12px", fontWeight: 800, letterSpacing: "1.5px", textTransform: "uppercase", marginTop: "12px", fontFamily: "monospace" }}>
-                TRANSPORTES TNS · Control de Flota
+              <img src="https://www.eimontajes.com/wp-content/uploads/2025/09/logo-eimisa.svg" alt="EIMISA" style={{ width: "160px", height: "auto", margin: "0 auto", display: "block" }} />
+              <div style={{ color: "#64748b", fontSize: "11px", fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase", marginTop: "12px", fontFamily: "monospace" }}>
+                EIMISA · Gestión de Flota & Faenas
               </div>
             </div>
 

@@ -100,7 +100,7 @@ export async function handleJornadaFlow(ctx, res) {
       }
 
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `👋 Hola *${personal.nombre_completo}*.\n\nPara iniciar tu jornada, escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:TNS-TRAC-01`,
+        `👋 Hola *${personal.nombre_completo}*.\n\nPara iniciar tu jornada, escanea el código QR del equipo o escribe:\n\n*REPORTE:CODIGO_EQUIPO*\n\nEjemplo: REPORTE:EIMI00387`,
         !!audio,
         geminiKey
       );

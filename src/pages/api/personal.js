@@ -28,25 +28,7 @@ export default async function handler(req, res) {
     let query = supabase
       .from("personal")
       .select("*, proyectos(nombre_proyecto, codigo_cc), especialidades(id, nombre_oficial, color)", { count: "exact" })
-      .eq("activo", true)
-      .not("nombre_completo", "ilike", "%EIMI%")
-      .not("nombre_completo", "ilike", "%Echeverr%");
-
-    // Filtrar personal que pertenezca a proyectos de TNS o sin proyecto asignado (global)
-    const { data: proyectosValidos } = await supabase
-      .from("proyectos")
-      .select("id")
-      .not("codigo_cc", "ilike", "EIMI%")
-      .not("codigo_cc", "ilike", "MIPE%")
-      .not("nombre_proyecto", "ilike", "%EIMI%")
-      .not("nombre_proyecto", "ilike", "%Echeverr%");
-
-    const idsValidos = (proyectosValidos || []).map(p => p.id);
-    if (idsValidos.length > 0) {
-      query = query.or(`proyecto_actual_id.is.null,proyecto_actual_id.in.(${idsValidos.join(",")})`);
-    } else {
-      query = query.is("proyecto_actual_id", null);
-    }
+      .eq("activo", true);
 
     if (proyecto_id && proyecto_id !== "null" && proyecto_id !== "undefined") {
       query = query.eq("proyecto_actual_id", proyecto_id);
