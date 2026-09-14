@@ -495,7 +495,9 @@ export default function QrLanding() {
                   <div className="registro-nuevo-box">
                     <p>¿Eres un operador nuevo en LukeEquipos?</p>
                     <a 
-                      href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent("REGISTRO:NUEVO")}`}
+                      href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                        equipo?.codigo_interno ? `REGISTRO:NUEVO_EQ_${equipo.codigo_interno}` : "REGISTRO:NUEVO"
+                      )}`}
                       className="registro-link"
                       target="_blank"
                       rel="noopener noreferrer"
