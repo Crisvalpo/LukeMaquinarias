@@ -48,13 +48,6 @@ export default async function handler(req, res) {
 
     const reportesMap = new Map();
     if (reportesHoy && reportesHoy.length > 0) {
-      // 1. Asignar reporte del día como base
-      for (const r of reportesHoy) {
-        if (!reportesMap.has(r.equipo_id)) {
-          reportesMap.set(r.equipo_id, r);
-        }
-      }
-      // 2. Dar prioridad al reporte que aún está abierto en turno
       for (const r of reportesHoy) {
         if (r.horometro_final === null && r.km_final === null) {
           reportesMap.set(r.equipo_id, r);
