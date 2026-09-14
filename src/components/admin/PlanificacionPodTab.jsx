@@ -840,7 +840,7 @@ function ModalAsignacion({ data, especialidades, equiposList, onConfirm, onClose
 // ================================================================
 // COMPONENTE PRINCIPAL: PlanificacionPodTab
 // ================================================================
-export default function PlanificacionPodTab({ hookProps, currentUser }) {
+export default function PlanificacionPodTab({ hookProps, currentUser, setCurrentUser }) {
   const { equiposCompleto, personalCompleto, especialidades, showMsg, saving, setSaving, botPhone } = hookProps;
 
   const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
@@ -1081,14 +1081,58 @@ export default function PlanificacionPodTab({ hookProps, currentUser }) {
     <div style={{ padding: "20px 24px", maxWidth: "1600px", fontFamily: "'Inter', sans-serif" }}>
       {/* ── HEADER ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-        <div>
-          <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
-            📋 Sala POD
-          </h1>
-          {proyectoActivoInfo && (
-            <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
-              <span style={{ color: "#10b981", fontWeight: 700 }}>{proyectoActivoInfo.codigo_cc}</span>
-              {" · "}{proyectoActivoInfo.nombre_proyecto}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+          <div>
+            <h1 style={{ fontSize: "20px", fontWeight: 800, color: "var(--color-text)", margin: 0 }}>
+              📋 Sala POD
+            </h1>
+            {proyectoActivoInfo && (
+              <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+                <span style={{ color: "#10b981", fontWeight: 700 }}>{proyectoActivoInfo.codigo_cc}</span>
+                {" · "}{proyectoActivoInfo.nombre_proyecto}
+              </div>
+            )}
+          </div>
+
+          {/* Selector de proyecto directo en la Sala POD para Administrador */}
+          {currentUser?.rol === "Administrador" && (hookProps.proyectosCompleto?.data || []).length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "var(--bg-sidebar)", border: "1px solid var(--border-sidebar)", borderRadius: "10px", padding: "5px 10px" }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-muted)" }}>Proyecto:</span>
+              <select
+                value={proyectoActivoId || ""}
+                onChange={e => {
+                  const val = e.target.value;
+                  const projList = hookProps.proyectosCompleto?.data || [];
+                  const found = projList.find(p => p.id === val);
+                  if (setCurrentUser) {
+                    const updated = {
+                      ...currentUser,
+                      proyecto_actual_id: val || null,
+                      proyecto: found || null
+                    };
+                    setCurrentUser(updated);
+                    try {
+                      localStorage.setItem("luke_filtro_proyecto_id", val || "");
+                      localStorage.setItem("luke_user", JSON.stringify(updated));
+                    } catch (err) {}
+                  }
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  outline: "none",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  maxWidth: "280px"
+                }}
+              >
+                <option value="">Selecciona Proyecto para la POD...</option>
+                {(hookProps.proyectosCompleto.data || []).map(p => (
+                  <option key={p.id} value={p.id}>{p.codigo_cc} — {p.nombre_proyecto}</option>
+                ))}
+              </select>
             </div>
           )}
         </div>

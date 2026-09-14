@@ -94,7 +94,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
       case "indicadores":    return <IndicadoresTab currentUser={currentUser} />;
       case "mantencion":     return <MantencionTab currentUser={currentUser} />;
       case "reportes":       return <ReportesTab hookProps={hookProps} />;
-      case "pod":            return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} />;
+      case "pod":            return <PlanificacionPodTab hookProps={hookProps} currentUser={currentUser} setCurrentUser={setCurrentUser} />;
       default:               return <ConsoleTab hookProps={hookProps} />;
     }
   };
@@ -236,11 +236,18 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
                         const val = e.target.value;
                         const projList = proyectosCompleto?.data || [];
                         const found = projList.find(p => p.id === val);
-                        setCurrentUser({
+                        const updated = {
                           ...currentUser,
                           proyecto_actual_id: val || null,
                           proyecto: found || null
-                        });
+                        };
+                        setCurrentUser(updated);
+                        try {
+                          localStorage.setItem("luke_filtro_proyecto_id", val || "");
+                          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updated));
+                        } catch (err) {
+                          console.error("Error guardando proyecto en localStorage:", err);
+                        }
                       }}
                       style={{
                         width: "100%",

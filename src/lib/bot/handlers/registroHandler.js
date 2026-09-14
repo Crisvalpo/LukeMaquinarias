@@ -48,8 +48,15 @@ async function extraerNombreYProyecto(supabase, texto) {
   return { nombre, proyecto };
 }
 
-const MENU_ROLES = `1️⃣ *Operador*\n2️⃣ *Rigger*`;
-const ROLES_MAPA = { "1": "Operador", "2": "Rigger" };
+const MENU_ROLES = `1️⃣ *Operador*\n2️⃣ *Rigger*\n3️⃣ *Supervisor*`;
+const ROLES_MAPA = { 
+  "1": "Operador", 
+  "2": "Rigger", 
+  "3": "Supervisor",
+  "operador": "Operador",
+  "rigger": "Rigger",
+  "supervisor": "Supervisor"
+};
 
 export async function handleRegistroFlow(ctx, res) {
   const { supabase, phoneClean, jid, message, audio, geminiKey } = ctx;

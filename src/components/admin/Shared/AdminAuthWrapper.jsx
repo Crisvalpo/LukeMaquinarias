@@ -16,9 +16,30 @@ export default function AdminAuthWrapper({ children }) {
   const [forgotMsg, setForgotMsg] = useState("");
   const [sendingReset, setSendingReset] = useState(false);
 
+  const STORAGE_KEY_PROYECTO_FILTRO = "luke_filtro_proyecto_id";
+
   const resolveUserIdentity = async (userEmail) => {
     const cleanEmail = userEmail.trim().toLowerCase();
     
+    // Recuperar proyecto guardado previamente por el admin en localStorage
+    let savedProjId = null;
+    let savedProj = null;
+    if (typeof window !== "undefined") {
+      try {
+        savedProjId = localStorage.getItem(STORAGE_KEY_PROYECTO_FILTRO);
+        if (savedProjId) {
+          const { data: projData } = await supabase
+            .from("proyectos")
+            .select("*")
+            .eq("id", savedProjId)
+            .maybeSingle();
+          if (projData) savedProj = projData;
+        }
+      } catch (e) {
+        console.error("Error recuperando proyecto guardado:", e);
+      }
+    }
+
     // 1. Caso especial: cristianluke@gmail.com siempre es Administrador General
     if (cleanEmail === "cristianluke@gmail.com") {
       try {
@@ -28,12 +49,15 @@ export default function AdminAuthWrapper({ children }) {
           .eq("email", cleanEmail)
           .maybeSingle();
 
+        const projIdFinal = savedProjId || persona?.proyecto_actual_id || null;
+        const projFinal = savedProj || persona?.proyectos || null;
+
         return {
           id: persona?.id || "admin-root",
           nombre_completo: persona?.nombre_completo || "Administrador General",
           rol: "Administrador",
-          proyecto_actual_id: persona?.proyecto_actual_id || null,
-          proyecto: persona?.proyectos || null,
+          proyecto_actual_id: projIdFinal,
+          proyecto: projFinal,
           email: cleanEmail
         };
       } catch {
@@ -41,8 +65,8 @@ export default function AdminAuthWrapper({ children }) {
           id: "admin-root",
           nombre_completo: "Administrador General",
           rol: "Administrador",
-          proyecto_actual_id: null,
-          proyecto: null,
+          proyecto_actual_id: savedProjId || null,
+          proyecto: savedProj || null,
           email: cleanEmail
         };
       }
@@ -57,12 +81,16 @@ export default function AdminAuthWrapper({ children }) {
         .maybeSingle();
 
       if (persona && persona.activo) {
+        const esAdmin = persona.rol === "Administrador";
+        const projIdFinal = (esAdmin && savedProjId) ? savedProjId : (persona.proyecto_actual_id || null);
+        const projFinal = (esAdmin && savedProj) ? savedProj : (persona.proyectos || null);
+
         return {
           id: persona.id,
           nombre_completo: persona.nombre_completo,
           rol: persona.rol, // Puede ser Supervisor, Operador, Administrador, etc.
-          proyecto_actual_id: persona.proyecto_actual_id || null,
-          proyecto: persona.proyectos || null,
+          proyecto_actual_id: projIdFinal,
+          proyecto: projFinal,
           email: cleanEmail
         };
       }
@@ -109,8 +137,14 @@ export default function AdminAuthWrapper({ children }) {
           const user = await resolveUserIdentity(userEmail);
           if (user) {
             setIsAuthenticated(true);
-            setCurrentUser(user);
-            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+            setCurrentUser(prev => {
+              // Si ya había un proyecto seleccionado en memoria, preservarlo
+              const projId = prev?.proyecto_actual_id || user.proyecto_actual_id;
+              const proj = prev?.proyecto || user.proyecto;
+              const merged = { ...user, proyecto_actual_id: projId, proyecto: proj };
+              localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(merged));
+              return merged;
+            });
           } else {
             setLoginError("Tu correo no está registrado en el sistema de personal. Contacta al administrador.");
             setIsAuthenticated(false);
