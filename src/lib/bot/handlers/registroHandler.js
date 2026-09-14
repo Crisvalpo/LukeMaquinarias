@@ -48,14 +48,12 @@ async function extraerNombreYProyecto(supabase, texto) {
   return { nombre, proyecto };
 }
 
-const MENU_ROLES = `1️⃣ *Operador*\n2️⃣ *Rigger*\n3️⃣ *Supervisor*`;
+const MENU_ROLES = `1️⃣ *Operador*\n2️⃣ *Rigger*`;
 const ROLES_MAPA = { 
   "1": "Operador", 
-  "2": "Rigger", 
-  "3": "Supervisor",
+  "2": "Rigger",
   "operador": "Operador",
-  "rigger": "Rigger",
-  "supervisor": "Supervisor"
+  "rigger": "Rigger"
 };
 
 export async function handleRegistroFlow(ctx, res) {
@@ -90,6 +88,46 @@ export async function handleRegistroFlow(ctx, res) {
     } else if (resto && !SUFIJOS_RESERVADOS.includes(resto.toUpperCase())) {
       nombreDirecto = resto;
     }
+  }
+
+  // Detección de QR de Sala POD: PARTICIPAR_POD o PARTICIPAR_POD_<CODIGO>
+  const matchPod = msgText.match(/PARTICIPAR_POD(?:[_\s]+([a-zA-Z0-9-]+))?/i);
+  if (matchPod) {
+    let proyectoPodContexto = null;
+    const codPod = matchPod[1]?.trim();
+    if (codPod) {
+      proyectoPodContexto = await resolverProyecto(supabase, codPod);
+    }
+
+    const { error: errUpsert } = await supabase
+      .from("registros_pendientes")
+      .upsert({
+        whatsapp: phoneClean,
+        nombre_completo: null,
+        rol_solicitado: "Supervisor",
+        estado: "esperando_nombre",
+        proyecto_id: proyectoPodContexto?.id || null,
+        rut: null,
+        nota_rechazo: null,
+        created_at: new Date().toISOString()
+      }, { onConflict: "whatsapp" });
+
+    if (errUpsert) {
+      console.error("[registroHandler] Error al iniciar registro POD:", errUpsert.message);
+      await enviarMensajeWhatsApp(jid, phoneClean, `❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.`, !!audio, geminiKey);
+      return res.status(500).json({ success: false });
+    }
+
+    const textoProy = proyectoPodContexto
+      ? `\n\nProyecto: *${proyectoPodContexto.nombre_proyecto}*`
+      : "";
+
+    await enviarMensajeWhatsApp(jid, phoneClean,
+      `👷‍♂️ *¡Bienvenido a la Sala POD de LukeEquipos!*${textoProy}\n\nEstás a un paso de registrarte como *Supervisor* para la Sala POD.\n\nPor favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud al Administrador.`,
+      !!audio,
+      geminiKey
+    );
+    return res.status(200).json({ success: true, message: "Registro POD iniciado" });
   }
 
   // Inicio de registro con QR de equipo detectado
@@ -214,13 +252,46 @@ export async function handleRegistroFlow(ctx, res) {
 
   // Caso 2: Esperando nombre completo (estado === "esperando_nombre" o nombre_completo nulo)
   if (registroPendiente.estado === "esperando_nombre" || !registroPendiente.nombre_completo) {
-    if (!msgText || msgText.toUpperCase().startsWith(prefix)) {
+    if (!msgText || msgText.toUpperCase().startsWith(prefix) || msgText.toUpperCase().startsWith("PARTICIPAR_POD")) {
+      const msjIntro = registroPendiente.rol_solicitado === "Supervisor"
+        ? `👷‍♂️ *¡Bienvenido a la Sala POD!*\n\nPor favor, responde a este mensaje indicando tu *Nombre Completo* para enviar tu solicitud de Supervisor al Administrador.`
+        : `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. ${INSTRUCCION_NOMBRE}`;
+
+      await enviarMensajeWhatsApp(jid, phoneClean, msjIntro, !!audio, geminiKey);
+      return res.status(200).json({ success: true, message: "Esperando nombre completo" });
+    }
+
+    // Si viene de la Sala POD como Supervisor:
+    if (registroPendiente.rol_solicitado === "Supervisor") {
+      const nombreLimpio = msgText.trim();
+      const { error: errUpdate } = await supabase
+        .from("registros_pendientes")
+        .update({
+          nombre_completo: nombreLimpio,
+          estado: "pendiente",
+          nota_rechazo: null,
+          created_at: new Date().toISOString()
+        })
+        .eq("whatsapp", phoneClean);
+
+      if (errUpdate) {
+        console.error("[registroHandler] Error guardando supervisor POD:", errUpdate.message);
+        await enviarMensajeWhatsApp(jid, phoneClean, `❌ Ocurrió un error al procesar tu solicitud. Por favor intenta más tarde.`, !!audio, geminiKey);
+        return res.status(500).json({ success: false });
+      }
+
+      let nombreProy = "Por asignar";
+      if (registroPendiente.proyecto_id) {
+        const { data: p } = await supabase.from("proyectos").select("nombre_proyecto").eq("id", registroPendiente.proyecto_id).maybeSingle();
+        if (p?.nombre_proyecto) nombreProy = p.nombre_proyecto;
+      }
+
       await enviarMensajeWhatsApp(jid, phoneClean,
-        `👷‍♂️ *¡Bienvenido a LukeEquipos!*\n\n¡Perfecto! Estás a un paso de registrarte. ${INSTRUCCION_NOMBRE}`,
+        `✅ *Solicitud de Registro como Supervisor Recibida*\n\n• *Nombre:* ${nombreLimpio}\n• *Rol:* Supervisor\n• *Proyecto:* ${nombreProy}\n\nTu solicitud ha sido enviada al Administrador para su aprobación. En cuanto sea aprobada podrás unirte a la sesión del POD y coordinar los equipos. ¡Gracias! 👷‍♂️`,
         !!audio,
         geminiKey
       );
-      return res.status(200).json({ success: true, message: "Esperando nombre completo" });
+      return res.status(200).json({ success: true, action: "SOLICITUD_SUPERVISOR_COMPLETA" });
     }
 
     // Soporta el atajo avanzado "Nombre_CODIGO" en el mismo mensaje
