@@ -1063,12 +1063,16 @@ export default function PlanificacionPodTab({ hookProps, currentUser, setCurrent
 
   // ── Inicializar POD ──
   const handleInicializarPOD = async () => {
-    if (!window.confirm(`¿Inicializar el POD para el ${formatFecha(fechaPOD)}?\n\nSe enviará "PARTICIPAR_POD" a los supervisores con bloques asignados.`)) return;
+    if (!window.confirm(`¿Cerrar e inicializar el POD para el ${formatFecha(fechaPOD)}?\n\nSe enviará el resumen de asignaciones por WhatsApp a cada supervisor con equipos planificados.`)) return;
     setEnviandoPOD(true);
     try {
-      const r = await fetch("/api/pod/finalizar", { method: "POST", headers: { "Content-Type": "application/json" } });
+      const r = await fetch("/api/pod/finalizar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fecha: fechaPOD, proyecto_id: proyectoActivoId })
+      });
       const json = await r.json();
-      if (json.success) showMsg(`✅ POD inicializado — ${json.alertas_enviadas || 0} alertas`);
+      if (json.success) showMsg(`✅ POD inicializado — ${json.alertas_enviadas || 0} alertas enviadas`);
       else showMsg(`❌ ${json.message || json.error}`, false);
     } catch (e) { showMsg(`❌ ${e.message}`, false); }
     setEnviandoPOD(false);

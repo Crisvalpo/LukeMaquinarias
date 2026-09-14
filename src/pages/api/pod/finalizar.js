@@ -9,10 +9,11 @@ export default async function handler(req, res) {
 
   const supabase = createAdminClient();
 
-  // La fecha objetivo siempre es mañana (el POD se planifica al cierre de jornada)
+  // La fecha objetivo (por defecto mañana, o la enviada desde el front)
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
-  const fechaPOD = manana.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+  const fechaPOD = req.body?.fecha || req.query?.fecha || manana.toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
+  const proyectoIdFiltro = req.body?.proyecto_id || req.query?.proyecto_id || null;
 
   // Formatear fecha amigable
   const [y, m, d] = fechaPOD.split("-");
@@ -29,11 +30,11 @@ export default async function handler(req, res) {
     const especialidadesMap = new Map((especialidades || []).map(e => [e.id, e.nombre_oficial]));
 
     // 2. Obtener todos los bloques del día planificado con detalle completo
-    const { data: bloques, error: errBloques } = await supabase
+    const { data: todosBloques, error: errBloques } = await supabase
       .from("planificacion_bloques_pod")
       .select(`
         id, hora_inicio, hora_fin, actividad_especifica, especialidad_id,
-        equipos ( id, codigo_interno, descripcion_equipo, plataforma_estado, plataforma_detalle, plataforma_especialidad_id ),
+        equipos ( id, codigo_interno, descripcion_equipo, plataforma_estado, plataforma_detalle, plataforma_especialidad_id, proyecto_actual_id ),
         supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey ( id, nombre_completo, whatsapp ),
         proyectos:equipos ( proyecto_actual_id, proyectos ( codigo_cc, nombre_proyecto ) )
       `)
@@ -42,21 +43,23 @@ export default async function handler(req, res) {
 
     if (errBloques) throw new Error(`Error obteniendo bloques: ${errBloques.message}`);
 
+    const bloques = proyectoIdFiltro
+      ? (todosBloques || []).filter(b => b.equipos?.proyecto_actual_id === proyectoIdFiltro)
+      : (todosBloques || []);
+
     if (!bloques || bloques.length === 0) {
       return res.status(200).json({ success: true, message: `No hay bloques planificados para ${fechaStr}.`, alertas_enviadas: 0 });
     }
 
     // 3. ── PROTECCIÓN ANTI-BANEO WhatsApp ──
-    // Solo se puede enviar WA free-form a usuarios que hayan interactuado
-    // con el bot en las últimas 24h. Los supervisores que escanearon el QR
-    // y participaron en la sesión POD de hoy SÍ tienen esa ventana activa.
+    // Considera conectados a quienes participaron hoy o para la fecha planificada
     const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" });
-    const { data: participantesHoy } = await supabase
+    const { data: participantesSesion } = await supabase
       .from("pod_sesion_participantes")
       .select("personal_id")
-      .eq("fecha", hoy);
+      .or(`fecha.eq.${fechaPOD},fecha.eq.${hoy}`);
 
-    const idsConVentana24h = new Set((participantesHoy || []).map(p => p.personal_id));
+    const idsConVentana24h = new Set((participantesSesion || []).map(p => p.personal_id));
 
     // 4. Agrupar bloques por supervisor
     const porSupervisor = new Map();
