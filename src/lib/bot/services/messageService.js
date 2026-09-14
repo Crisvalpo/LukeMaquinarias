@@ -6,7 +6,7 @@ export async function enviarMensajeWhatsApp(jid, phoneClean, texto, tieneAudioEn
 
   // Solo sintetizar si el usuario original envió audio y no hay URLs en la respuesta,
   // ni es un reporte o lista larga (por ejemplo, con más de 350 caracteres o estructura de lista).
-  const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.me");
+  const contieneLink = texto.includes("http://") || texto.includes("https://") || texto.includes("lukeapp.cl") || texto.includes("lukeapp.me");
   const lineas = texto.split("\n");
   const tieneEstructuraLista = lineas.filter(line => line.trim().startsWith("-") || line.trim().startsWith("*") || /^\d+\./.test(line.trim())).length >= 3;
   const esReporteLargo = texto.length > 350 || tieneEstructuraLista;

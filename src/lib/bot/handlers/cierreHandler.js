@@ -314,7 +314,7 @@ export async function handleCierreFlow(ctx, res) {
         .delete()
         .eq("id", sesion.id);
 
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.cl";
       if (equipo?.tipo_seguimiento === 'vehiculo') {
         const kmFinalCalculado = kmFinal || reporteCompleto.km_final;
         const kmRecorridos = kmFinalCalculado && reporteCompleto.km_inicial ? (kmFinalCalculado - reporteCompleto.km_inicial) : null;

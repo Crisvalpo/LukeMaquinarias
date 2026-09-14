@@ -335,7 +335,7 @@ function AdminMaquinariaContent({ currentUser, setCurrentUser, onChangeUser, onS
 
           {!sidebarCollapsed && (
             <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border-sidebar)", flexShrink: 0 }}>
-              <div style={{ color: "var(--color-text-muted)", fontSize: "10px" }}>equipos.lukeapp.me</div>
+              <div style={{ color: "var(--color-text-muted)", fontSize: "10px" }}>equipos.lukeapp.cl</div>
             </div>
           )}
         </div>

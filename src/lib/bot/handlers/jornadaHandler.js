@@ -83,7 +83,7 @@ export async function handleJornadaFlow(ctx, res) {
           .maybeSingle();
 
         if (reporteHisto?.pdf_url) {
-          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.me";
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://equipos.lukeapp.cl";
           await enviarMensajeWhatsApp(jid, phoneClean, 
             `📄 *Reporte Histórico Encontrado*\n\nHola ${personal.nombre_completo}, aquí tienes el PDF de tu jornada del día *${intencion.fecha_solicitada}*:\n👉 ${baseUrl}${reporteHisto.pdf_url}`,
             !!audio,

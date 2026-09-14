@@ -13,7 +13,8 @@ import {
   AlertCircle, 
   Download, 
   RefreshCw, 
-  Cpu
+  Cpu,
+  Zap
 } from "lucide-react";
 import { formatEquipoLabel } from "../../lib/equipoLabel";
 
