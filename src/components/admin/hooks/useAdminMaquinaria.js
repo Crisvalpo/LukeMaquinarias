@@ -271,15 +271,23 @@ export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
   // Inicializar estados de edición cuando se cargan registros
   useEffect(() => {
     if (registros.data && registros.data.length > 0) {
-      const initial = {};
-      registros.data.forEach(r => {
-        initial[r.id] = {
-          rut: "",
-          nombre_completo: r.nombre_completo || "",
-          rol_solicitado: r.rol_solicitado || "Operador"
-        };
+      setEditRegistros(prev => {
+        const next = { ...prev };
+        registros.data.forEach(r => {
+          if (!next[r.id]) {
+            next[r.id] = {
+              rut: r.rut || "",
+              nombre_completo: r.nombre_completo || "",
+              rol_solicitado: r.rol_solicitado || "Operador",
+              proyecto_actual_id: r.proyecto_id || ""
+            };
+          } else {
+            if (!next[r.id].rut && r.rut) next[r.id].rut = r.rut;
+            if (!next[r.id].proyecto_actual_id && r.proyecto_id) next[r.id].proyecto_actual_id = r.proyecto_id;
+          }
+        });
+        return next;
       });
-      setEditRegistros(prev => ({ ...initial, ...prev }));
     }
   }, [registros.data]);
 
