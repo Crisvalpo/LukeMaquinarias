@@ -67,10 +67,16 @@ export async function handleRegistroFlow(ctx, res) {
 
   const msgText = (message || "").trim();
   const prefix = "REGISTRO:";
-  const SUFIJOS_RESERVADOS = ["NUEVO", "INICIO", "START", ""];
-  let nombreDirecto = null;
-  let equipoContexto = null;
-  let rutContexto = null;
+  // Caso prioritario: Si la solicitud ya fue enviada y está pendiente de aprobación por el Admin
+  if (registroPendiente?.estado === "pendiente") {
+    const rol = registroPendiente.rol_solicitado || "Operador";
+    await enviarMensajeWhatsApp(jid, phoneClean,
+      `⏳ *Tu solicitud sigue pendiente de aprobación*\n\nHola *${registroPendiente.nombre_completo || "Usuario"}*, tu solicitud de registro como *${rol}* ya fue enviada al Administrador.\n\nTe notificaremos automáticamente por este medio en cuanto sea aprobada para que puedas comenzar a participar.`,
+      !!audio,
+      geminiKey
+    );
+    return res.status(200).json({ success: true, message: "Solicitud ya pendiente" });
+  }
 
   if (msgText.toUpperCase().startsWith(prefix)) {
     const resto = msgText.slice(prefix.length).trim();
