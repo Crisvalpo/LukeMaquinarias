@@ -71,13 +71,13 @@ export async function handleRegistroFlow(ctx, res) {
     const resto = msgText.slice(prefix.length).trim();
     
     // Extraer RUT si viene en el payload (ej. _RUT_12.345.678-K o _RUT_12345678-K)
-    const matchRut = resto.match(/(?:_RUT_|_RUT:)([0-9kK.-]+)/i);
+    const matchRut = resto.match(/(?:_RUT_|_RUT:|^RUT_)([0-9kK.-]+)/i);
     if (matchRut) {
       rutContexto = matchRut[1].trim();
     }
 
-    // Verificar si viene con payload de equipo: ej. NUEVO_EQ_EIMI00387 o EQ_EIMI00387
-    const matchEq = resto.match(/(?:NUEVO_)?EQ_([a-zA-Z0-9_-]+)/i);
+    // Verificar si viene con payload de equipo: ej. NUEVO_EQ_EIMI00387 o EQ_EIMI00387 (delimitado antes de _RUT_)
+    const matchEq = resto.match(/(?:NUEVO_)?EQ_([a-zA-Z0-9-]+?)(?:_RUT_|_RUT:|$)/i);
     if (matchEq) {
       equipoContexto = await resolverEquipoYProyecto(supabase, matchEq[1]);
     } else if (resto && !SUFIJOS_RESERVADOS.includes(resto.toUpperCase())) {
