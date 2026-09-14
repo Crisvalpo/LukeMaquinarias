@@ -262,18 +262,23 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
               {/* Contenedor de Avatares */}
               <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px", flexWrap: "wrap" }}>
-                {/* 1. Operador en Terreno */}
-                {equipo.tipo_seguimiento !== "vehiculo" && (
-                  equipo.reporte_hoy?.operador ? (
-                    <PersonalAvatar
-                      persona={equipo.reporte_hoy.operador}
-                      rolEtiqueta="Operador"
-                      cfgBorder={cfg.border}
-                    />
-                  ) : !equipo.pod_actual ? (
-                    <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
-                  ) : null
-                )}
+                {/* 1. Operador en Terreno o Confirmado POD */}
+                {equipo.tipo_seguimiento !== "vehiculo" && (() => {
+                  const op = equipo.reporte_hoy?.operador || equipo.pod_actual?.operador_confirmador;
+                  if (op) {
+                    return (
+                      <PersonalAvatar
+                        persona={op}
+                        rolEtiqueta="Operador"
+                        cfgBorder={cfg.border}
+                      />
+                    );
+                  }
+                  if (!equipo.pod_actual) {
+                    return <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>;
+                  }
+                  return null;
+                })()}
 
                 {/* 2. Rigger en Terreno */}
                 {equipo.tipo_seguimiento !== "vehiculo" && equipo.reporte_hoy?.rigger && (

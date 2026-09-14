@@ -39,19 +39,28 @@ export default async function handler(req, res) {
         .select(`
           id, equipo_id, fecha, hora_inicio, hora_fin, actividad_especifica,
           especialidades ( id, nombre_oficial ),
-          supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey ( id, nombre_completo, foto_url, whatsapp )
+          supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey ( id, nombre_completo, foto_url, whatsapp ),
+          operador_confirmador:personal!planificacion_bloques_pod_operador_confirmador_id_fkey ( id, nombre_completo, foto_url, whatsapp )
         `)
         .eq("fecha", hoy)
         .order("hora_inicio")
     ]);
 
-    const reportesMap = reportesHoy
-      ? new Map(
-          reportesHoy
-            .filter(r => r.horometro_final === null && r.km_final === null)
-            .map(r => [r.equipo_id, r])
-        )
-      : new Map();
+    const reportesMap = new Map();
+    if (reportesHoy && reportesHoy.length > 0) {
+      // 1. Asignar reporte del día como base
+      for (const r of reportesHoy) {
+        if (!reportesMap.has(r.equipo_id)) {
+          reportesMap.set(r.equipo_id, r);
+        }
+      }
+      // 2. Dar prioridad al reporte que aún está abierto en turno
+      for (const r of reportesHoy) {
+        if (r.horometro_final === null && r.km_final === null) {
+          reportesMap.set(r.equipo_id, r);
+        }
+      }
+    }
 
     const podPorEquipo = new Map();
     if (bloquesHoy && bloquesHoy.length > 0) {
