@@ -8,9 +8,13 @@ async function enviarMensaje(phone, texto) {
       ? phone
       : `${phone.replace(/[^0-9]/g, "")}@s.whatsapp.net`;
 
+    const bridgeSecret = process.env.WA_BRIDGE_SECRET;
     await fetch(`${BRIDGE_URL}/send`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        ...(bridgeSecret ? { "x-wa-bridge-secret": bridgeSecret } : {})
+      },
       body: JSON.stringify({ to: formattedNum, text: texto }),
     });
   } catch (err) {
