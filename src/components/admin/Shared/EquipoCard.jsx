@@ -214,53 +214,151 @@ export default function EquipoCard({ equipo, onPautaClick, onHistorialClick }) {
           </div>
         )}
 
-        {/* Personal asociado */}
-        {equipo.reporte_hoy && (
-          <div style={{
-            marginTop: "auto", // Si hay personal, empujarlo hacia abajo en la sección de datos
-            padding: "8px 10px",
-            background: "var(--bg-sidebar)",
-            borderRadius: "8px",
-            border: "1px solid var(--border-sidebar)",
-            boxShadow: "none",
-            display: "flex",
-            flexDirection: "column",
-            gap: "6px",
-            flexShrink: 0
-          }}>
-            <div style={{ color: "var(--color-text-muted)", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
-              Personal Asignado
+        {/* Asignación y Personal (Terreno + Sala POD) */}
+        {(equipo.reporte_hoy || equipo.pod_actual) && (
+          <div
+            style={{
+              marginTop: "auto",
+              padding: "9px 11px",
+              background: "var(--bg-sidebar)",
+              borderRadius: "8px",
+              border: "1px solid var(--border-sidebar)",
+              boxShadow: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: "7px",
+              flexShrink: 0,
+            }}
+          >
+            {/* Header de Asignación / Especialidad POD */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "4px" }}>
+              <div style={{ color: "var(--color-text-muted)", fontSize: "9px", textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.5px" }}>
+                {equipo.pod_actual ? "Asignación & Turno" : "Personal en Turno"}
+              </div>
+
+              {equipo.pod_actual?.especialidades?.nombre_oficial && (
+                <div
+                  title={equipo.pod_actual.actividad_especifica ? `POD: ${equipo.pod_actual.actividad_especifica}` : "Especialidad POD"}
+                  style={{
+                    background: "rgba(59, 130, 246, 0.12)",
+                    color: "#2563eb",
+                    border: "1px solid rgba(59, 130, 246, 0.25)",
+                    borderRadius: "4px",
+                    padding: "1px 6px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "3px",
+                  }}
+                >
+                  <span>🏷️</span>
+                  <span>{equipo.pod_actual.especialidades.nombre_oficial}</span>
+                </div>
+              )}
             </div>
-            <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px" }}>
-              {equipo.tipo_seguimiento === "vehiculo" ? (
-                equipo.reporte_hoy.supervisor ? (
-                  <PersonalAvatar
-                    persona={equipo.reporte_hoy.supervisor}
-                    rolEtiqueta="Supervisor"
-                    cfgBorder={cfg.border}
-                  />
-                ) : (
-                  <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin supervisor asignado</span>
-                )
-              ) : (
-                <>
-                  {equipo.reporte_hoy.operador ? (
+
+            {/* Fila con Avatares y Franja Horaria */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+              {/* Contenedor de Avatares */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", minHeight: "32px", flexWrap: "wrap" }}>
+                {/* 1. Operador en Terreno */}
+                {equipo.tipo_seguimiento !== "vehiculo" && (
+                  equipo.reporte_hoy?.operador ? (
                     <PersonalAvatar
                       persona={equipo.reporte_hoy.operador}
                       rolEtiqueta="Operador"
                       cfgBorder={cfg.border}
                     />
-                  ) : (
+                  ) : !equipo.pod_actual ? (
                     <span style={{ color: "var(--color-text-muted)", fontSize: "11px", fontStyle: "italic" }}>Sin operador</span>
-                  )}
-                  {equipo.reporte_hoy.rigger && (
-                    <PersonalAvatar
-                      persona={equipo.reporte_hoy.rigger}
-                      rolEtiqueta="Rigger"
-                      cfgBorder="#a855f7"
-                    />
-                  )}
-                </>
+                  ) : null
+                )}
+
+                {/* 2. Rigger en Terreno */}
+                {equipo.tipo_seguimiento !== "vehiculo" && equipo.reporte_hoy?.rigger && (
+                  <PersonalAvatar
+                    persona={equipo.reporte_hoy.rigger}
+                    rolEtiqueta="Rigger"
+                    cfgBorder="#a855f7"
+                  />
+                )}
+
+                {/* 3. Supervisor Vehículo (Camionetas) */}
+                {equipo.tipo_seguimiento === "vehiculo" && equipo.reporte_hoy?.supervisor && (
+                  <PersonalAvatar
+                    persona={equipo.reporte_hoy.supervisor}
+                    rolEtiqueta="Supervisor"
+                    cfgBorder={cfg.border}
+                  />
+                )}
+
+                {/* 4. Supervisor POD Asignado */}
+                {equipo.pod_actual?.supervisor && (
+                  <PersonalAvatar
+                    persona={equipo.pod_actual.supervisor}
+                    rolEtiqueta={
+                      equipo.pod_actual.supervisor.id === "11111111-1111-1111-1111-111111111111"
+                        ? "Mantenimiento"
+                        : equipo.pod_actual.supervisor.id === "22222222-2222-2222-2222-222222222222"
+                        ? "Taller"
+                        : "Supervisor POD"
+                    }
+                    cfgBorder="#f59e0b"
+                  />
+                )}
+              </div>
+
+              {/* Bloque Horario POD */}
+              {equipo.pod_actual && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    gap: "2px",
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    title={equipo.pod_actual.actividad_especifica || "Bloque POD"}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: equipo.pod_actual.estado_bloque === "EN_CURSO" ? "#059669" : "var(--color-text-muted)",
+                      background: equipo.pod_actual.estado_bloque === "EN_CURSO" ? "rgba(16, 185, 129, 0.12)" : "var(--bg-input)",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      border: equipo.pod_actual.estado_bloque === "EN_CURSO" ? "1px solid rgba(16, 185, 129, 0.25)" : "1px solid var(--border-input)",
+                    }}
+                  >
+                    {equipo.pod_actual.estado_bloque === "EN_CURSO" && (
+                      <span
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          backgroundColor: "#10b981",
+                          boxShadow: "0 0 6px #10b981",
+                          display: "inline-block",
+                        }}
+                      />
+                    )}
+                    <span>
+                      {equipo.pod_actual.hora_inicio?.slice(0, 5)} - {equipo.pod_actual.hora_fin?.slice(0, 5)}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: "9px", color: "var(--color-text-muted)" }}>
+                    {equipo.pod_actual.estado_bloque === "EN_CURSO"
+                      ? "En curso"
+                      : equipo.pod_actual.estado_bloque === "PROXIMO"
+                      ? "Próximo POD"
+                      : "POD Hoy"}
+                  </span>
+                </div>
               )}
             </div>
           </div>

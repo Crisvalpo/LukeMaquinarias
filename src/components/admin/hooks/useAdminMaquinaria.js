@@ -515,7 +515,10 @@ export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
       (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.operador?.nombre_completo || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
-      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
+      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.especialidad?.nombre_oficial || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.actividad_especifica || "").toLowerCase().includes(query);
 
     return cumpleCat && cumpleEst && cumpleSearch && cumpleCombustible && cumpleComercial;
   });
@@ -534,7 +537,10 @@ export function useAdminMaquinaria(proyectoActivoId, rolActual = null) {
       (eq.proyectos?.nombre_proyecto || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.operador?.nombre_completo || "").toLowerCase().includes(query) ||
       (eq.reporte_hoy?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
-      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query);
+      (eq.reporte_hoy?.rigger?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.supervisor?.nombre_completo || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.especialidad?.nombre_oficial || "").toLowerCase().includes(query) ||
+      (eq.pod_actual?.actividad_especifica || "").toLowerCase().includes(query);
 
     return cumpleCat && cumpleSearch;
   });

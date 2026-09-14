@@ -22,15 +22,28 @@ export default async function handler(req, res) {
 
     // Obtener reportes activos de hoy para asociar el operador en la respuesta
     const hoy = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Santiago" }); // YYYY-MM-DD
-    const { data: reportesHoy } = await supabase
-      .from("reportes_diarios")
-      .select(`
-        *,
-        operador:personal!reportes_diarios_operador_id_fkey(id, nombre_completo, foto_url, whatsapp),
-        supervisor:personal!reportes_diarios_supervisor_id_fkey(id, nombre_completo, foto_url, whatsapp),
-        rigger:personal!reportes_diarios_rigger_id_fkey(id, nombre_completo, foto_url, whatsapp)
-      `)
-      .eq("fecha", hoy);
+    const ahoraStr = new Date().toLocaleTimeString("sv-SE", { timeZone: "America/Santiago" }); // HH:MM:SS
+
+    const [{ data: reportesHoy }, { data: bloquesHoy }] = await Promise.all([
+      supabase
+        .from("reportes_diarios")
+        .select(`
+          *,
+          operador:personal!reportes_diarios_operador_id_fkey(id, nombre_completo, foto_url, whatsapp),
+          supervisor:personal!reportes_diarios_supervisor_id_fkey(id, nombre_completo, foto_url, whatsapp),
+          rigger:personal!reportes_diarios_rigger_id_fkey(id, nombre_completo, foto_url, whatsapp)
+        `)
+        .eq("fecha", hoy),
+      supabase
+        .from("planificacion_bloques_pod")
+        .select(`
+          id, equipo_id, fecha, hora_inicio, hora_fin, actividad_especifica,
+          especialidades ( id, nombre_oficial ),
+          supervisor:personal!planificacion_bloques_pod_supervisor_id_fkey ( id, nombre_completo, foto_url, whatsapp )
+        `)
+        .eq("fecha", hoy)
+        .order("hora_inicio")
+    ]);
 
     const reportesMap = reportesHoy
       ? new Map(
@@ -40,12 +53,53 @@ export default async function handler(req, res) {
         )
       : new Map();
 
-    const mergeReporteHoy = (list) => {
+    const podPorEquipo = new Map();
+    if (bloquesHoy && bloquesHoy.length > 0) {
+      for (const bloque of bloquesHoy) {
+        if (!podPorEquipo.has(bloque.equipo_id)) {
+          podPorEquipo.set(bloque.equipo_id, []);
+        }
+        podPorEquipo.get(bloque.equipo_id).push(bloque);
+      }
+    }
+
+    const cmpHora = (t) => (t && t.length === 5 ? `${t}:00` : (t || "00:00:00"));
+
+    const resolverPodActual = (bloques) => {
+      if (!bloques || bloques.length === 0) return null;
+      
+      // 1. En curso ahora
+      const enCurso = bloques.find(b => {
+        const hIni = cmpHora(b.hora_inicio);
+        const hFin = cmpHora(b.hora_fin);
+        return ahoraStr >= hIni && ahoraStr <= hFin;
+      });
+      if (enCurso) {
+        return { ...enCurso, estado_bloque: "EN_CURSO" };
+      }
+
+      // 2. Próximo en el día
+      const proximo = bloques.find(b => cmpHora(b.hora_inicio) > ahoraStr);
+      if (proximo) {
+        return { ...proximo, estado_bloque: "PROXIMO" };
+      }
+
+      // 3. Finalizado (último del día)
+      const ultimo = bloques[bloques.length - 1];
+      return { ...ultimo, estado_bloque: "FINALIZADO" };
+    };
+
+    const mergeEquiposExtra = (list) => {
       if (!list) return [];
-      return list.map(eq => ({
-        ...eq,
-        reporte_hoy: reportesMap.get(eq.id) || null
-      }));
+      return list.map(eq => {
+        const bloques = podPorEquipo.get(eq.id) || [];
+        return {
+          ...eq,
+          reporte_hoy: reportesMap.get(eq.id) || null,
+          pod_actual: resolverPodActual(bloques),
+          pod_bloques: bloques,
+        };
+      });
     };
 
     if (page || limit) {
@@ -59,16 +113,16 @@ export default async function handler(req, res) {
         .range(from, to);
 
       if (error) return res.status(500).json({ success: false, error: error.message });
-      const dataWithReporte = mergeReporteHoy(data);
-      return res.status(200).json({ success: true, data: dataWithReporte, count, page: pageNum, limit: limitNum });
+      const dataEnriquecida = mergeEquiposExtra(data);
+      return res.status(200).json({ success: true, data: dataEnriquecida, count, page: pageNum, limit: limitNum });
     } else {
       // Retornar lista completa (compatibilidad)
       const { data, error, count } = await query
         .order("codigo_interno");
 
       if (error) return res.status(500).json({ success: false, error: error.message });
-      const dataWithReporte = mergeReporteHoy(data);
-      return res.status(200).json({ success: true, data: dataWithReporte, count });
+      const dataEnriquecida = mergeEquiposExtra(data);
+      return res.status(200).json({ success: true, data: dataEnriquecida, count });
     }
   }
 

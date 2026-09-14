@@ -92,8 +92,12 @@ export default function PersonalAvatar({ persona, rolEtiqueta, cfgBorder }) {
             lineHeight: 1.2,
           }}
         >
-          {persona.nombre_completo}
-          {/* Flechita indicadora hacia el avatar */}
+          <div>{persona.nombre_completo}</div>
+          {rolEtiqueta && (
+            <div style={{ fontSize: "9px", color: "#94a3b8", fontWeight: 500, marginTop: "2px" }}>
+              {rolEtiqueta}
+            </div>
+          )}
           <div
             style={{
               position: "absolute",
