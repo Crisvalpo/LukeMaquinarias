@@ -65,10 +65,17 @@ export async function handleRegistroFlow(ctx, res) {
   const SUFIJOS_RESERVADOS = ["NUEVO", "INICIO", "START", ""];
   let nombreDirecto = null;
   let equipoContexto = null;
+  let rutContexto = null;
 
   if (msgText.toUpperCase().startsWith(prefix)) {
     const resto = msgText.slice(prefix.length).trim();
     
+    // Extraer RUT si viene en el payload (ej. _RUT_12.345.678-K o _RUT_12345678-K)
+    const matchRut = resto.match(/(?:_RUT_|_RUT:)([0-9kK.-]+)/i);
+    if (matchRut) {
+      rutContexto = matchRut[1].trim();
+    }
+
     // Verificar si viene con payload de equipo: ej. NUEVO_EQ_EIMI00387 o EQ_EIMI00387
     const matchEq = resto.match(/(?:NUEVO_)?EQ_([a-zA-Z0-9_-]+)/i);
     if (matchEq) {
@@ -89,6 +96,7 @@ export async function handleRegistroFlow(ctx, res) {
         rol_solicitado: "Operador",
         estado: "esperando_nombre",
         proyecto_id: proyectoEquipo?.id || null,
+        rut: rutContexto || null,
         nota_rechazo: null,
         created_at: new Date().toISOString()
       }, { onConflict: "whatsapp" });
@@ -125,6 +133,7 @@ export async function handleRegistroFlow(ctx, res) {
           rol_solicitado: "Operador",
           estado: "esperando_rol",
           proyecto_id: proyecto.id,
+          rut: rutContexto || null,
           nota_rechazo: null,
           created_at: new Date().toISOString()
         }, { onConflict: "whatsapp" });
@@ -152,6 +161,7 @@ export async function handleRegistroFlow(ctx, res) {
         rol_solicitado: "Operador",
         estado: "esperando_proyecto",
         proyecto_id: null,
+        rut: rutContexto || null,
         nota_rechazo: null,
         created_at: new Date().toISOString()
       }, { onConflict: "whatsapp" });
@@ -179,6 +189,7 @@ export async function handleRegistroFlow(ctx, res) {
         nombre_completo: null,
         rol_solicitado: "Operador",
         estado: "esperando_nombre",
+        rut: rutContexto || null,
         created_at: new Date().toISOString()
       });
 

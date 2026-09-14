@@ -1,6 +1,5 @@
 import React from "react";
 import { CheckCircle, XCircle, X } from "lucide-react";
-import SearchableSelect from "./Shared/SearchableSelect";
 
 const inputStyle = {
   width: "100%", background: "var(--bg-input)", border: "1px solid var(--border-input)",
@@ -62,8 +61,10 @@ export default function RegistrosTab({ hookProps }) {
             <tbody>
               {registros.data.filter(r => r.estado === "pendiente" && r.nombre_completo).map((r) => {
                 const edit = editRegistros[r.id] || {
-                  rut: "", nombre_completo: r.nombre_completo || "", rol_solicitado: r.rol_solicitado || "Operador",
-                  proyecto_actual_id: esJefeDeArea ? (proyectoActivoId || "") : ""
+                  rut: r.rut || "",
+                  nombre_completo: r.nombre_completo || "",
+                  rol_solicitado: r.rol_solicitado || "Operador",
+                  proyecto_actual_id: esJefeDeArea ? (proyectoActivoId || "") : (r.proyecto_id || "")
                 };
                 return (
                   <tr key={r.id} style={{ borderBottom: "1px solid var(--border-container)" }}>
@@ -109,21 +110,21 @@ export default function RegistrosTab({ hookProps }) {
                       {esJefeDeArea ? (
                         <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{proyectoPropioLabel}</span>
                       ) : (
-                        <SearchableSelect
-                          options={[
-                            { value: "", label: "Sin asignar" },
-                            ...(proyectosCompleto?.data || []).map(o => ({
-                              value: o.id,
-                              label: `${o.codigo_cc} — ${o.nombre_proyecto}`
-                            }))
-                          ]}
+                        <select
+                          style={{ ...selectStyle, padding: "6px 10px", width: "100%", minWidth: "180px" }}
                           value={edit.proyecto_actual_id || ""}
-                          onChange={val => setEditRegistros(prev => ({
+                          onChange={e => setEditRegistros(prev => ({
                             ...prev,
-                            [r.id]: { ...edit, proyecto_actual_id: val }
+                            [r.id]: { ...edit, proyecto_actual_id: e.target.value }
                           }))}
-                          selectStyle={{ padding: "6px 10px", minHeight: "32px" }}
-                        />
+                        >
+                          <option value="">Sin asignar</option>
+                          {(proyectosCompleto?.data || []).map(o => (
+                            <option key={o.id} value={o.id}>
+                              {o.codigo_cc} — {o.nombre_proyecto}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </td>
                     <td style={{ padding: "12px 16px", display: "flex", gap: "8px" }}>

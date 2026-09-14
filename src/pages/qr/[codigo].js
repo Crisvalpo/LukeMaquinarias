@@ -496,7 +496,12 @@ export default function QrLanding() {
                     <p>¿Eres un operador nuevo en LukeEquipos?</p>
                     <a 
                       href={`https://wa.me/${botPhone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                        equipo?.codigo_interno ? `REGISTRO:NUEVO_EQ_${equipo.codigo_interno}` : "REGISTRO:NUEVO"
+                        (() => {
+                          const partes = ["REGISTRO:NUEVO"];
+                          if (equipo?.codigo_interno) partes.push(`EQ_${equipo.codigo_interno}`);
+                          if (identificador) partes.push(`RUT_${identificador.trim()}`);
+                          return partes.join("_");
+                        })()
                       )}`}
                       className="registro-link"
                       target="_blank"
